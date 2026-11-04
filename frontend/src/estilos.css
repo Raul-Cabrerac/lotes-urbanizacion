@@ -1,0 +1,1218 @@
+/* =========================================================================
+   Estilos de la aplicación (CSS simple con variables; sin frameworks)
+   ========================================================================= */
+
+:root {
+  --verde: #2e8b57;
+  --verde-oscuro: #14532d;
+  --verde-claro: #e8f5ee;
+  --ambar: #e0a21b;
+  --ambar-claro: #fdf4dd;
+  --rojo: #cf4a47;
+  --rojo-claro: #fbe9e8;
+  --gris: #7b8794;
+  --gris-claro: #eef1f3;
+  --azul: #1d4ed8;
+  --azul-claro: #e7eefc;
+
+  --texto: #1f2933;
+  --texto-suave: #61707d;
+  --borde: #dde3e7;
+  --fondo: #f4f6f5;
+  --blanco: #ffffff;
+  --radio: 8px;
+  --sombra: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --alto-barra: 56px;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: var(--texto);
+  background: var(--fondo);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+}
+
+h1 {
+  font-size: 1.45rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+a {
+  color: var(--azul);
+}
+code {
+  background: var(--gris-claro);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* ---------- Estructura ---------- */
+
+.aplicacion {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.barra-superior {
+  height: var(--alto-barra);
+  background: var(--verde-oscuro);
+  color: var(--blanco);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.marca-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #4ade80;
+  color: var(--verde-oscuro);
+  font-size: 18px;
+}
+.marca-logo.grande {
+  width: 48px;
+  height: 48px;
+  font-size: 30px;
+}
+
+.menu {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+}
+.menu a {
+  color: #d1fae5;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.menu a:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.menu a.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--blanco);
+  font-weight: 600;
+}
+
+.usuario-actual {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.usuario-datos {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  line-height: 1.2;
+}
+.usuario-datos span {
+  font-size: 0.8rem;
+  color: #bbf7d0;
+}
+
+.contenido {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pagina {
+  padding: 24px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.encabezado-pagina {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.encabezado-pagina p {
+  margin: 4px 0 0;
+}
+.acciones {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.titulo-seccion {
+  margin: 26px 0 10px;
+}
+
+.pagina-centrada {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* ---------- Tarjetas, cajas y datos ---------- */
+
+.tarjeta {
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 16px;
+}
+.tarjeta.sin-relleno {
+  padding: 0;
+  overflow: hidden;
+}
+.tarjeta-mensaje {
+  text-align: center;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.icono-grande {
+  font-size: 44px;
+}
+
+.caja {
+  border-radius: var(--radio);
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  line-height: 1.45;
+}
+.caja > * + * {
+  margin-top: 4px;
+}
+.caja-verde {
+  background: var(--verde-claro);
+  border-color: #b7e0c8;
+}
+.caja-ambar {
+  background: var(--ambar-claro);
+  border-color: #f2d58f;
+}
+.caja-roja {
+  background: var(--rojo-claro);
+  border-color: #f0c2c0;
+}
+.caja-gris {
+  background: var(--gris-claro);
+  border-color: var(--borde);
+}
+
+.grilla-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.grilla-datos.tres {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.grilla-datos.cuatro {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.grilla-datos.compacta {
+  gap: 6px 10px;
+  margin: 8px 0;
+}
+.dato-etiqueta {
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.dato-valor {
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.texto-suave {
+  color: var(--texto-suave);
+}
+.texto-alerta {
+  color: var(--rojo);
+  font-weight: 600;
+}
+.pequeno {
+  font-size: 0.85rem;
+}
+.descripcion {
+  color: var(--texto);
+  margin: 6px 0;
+}
+.monto-verde {
+  color: var(--verde);
+}
+.monto-rojo {
+  color: var(--rojo);
+}
+
+.fila-espaciada {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.vacio {
+  padding: 24px;
+  text-align: center;
+  color: var(--texto-suave);
+}
+
+.cargando {
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--texto-suave);
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--borde);
+  border-top-color: var(--verde);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.alerta {
+  border-radius: var(--radio);
+  padding: 10px 12px;
+}
+.alerta-error {
+  background: var(--rojo-claro);
+  border: 1px solid #f0c2c0;
+  color: #8f2422;
+}
+
+/* ---------- Insignias de estado ---------- */
+
+.insignia {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.insignia-verde {
+  background: var(--verde-claro);
+  color: #1d6b40;
+}
+.insignia-ambar {
+  background: var(--ambar-claro);
+  color: #8a5d00;
+}
+.insignia-rojo {
+  background: var(--rojo-claro);
+  color: #a3302d;
+}
+.insignia-gris {
+  background: var(--gris-claro);
+  color: #4b5563;
+}
+.insignia-azul {
+  background: var(--azul-claro);
+  color: #1e40af;
+}
+
+/* ---------- Botones ---------- */
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--borde);
+  background: var(--blanco);
+  color: var(--texto);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.boton:hover:not(:disabled) {
+  background: var(--gris-claro);
+}
+.boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.boton-chico {
+  padding: 5px 10px;
+  font-size: 0.85rem;
+}
+.boton-bloque {
+  width: 100%;
+}
+.boton-primario {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+.boton-primario:hover:not(:disabled) {
+  background: #267349;
+}
+.boton-ambar {
+  background: var(--ambar);
+  border-color: var(--ambar);
+  color: #3d2a00;
+}
+.boton-ambar:hover:not(:disabled) {
+  background: #c98f12;
+}
+.boton-rojo,
+.boton-peligro {
+  background: var(--rojo);
+  border-color: var(--rojo);
+  color: var(--blanco);
+}
+.boton-rojo:hover:not(:disabled),
+.boton-peligro:hover:not(:disabled) {
+  background: #b33d3a;
+}
+.boton-claro {
+  background: transparent;
+  color: var(--blanco);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.boton-claro:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.boton-texto-peligro {
+  color: var(--rojo);
+}
+.boton-icono {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--texto-suave);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.boton-icono:hover {
+  background: var(--gris-claro);
+}
+
+/* ---------- Formularios ---------- */
+
+input,
+select,
+textarea {
+  font: inherit;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--blanco);
+  color: var(--texto);
+  width: 100%;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #9fd8b7;
+  border-color: var(--verde);
+}
+input[type='radio'],
+input[type='checkbox'] {
+  width: auto;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.campo-etiqueta {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.campo-ayuda {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+.fila-campos {
+  display: flex;
+  gap: 10px;
+}
+.opciones {
+  display: flex;
+  gap: 18px;
+}
+.opciones label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.selector-cliente {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.buscador {
+  margin-bottom: 14px;
+  max-width: 480px;
+}
+.filtros-fila {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  max-width: 900px;
+}
+
+/* ---------- Tablas ---------- */
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--texto-suave);
+  background: #f8faf9;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--borde);
+}
+.tabla td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: middle;
+}
+.tabla tr:last-child td {
+  border-bottom: none;
+}
+.tabla .numero {
+  text-align: right;
+}
+.tabla strong {
+  white-space: nowrap;
+}
+.tabla-compacta th,
+.tabla-compacta td {
+  padding: 5px 8px;
+}
+.fila-clic {
+  cursor: pointer;
+}
+.fila-clic:hover td {
+  background: #f8faf9;
+}
+.fila-anulada td {
+  color: var(--texto-suave);
+  text-decoration: line-through;
+}
+.fila-anulada td:nth-last-child(-n + 2) {
+  text-decoration: none;
+}
+.acciones-fila {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pestanas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--borde);
+}
+.pestana {
+  border: none;
+  background: none;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+  color: var(--texto-suave);
+  border-bottom: 2px solid transparent;
+}
+.pestana.activa {
+  color: var(--verde-oscuro);
+  font-weight: 700;
+  border-bottom-color: var(--verde);
+}
+
+/* ---------- Login ---------- */
+
+.pantalla-login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 20% 20%, #1f7a4d 0%, var(--verde-oscuro) 60%);
+}
+.login {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+}
+.login-cabecera {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.login-cabecera p {
+  margin: 0;
+}
+.login-demo {
+  border-top: 1px dashed var(--borde);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.login-demo-botones {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Proyectos ---------- */
+
+.grilla-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.tarjeta-proyecto {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.tarjeta-proyecto:hover {
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.12);
+  transform: translateY(-1px);
+}
+.tarjeta-proyecto p {
+  margin: 0;
+}
+.barra-estados {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--gris-claro);
+  margin: 4px 0;
+}
+
+/* ---------- Pantalla del mapa ---------- */
+
+.pagina-mapa {
+  display: flex;
+  height: calc(100vh - var(--alto-barra));
+  overflow: hidden;
+}
+.panel-lateral {
+  width: 330px;
+  flex-shrink: 0;
+  background: var(--blanco);
+  border-right: 1px solid var(--borde);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.panel-lateral h1 {
+  font-size: 1.2rem;
+}
+.panel-lateral p {
+  margin: 0;
+}
+.enlace-volver {
+  display: inline-block;
+  color: var(--texto-suave);
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+.enlace-volver:hover {
+  color: var(--texto);
+}
+
+.contadores {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.contador {
+  border: 1px solid var(--borde);
+  border-top: 4px solid;
+  border-radius: 6px;
+  background: var(--blanco);
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  font: inherit;
+}
+.contador strong {
+  font-size: 1.15rem;
+}
+.contador span {
+  font-size: 0.7rem;
+  color: var(--texto-suave);
+}
+.contador.activo {
+  background: var(--gris-claro);
+  outline: 2px solid var(--texto-suave);
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.filtros select,
+.filtros input {
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.lista-lotes {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  min-height: 120px;
+  flex: 1;
+  overflow-y: auto;
+}
+.item-lote {
+  display: grid;
+  grid-template-columns: 12px 56px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: none;
+  border-bottom: 1px solid var(--borde);
+  background: var(--blanco);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.item-lote:hover {
+  background: #f8faf9;
+}
+.item-lote.seleccionado {
+  background: var(--azul-claro);
+}
+.item-lote .punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.item-lote-codigo {
+  font-weight: 700;
+}
+.item-lote-info {
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+}
+.item-lote-precio {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.resumen-manzanos summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+.zona-mapa {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.barra-mapa {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--blanco);
+  border-bottom: 1px solid var(--borde);
+  flex-wrap: wrap;
+}
+.barra-mapa-ayuda {
+  align-self: center;
+}
+.aviso-modo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--azul-claro);
+  border-bottom: 1px solid #c7d6f8;
+  color: #1e3a8a;
+  font-size: 0.9rem;
+}
+.mapa-contenedor {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 300px;
+}
+.mapa {
+  flex: 1;
+  min-height: 300px;
+  z-index: 0;
+}
+.mapa-mensaje {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: var(--gris-claro);
+  color: var(--texto-suave);
+  z-index: 1;
+}
+.mapa-error {
+  color: var(--rojo);
+  font-weight: 600;
+}
+.mapa-vacio {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 14px 18px;
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  z-index: 500;
+  text-align: center;
+  max-width: 320px;
+}
+
+.leyenda {
+  position: absolute;
+  bottom: 30px; /* por encima del logo de Google */
+  left: 10px;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  box-shadow: var(--sombra);
+  padding: 6px 10px;
+  display: flex;
+  gap: 12px;
+  font-size: 0.8rem;
+}
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.leyenda-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+/* Capa de Google Maps con elementos HTML (etiquetas de lotes y vértices del dibujo) */
+.capa-html.inactiva,
+.capa-html.inactiva * {
+  pointer-events: none;
+}
+
+/* Etiqueta con el código del lote, centrada sobre su polígono */
+.etiqueta-lote {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: #111827;
+  font: 700 11px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+  cursor: pointer;
+  user-select: none;
+}
+/* Si el código no cabe dentro del lote (mapa alejado) se muestra un punto del color del estado */
+.etiqueta-lote.compacta {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid #fff;
+  background: var(--color-estado);
+  color: transparent;
+  text-shadow: none;
+  font-size: 0;
+}
+
+/* Vértices mientras se dibuja un polígono; el primero es más grande: ahí se cierra */
+.vertice-dibujo {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #1d4ed8;
+}
+.vertice-dibujo.inicial {
+  width: 16px;
+  height: 16px;
+  background: #1d4ed8;
+  border-color: #fff;
+}
+.herramienta-dibujo {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 6px;
+  box-shadow: var(--sombra);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.panel-detalle {
+  width: 360px;
+  flex-shrink: 0;
+  background: var(--blanco);
+  border-left: 1px solid var(--borde);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+.panel-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.panel-cabecera h2 {
+  font-size: 1.35rem;
+  margin: 2px 0 6px;
+}
+.acciones-panel {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.acciones-admin {
+  flex-direction: column;
+  align-items: stretch;
+  border-top: 1px dashed var(--borde);
+  padding-top: 12px;
+}
+
+/* ---------- Venta / plan de pagos ---------- */
+
+.grilla-venta {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.tarjeta-saldo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8faf9;
+}
+.tarjeta-saldo .dato-valor {
+  font-size: 1.3rem;
+}
+.saldo-titulo {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.barra-progreso {
+  height: 8px;
+  background: var(--gris-claro);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.barra-progreso span {
+  display: block;
+  height: 100%;
+  background: var(--verde);
+}
+.mapa-mini {
+  min-height: 240px;
+  display: flex;
+}
+.mapa-mini .mapa {
+  min-height: 240px;
+}
+
+.columnas-venta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+}
+.vista-plan {
+  background: #f8faf9;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: start;
+}
+
+/* ---------- Reportes ---------- */
+
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.indicador {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.indicador span {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+.indicador strong {
+  font-size: 1.35rem;
+}
+
+/* ---------- Portal del cliente ---------- */
+
+.portal {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.portal-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.portal-lista .titulo-seccion {
+  margin: 4px 0 0;
+}
+.tarjeta-compra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.tarjeta-compra.seleccionada {
+  border-color: var(--azul);
+}
+.portal-mapa {
+  position: sticky;
+  top: calc(var(--alto-barra) + 16px);
+  height: 560px;
+  display: flex;
+}
+.portal-mapa .mapa {
+  height: 100%;
+}
+
+/* ---------- Modales y avisos ---------- */
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 2000;
+}
+.modal {
+  background: var(--blanco);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.modal-ancho {
+  max-width: 860px;
+}
+.modal-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--borde);
+}
+.modal-cuerpo {
+  padding: 16px 18px;
+  overflow-y: auto;
+}
+.modal-pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.avisos {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3000;
+  max-width: 420px;
+}
+.aviso {
+  padding: 12px 14px;
+  border-radius: var(--radio);
+  color: var(--blanco);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  animation: aparecer 0.2s ease-out;
+}
+.aviso-exito {
+  background: #1d6b40;
+}
+.aviso-error {
+  background: #a3302d;
+}
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- Pantallas angostas ---------- */
+
+@media (max-width: 1100px) {
+  .grilla-venta {
+    grid-template-columns: 1fr 1fr;
+  }
+  .mapa-mini {
+    grid-column: span 2;
+  }
+  .indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .pagina-mapa {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+  .panel-lateral,
+  .panel-detalle {
+    width: 100%;
+    border: none;
+  }
+  .zona-mapa {
+    height: 70vh;
+  }
+  .portal,
+  .columnas-venta,
+  .grilla-venta {
+    grid-template-columns: 1fr;
+  }
+  .mapa-mini {
+    grid-column: auto;
+  }
+  .portal-mapa {
+    position: static;
+    height: 420px;
+  }
+  .barra-superior {
+    gap: 10px;
+  }
+  .usuario-datos {
+    display: none;
+  }
+  .pagina {
+    padding: 16px;
+  }
+  .tarjeta.sin-relleno {
+    overflow-x: auto;
+  }
+  .grilla-datos.cuatro {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

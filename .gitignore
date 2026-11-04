@@ -1,0 +1,26 @@
+# Dependencias y salidas de compilación
+node_modules/
+dist/
+coverage/
+
+# Variables de entorno locales (credenciales de Neon: DATABASE_URL y DATABASE_URL_UNPOOLED)
+.env
+.env.local
+
+# Vínculo local con el proyecto de Neon (neon link / neon init)
+.neon
+
+# Skills de agente de Neon (documentación de terceros) y ajustes personales de Claude Code
+.claude/skills/neon*/
+.claude/settings.local.json
+
+# Resultados de Playwright
+e2e/playwright-report/
+e2e/test-results/
+
+# Sistema operativo y editores
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

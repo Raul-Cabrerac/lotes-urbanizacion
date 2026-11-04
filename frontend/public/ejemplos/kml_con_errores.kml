@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>KML con errores (no se importa nada)</name>
+    <description>X-02 tiene lados que se cruzan, X-03 tiene solo 2 puntos, X-01 está repetido y X-05 tiene un precio no numérico. Como la importación es "todo o nada", no se crea ningún lote.</description>
+    <Style id="lote"><LineStyle><color>ff2e8b57</color><width>2</width></LineStyle><PolyStyle><color>662e8b57</color></PolyStyle></Style>
+    <Style id="limite"><LineStyle><color>ff0000ff</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+    <Placemark>
+      <name>X-01</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>X</value></Data>
+          <Data name="precio"><value>50000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1302000000,-17.8318000000,0 -63.1300866355,-17.8318000000,0 -63.1300866355,-17.8315751699,0 -63.1302000000,-17.8315751699,0 -63.1302000000,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>X-02</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>X</value></Data>
+          <Data name="precio"><value>50000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1300110591,-17.8318000000,0 -63.1298976946,-17.8315751699,0 -63.1298976946,-17.8318000000,0 -63.1300110591,-17.8315751699,0 -63.1300110591,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>X-03</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>X</value></Data>
+          <Data name="precio"><value>50000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1300110591,-17.8318000000,0 -63.1298976946,-17.8318000000,0 -63.1300110591,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>X-01</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>X</value></Data>
+          <Data name="precio"><value>50000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1298221183,-17.8318000000,0 -63.1297087537,-17.8318000000,0 -63.1297087537,-17.8315751699,0 -63.1298221183,-17.8315751699,0 -63.1298221183,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>X-05</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>X</value></Data>
+          <Data name="precio"><value>cincuenta mil</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1296331774,-17.8318000000,0 -63.1295198129,-17.8318000000,0 -63.1295198129,-17.8315751699,0 -63.1296331774,-17.8315751699,0 -63.1296331774,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

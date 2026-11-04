@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Urbanización El Mirador</name>
+    <description>Ejemplo para importar: un límite (tipo=limite), 8 lotes del manzano M1 y un punto que se ignora. Los lotes M1-06 y M1-07 no traen precio: toman el "precio por defecto" del formulario.</description>
+    <Style id="lote"><LineStyle><color>ff2e8b57</color><width>2</width></LineStyle><PolyStyle><color>662e8b57</color></PolyStyle></Style>
+    <Style id="limite"><LineStyle><color>ff0000ff</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+    <Placemark>
+      <name>Límite Urbanización El Mirador</name>
+      <styleUrl>#limite</styleUrl>
+      <ExtendedData>
+          <Data name="tipo"><value>limite</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1352755763,-17.8318719456,0 -63.1346709656,-17.8318719456,0 -63.1346709656,-17.8312783942,0 -63.1352755763,-17.8312783942,0 -63.1352755763,-17.8318719456,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-01</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+          <Data name="precio"><value>55000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1352000000,-17.8318000000,0 -63.1350866355,-17.8318000000,0 -63.1350866355,-17.8315751699,0 -63.1352000000,-17.8315751699,0 -63.1352000000,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-02</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+          <Data name="precio"><value>52000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1350866355,-17.8318000000,0 -63.1349732710,-17.8318000000,0 -63.1349732710,-17.8315751699,0 -63.1350866355,-17.8315751699,0 -63.1350866355,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-03</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+          <Data name="precio"><value>52000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1349732710,-17.8318000000,0 -63.1348599064,-17.8318000000,0 -63.1348599064,-17.8315751699,0 -63.1349732710,-17.8315751699,0 -63.1349732710,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-04</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+          <Data name="precio"><value>56000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1348599064,-17.8318000000,0 -63.1347465419,-17.8318000000,0 -63.1347465419,-17.8315751699,0 -63.1348599064,-17.8315751699,0 -63.1348599064,-17.8318000000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-05</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+          <Data name="precio"><value>54000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1352000000,-17.8315751699,0 -63.1350866355,-17.8315751699,0 -63.1350866355,-17.8313503398,0 -63.1352000000,-17.8313503398,0 -63.1352000000,-17.8315751699,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-06</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1350866355,-17.8315751699,0 -63.1349732710,-17.8315751699,0 -63.1349732710,-17.8313503398,0 -63.1350866355,-17.8313503398,0 -63.1350866355,-17.8315751699,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-07</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1349732710,-17.8315751699,0 -63.1348599064,-17.8315751699,0 -63.1348599064,-17.8313503398,0 -63.1349732710,-17.8313503398,0 -63.1349732710,-17.8315751699,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>M1-08</name>
+      <styleUrl>#lote</styleUrl>
+      <ExtendedData>
+          <Data name="manzano"><value>M1</value></Data>
+          <Data name="etapa"><value>Etapa 1</value></Data>
+          <Data name="precio"><value>58000</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-63.1348599064,-17.8315751699,0 -63.1347465419,-17.8315751699,0 -63.1347465419,-17.8313503398,0 -63.1348599064,-17.8313503398,0 -63.1348599064,-17.8315751699,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ingreso principal</name>
+      <description>Un punto: el sistema lo ignora porque no es un polígono.</description>
+      <Point><coordinates>-63.13500000,-17.83192000,0</coordinates></Point>
+    </Placemark>
+  </Document>
+</kml>
