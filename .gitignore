@@ -11,7 +11,7 @@ coverage/
 .neon
 
 # Skills de Neon (documentación de terceros) y ajustes locales de cada integrante
-.claude/skills/neon*/
+
 .claude/settings.local.json
 
 # Resultados de Playwright
