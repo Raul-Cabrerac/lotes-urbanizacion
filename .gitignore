@@ -10,7 +10,7 @@ coverage/
 # Vínculo local con el proyecto de Neon (neon link / neon init)
 .neon
 
-# Skills de agente de Neon (documentación de terceros) y ajustes personales de Claude Code
+# Skills de Neon (documentación de terceros) y ajustes locales de cada integrante
 .claude/skills/neon*/
 .claude/settings.local.json
 
