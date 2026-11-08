@@ -106,11 +106,13 @@ export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
     },
 
     async anular(id, { motivo, anuladaPorId, fecha }) {
-      await bd.filas(
+      // Solo anula una venta que sigue VIGENTE (dos anulaciones simultáneas: gana una).
+      const actualizadas = await bd.filas(
         `UPDATE ventas SET estado = 'ANULADA', motivo_anulacion = $1, anulada_por_id = $2, anulada_en = $3
-         WHERE id = $4`,
+         WHERE id = $4 AND estado = 'VIGENTE' RETURNING id`,
         [motivo, anuladaPorId, fecha, id],
       );
+      return actualizadas.length === 1;
     },
   };
 }
