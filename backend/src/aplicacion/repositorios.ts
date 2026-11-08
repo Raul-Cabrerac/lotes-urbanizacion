@@ -26,9 +26,7 @@ import type {
   Venta,
 } from '../dominio/tipos';
 
-// ----------------------------------------------------------------------------
-// Vistas de lectura (entidad + datos relacionados para mostrar)
-// ----------------------------------------------------------------------------
+// --- Vistas de lectura (entidad + datos relacionados para mostrar) ----------------------------
 
 export interface Referencia {
   id: number;
@@ -202,6 +200,8 @@ export interface NuevaVenta {
 export interface RepositorioVentas {
   listar(filtros?: FiltrosVentas): Promise<VentaVista[]>;
   buscarPorId(id: number): Promise<VentaVista | null>;
+  /** SELECT ... FOR UPDATE: bloquea la venta (si existe) hasta que termine la transacción. */
+  bloquearPorId(id: number): Promise<void>;
   /** Crea la venta junto con sus cuotas. */
   crear(datos: NuevaVenta, cuotas: CuotaNueva[]): Promise<Venta & { cuotas: Cuota[] }>;
   anular(id: number, datos: { motivo: string; anuladaPorId: number; fecha: Date }): Promise<void>;

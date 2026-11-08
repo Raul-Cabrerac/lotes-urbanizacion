@@ -75,6 +75,13 @@ otra 409.
   total pagado) y el estado de cada cuota (PENDIENTE, PAGADA o VENCIDA) cada vez que se consulta.
 - **Por qué:** no hay dos fuentes de verdad que puedan desincronizarse. Anular un pago lo excluye
   de la suma y el saldo se corrige solo, conservando la trazabilidad (consigna §9).
+- **Pagos simultáneos:** `PagoServicio.registrar` bloquea la fila de la venta
+  (`RepositorioVentas.bloquearPorId`, `SELECT ... FOR UPDATE`) antes de leer el saldo. Si dos
+  personas pagan la misma venta a la vez, la segunda espera, lee el saldo ya descontado y
+  `validarPago` la rechaza si se pasa (`MONTO_EXCEDE_SALDO` o `CUOTA_YA_PAGADA`). Sin el bloqueo
+  las dos leían el mismo saldo, el total pagado podía superar el precio pactado y la venta quedaba
+  respondiendo error 500. PGlite atiende una transacción a la vez, así que esta carrera solo se
+  reproduce sobre PostgreSQL real (Neon).
 
 ## 7. Express 5, zod y errores con código
 
