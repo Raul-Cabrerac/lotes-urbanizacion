@@ -69,7 +69,7 @@ sustituirlo en pruebas.
 | Ruta de la API | `/api/recurso-en-plural/:id/accion` | `/api/reservas/:id/cancelar` |
 | Campo JSON | `camelCase` | `precioPactado`, `saldoPendiente` |
 | `data-testid` | `kebab-case` (ver §7) | `accion-reservar`, `item-lote-A-01` |
-| Prueba unitaria o de integración | `modulo.test.ts` | `planPagos.test.ts`, `reservas.test.ts` |
+| Prueba unitaria o de integración | `modulo.test.ts`; `modulo.tema.test.ts` si varios integrantes prueban el mismo módulo | `reservas.test.ts`, `planPagos.generacion.test.ts` |
 | Prueba E2E | `e2e-0N-nombre.spec.ts` | `e2e-03-reserva-duplicada.spec.ts` |
 | Rama git y commit | `tipo/descripcion-corta` · `tipo: descripción en imperativo` | `test/unitarios-lote` · `test: cubre vencimiento de reservas` |
 
@@ -174,9 +174,11 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 9. Git y revisión
 
-- `main` protegida: todo entra por pull request, revisado por otro integrante con la skill
-  `revisar-codigo`.
-- Ramas `feat/`, `fix/`, `test/`, `docs/`, `refactor/`. Commits pequeños en imperativo.
+- `main` protegida: todo entra por pull request, con el CI en verde
+  (`.github/workflows/ci.yml`) y revisado por otro integrante con la skill `revisar-codigo`.
+  Nadie aprueba ni integra su propio pull request.
+- Ramas `feat/`, `fix/`, `test/`, `docs/`, `refactor/`, `chore/` (CI, configuración,
+  dependencias). Commits pequeños en imperativo.
 - Antes del pull request: `npm run typecheck` y las pruebas del nivel afectado en verde.
 
 ## 10. Trabajo con agentes de IA
@@ -197,12 +199,7 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 12. Organización del equipo
 
-Cada integrante **escribe los tres tipos de prueba**. Para repartir el trabajo se rota la
-responsabilidad por área cada semana:
-
-| Área | Responsable de la semana | Incluye |
-|---|---|---|
-| Dominio y pruebas unitarias | Integrante A | `backend/src/dominio`, servicios con mocks |
-| API y pruebas de integración | Integrante B | rutas, repositorios, Supertest, permisos |
-| Interfaz y pruebas E2E | Integrante C | páginas, mapa, `data-testid`, Playwright |
-| Documentación y revisión | Integrante D | `docs/`, revisión de pull requests, checklist de la consigna |
+Cada integrante **escribe los tres tipos de prueba** de un módulo de negocio fijo (sin rotación),
+así nadie edita los archivos de otro y cada uno puede explicar sus pruebas en la defensa. El
+reparto con nombres, los archivos de cada uno, las etapas del proyecto y las reglas para no
+pisarse están en `AGENTS.md` §1, §6 y §7.
