@@ -72,6 +72,12 @@ const servicio = new ReservaServicio(uow as unknown as UnidadDeTrabajo, reloj);
    memoria, sin tocar Neon, y `POST /api/pruebas/reiniciar` habilitado.
 3. Cada prueba llama a `POST http://localhost:3000/api/pruebas/reiniciar` en `beforeEach` e inicia
    sesión por la interfaz.
+4. **Detén `npm run dev` antes de `npm run test:e2e`.** Playwright reutiliza el servidor que ya esté
+   en el puerto 3000. Antes de todas las pruebas corre `e2e/tests/servidor-de-pruebas.setup.ts`
+   (proyecto `preparacion`): si ese servidor no está en modo pruebas, por ejemplo un `npm run dev`
+   sobre Neon, se detiene con un mensaje claro en vez de modificar tus datos. Un
+   `npm run dev:pruebas` abierto sí se reutiliza, y así las pruebas arrancan más rápido mientras las
+   escribes.
 
 Notas sobre el mapa (Google Maps):
 
