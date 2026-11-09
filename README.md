@@ -7,7 +7,8 @@ dibujado sobre la imagen satelital (o importado de un KML), coloreado según su 
 mapa se reserva, se vende, se arma el plan de pagos y se registran los pagos.
 
 El código está listo para que el grupo escriba las pruebas unitarias, de integración y E2E de la
-consigna: ver [docs/GUIA_TESTING.md](docs/GUIA_TESTING.md).
+consigna. Dónde va cada prueba y quién la escribe: [§4](#4-estructura); cómo escribirlas:
+[docs/GUIA_TESTING.md](docs/GUIA_TESTING.md).
 
 ---
 
@@ -56,7 +57,7 @@ probar la reserva duplicada.
 | `npm run db:reset` | Deja tu rama de Neon como recién creada, con los datos demo |
 | `npm run typecheck` | Revisa los tipos de backend, frontend y e2e |
 | `npm run build` | Genera la versión de producción del frontend |
-| `npm test` · `npm run test:unit` · `npm run test:integracion` · `npm run test:e2e` | Pruebas (las escribe el grupo) |
+| `npm run test:unit` · `npm run test:integracion` · `npm run test:e2e` | Pruebas de cada nivel (ver §4); `npm test` corre unitarias e integración juntas |
 
 > **Antes de presentar:** `npm run db:reset`. Los datos demo usan fechas relativas al día en que se
 > cargan (reservas que vencen en 3 y 7 días, una cuota vencida...).
@@ -116,30 +117,62 @@ probar la reserva duplicada.
 
 ```
 lotes-urbanizacion/
-├── backend/src/
-│   ├── dominio/          reglas de negocio puras: lote, reserva, planPagos, venta, dinero,
-│   │                     fechas, geometria, permisos, errores  ← pruebas unitarias
-│   ├── aplicacion/
-│   │   ├── puertos.ts    interfaces (Reloj, Hasher, LectorKml, UnidadDeTrabajo...)
-│   │   ├── repositorios.ts  interfaces de los repositorios y vistas de lectura
-│   │   └── servicios/    ReservaServicio, VentaServicio, PagoServicio, ImportacionKmlServicio...
-│   ├── infraestructura/
-│   │   ├── bd/           conexión (Neon o en memoria), migraciones, repositorios SQL, datos demo
-│   │   ├── kml/          lector de archivos KML
-│   │   ├── seguridad.ts  bcrypt y JWT
-│   │   └── reloj.ts      RelojSistema y RelojFijo
-│   ├── http/             rutas, validación con zod, autenticación y errores
-│   ├── contenedor.ts     arma los servicios con sus dependencias
-│   ├── app.ts            app Express sin escuchar un puerto (para Supertest)
-│   └── servidor.ts       punto de entrada
+├── AGENTS.md                 etapas, reparto y reglas del equipo (personas y agentes de IA)
+├── CLAUDE.md                 importa AGENTS.md para Claude Code
+├── backend/
+│   ├── src/
+│   │   ├── dominio/          reglas de negocio puras: lote, reserva, planPagos, venta, dinero,
+│   │   │                     fechas, geometria, permisos, errores
+│   │   ├── aplicacion/
+│   │   │   ├── puertos.ts    interfaces (Reloj, Hasher, LectorKml, UnidadDeTrabajo...)
+│   │   │   ├── repositorios.ts  interfaces de los repositorios y vistas de lectura
+│   │   │   └── servicios/    ReservaServicio, VentaServicio, PagoServicio, ImportacionKmlServicio...
+│   │   ├── infraestructura/
+│   │   │   ├── bd/           conexión (Neon o en memoria), migraciones, repositorios SQL, datos demo
+│   │   │   ├── kml/          lector de archivos KML
+│   │   │   ├── seguridad.ts  bcrypt y JWT
+│   │   │   └── reloj.ts      RelojSistema y RelojFijo
+│   │   ├── http/             rutas, validación con zod, autenticación y errores
+│   │   ├── contenedor.ts     arma los servicios con sus dependencias
+│   │   ├── app.ts            app Express sin escuchar un puerto (para Supertest)
+│   │   └── servidor.ts       punto de entrada
+│   └── tests/
+│       ├── unitarias/        pruebas unitarias (consigna §12): dominio/ y servicios/ con mocks
+│       ├── integracion/      pruebas de integración (§13): API + PostgreSQL en memoria
+│       └── apoyo/            ayudantes compartidos por las pruebas del backend
 ├── frontend/src/
-│   ├── componentes/mapa/ Google Maps: MapaLotes, HerramientaDibujo, capas y colores
-│   ├── paginas/          login, proyectos, mapa del proyecto, clientes, reservas, ventas, portal
-│   ├── api/              cliente HTTP y tipos
-│   └── auth/             sesión y rutas protegidas por rol
-├── e2e/                  Playwright (configurado; las pruebas las escribe el grupo)
-└── docs/                 guías del equipo
+│   ├── componentes/mapa/     Google Maps: MapaLotes, HerramientaDibujo, capas y colores
+│   ├── paginas/              login, proyectos, mapa del proyecto, clientes, reservas, ventas, portal
+│   ├── api/                  cliente HTTP y tipos
+│   └── auth/                 sesión y rutas protegidas por rol
+├── e2e/
+│   ├── tests/                pruebas E2E (§14): los 8 flujos completos en el navegador
+│   └── apoyo/                inicio de sesión por rol y reinicio de los datos de prueba
+├── docs/                     consigna, convenciones, decisiones, API y guía de testing
+└── .claude/skills/           procedimientos del equipo para escribir y revisar pruebas
 ```
+
+### Dónde están las pruebas y por qué
+
+| Nivel | Carpeta | Qué prueba | Responsable | Comando |
+|---|---|---|---|---|
+| Unitarias | `backend/tests/unitarias/` | Reglas del dominio y servicios con mocks (consigna §12) | Laura | `npm run test:unit` |
+| Integración | `backend/tests/integracion/` | API con la base de datos real, en memoria (§13) | Raul y Luciana | `npm run test:integracion` |
+| E2E | `e2e/tests/` | Los 8 flujos de la consigna en el navegador (§14) | Mario | `npm run test:e2e` |
+
+- **Cada prueba vive junto a lo que prueba.** Las unitarias y las de integración prueban el
+  backend, así que están dentro de `backend/` y usan su configuración, sus dependencias y su
+  medición de cobertura sin pasos extra. El E2E prueba el sistema completo (navegador, interfaz,
+  API y base de datos) y no pertenece a ninguna parte: por eso tiene su propia carpeta en la raíz.
+- **Una carpeta y un comando por nivel**, separados del código de `src/`: en la defensa cada
+  nivel se muestra y se ejecuta por separado, y cada carpeta tiene un responsable.
+- **No hay pruebas de integración del frontend.** La consigna pide integración con la API y la
+  base de datos (§13), y las reglas de negocio están en el backend. La interfaz se prueba con los
+  E2E, que la usan tal como la usa una persona.
+
+El razonamiento completo está en [docs/DECISIONES.md](docs/DECISIONES.md) §12 y §13; el mapa con
+cada ítem de la consigna, en [docs/GUIA_TESTING.md](docs/GUIA_TESTING.md) §1 y §7; el reparto y
+los archivos de cada integrante, en [AGENTS.md](AGENTS.md) §6.
 
 ---
 

@@ -69,7 +69,8 @@ sustituirlo en pruebas.
 | Ruta de la API | `/api/recurso-en-plural/:id/accion` | `/api/reservas/:id/cancelar` |
 | Campo JSON | `camelCase` | `precioPactado`, `saldoPendiente` |
 | `data-testid` | `kebab-case` (ver §7) | `accion-reservar`, `item-lote-A-01` |
-| Prueba unitaria o de integración | `modulo.test.ts`; `modulo.tema.test.ts` si varios integrantes prueban el mismo módulo | `reservas.test.ts`, `planPagos.generacion.test.ts` |
+| Prueba unitaria | `modulo.test.ts`, con el nombre del módulo que prueba, en `backend/tests/unitarias/` | `dominio/planPagos.test.ts`, `servicios/ReservaServicio.test.ts` |
+| Prueba de integración | `recurso.test.ts`, con el recurso de la API, en `backend/tests/integracion/` | `reservas.test.ts`, `pagos.test.ts` |
 | Prueba E2E | `e2e-0N-nombre.spec.ts` | `e2e-03-reserva-duplicada.spec.ts` |
 | Rama git y commit | `tipo/descripcion-corta` · `tipo: descripción en imperativo` | `test/unitarios-lote` · `test: cubre vencimiento de reservas` |
 
@@ -124,7 +125,7 @@ sustituirlo en pruebas.
 
 | Nivel | Qué prueba | Dónde | Qué NO hace |
 |---|---|---|---|
-| Unitario | Reglas de `dominio/`; servicios con puertos simulados | `backend/src/**/modulo.test.ts` | Tocar base de datos, HTTP o la fecha real |
+| Unitario | Reglas de `dominio/`; servicios con puertos simulados | `backend/tests/unitarias/` (misma estructura que `src/`) | Tocar base de datos, HTTP o la fecha real |
 | Integración | Servicios y API con repositorios reales sobre PostgreSQL en memoria | `backend/tests/integracion/` | Usar mocks o la base de Neon |
 | E2E | Los 8 flujos de la consigna en el navegador | `e2e/tests/` | Simular nada |
 
@@ -199,7 +200,9 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 12. Organización del equipo
 
-Cada integrante **escribe los tres tipos de prueba** de un módulo de negocio fijo (sin rotación),
-así nadie edita los archivos de otro y cada uno puede explicar sus pruebas en la defensa. El
-reparto con nombres, los archivos de cada uno, las etapas del proyecto y las reglas para no
-pisarse están en `AGENTS.md` §1, §6 y §7.
+Cada integrante es **dueño de un nivel de prueba**, sin rotación: Laura las unitarias, Raul y
+Luciana la integración (cada archivo con un solo dueño) y Mario los E2E y la interfaz. Así nadie
+edita las pruebas de otro. Para que todos puedan explicar los tres niveles en la defensa, cada
+pull request lo revisa alguien de otro nivel. El reparto, los archivos de cada uno, las etapas y
+las reglas para no pisarse están en `AGENTS.md` §1, §6 y §7; el porqué, en `docs/DECISIONES.md`
+§12 y §13.

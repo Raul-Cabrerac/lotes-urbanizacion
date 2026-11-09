@@ -5,15 +5,22 @@ indica **dónde va cada una, qué punto de entrada usar y qué `data-testid` exi
 estilo (AAA, nombres, casos positivo, negativo y límite) están en `docs/CONVENCIONES.md` §8 y en
 las skills `test-unitario`, `test-integracion` y `test-e2e` de `.claude/skills/`.
 
-## 1. Dónde va cada prueba
+## 1. Mapa de pruebas: dónde va cada una y de quién es
 
-| Nivel | Carpeta | Herramientas | Comando |
-|---|---|---|---|
-| Unitaria | junto al módulo: `backend/src/**/modulo.test.ts` | Vitest | `npm run test:unit` |
-| Integración | `backend/tests/integracion/<recurso>.test.ts` | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
-| E2E | `e2e/tests/e2e-0N-nombre.spec.ts` | Playwright | `npm run test:e2e` |
+| Nivel | Archivos | Responsable | Consigna | Herramientas | Comando |
+|---|---|---|---|---|---|
+| Unitaria | `backend/tests/unitarias/dominio/<modulo>.test.ts` y `backend/tests/unitarias/servicios/<Servicio>.test.ts` | Laura | §12 | Vitest (mocks con `vi.fn()`) | `npm run test:unit` |
+| Integración | `backend/tests/integracion/<recurso>.test.ts`: `proyectos`, `lotes`, `clientes`, `reservas` | Raul | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
+| Integración | `backend/tests/integracion/<recurso>.test.ts`: `ventas`, `planPagos`, `pagos`, `permisos` | Luciana | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
+| E2E | `e2e/tests/e2e-0N-nombre.spec.ts` | Mario | §14 | Playwright | `npm run test:e2e` |
 
-`npm run test:cobertura` mide la cobertura de `dominio/` y `aplicacion/`.
+- Las unitarias repiten la estructura de `src/`: `src/dominio/lote.ts` se prueba en
+  `tests/unitarias/dominio/lote.test.ts`, y `src/aplicacion/servicios/ReservaServicio.ts` en
+  `tests/unitarias/servicios/ReservaServicio.test.ts`.
+- Ayudantes compartidos: `backend/tests/apoyo/` y `e2e/apoyo/`. Los mantiene Raul.
+- `npm run test:cobertura` mide la cobertura de `dominio/` y `aplicacion/`.
+- Por qué esta estructura: `docs/DECISIONES.md` §12. Qué ítem cubre cada responsable: §7 de esta
+  guía.
 
 ## 2. Unitarias: qué función cubre cada regla
 
@@ -47,6 +54,17 @@ const uow = { repos, transaccion: (trabajo) => trabajo(repos) };
 const reloj = new RelojFijo(new Date('2026-03-15T12:00:00')); // infraestructura/reloj.ts
 const servicio = new ReservaServicio(uow as unknown as UnidadDeTrabajo, reloj);
 ```
+
+Al simular repositorios, tener en cuenta lo que devuelven desde las correcciones de concurrencia
+(`docs/DECISIONES.md` §3 y §6):
+
+- `reservas.finalizar`, `ventas.anular` y `pagos.anular` devuelven `true` si cambiaron la fila.
+  En el doble: `vi.fn().mockResolvedValue(true)` para el caso normal; con `false` se simula que
+  otro usuario la cerró antes, y el servicio debe responder con su código 409
+  (`RESERVA_NO_ACTIVA`, `VENTA_NO_VIGENTE`, `PAGO_YA_ANULADO`). Un `vi.fn()` sin valor devuelve
+  `undefined`, que cuenta como `false`.
+- `PagoServicio.registrar` llama primero a `ventas.bloquearPorId(ventaId)`: el doble necesita ese
+  método (`vi.fn()` alcanza).
 
 ## 3. Integración: puntos de entrada reales
 
@@ -153,37 +171,43 @@ M1-08 y su perímetro) y `kml_con_errores.kml` (caso negativo: no se importa nad
 
 ## 7. Trazabilidad con la consigna
 
-Completar la última columna a medida que se escriben las pruebas. Esta tabla se muestra en la
-presentación final.
+Completar la última columna a medida que se escriben las pruebas (cada responsable, solo sus
+filas). Esta tabla se muestra en la presentación final. Las últimas filas son ítems del checklist
+§15 y de §5, §7 y §11 que no aparecen en las listas de §12 a §14 pero también se evalúan.
 
-| Consigna | Ítem | Nivel | Prueba |
-|---|---|---|---|
-| §12 | Cambios permitidos de estado de un lote | Unitario | pendiente |
-| §12 | Impedir reservar un lote que no esté DISPONIBLE | Unitario | pendiente |
-| §12 | Impedir vender un lote ya VENDIDO | Unitario | pendiente |
-| §12 | Calcular total pagado y saldo pendiente | Unitario | pendiente |
-| §12 | Generar cuotas de un plan de pagos | Unitario | pendiente |
-| §12 | Impedir pagos con montos inválidos | Unitario | pendiente |
-| §12 | Impedir que el saldo resulte negativo | Unitario | pendiente |
-| §12 | Validar vencimiento de reservas | Unitario | pendiente |
-| §12 | Validar que una venta conserve el precio pactado | Unitario | pendiente |
-| §12 | Validar reglas para cancelar una reserva y liberar el lote | Unitario | pendiente |
-| §13 | Crear un proyecto y persistir sus datos | Integración | pendiente |
-| §13 | Crear o importar lotes y recuperar su geometría | Integración | pendiente |
-| §13 | Registrar un cliente | Integración | pendiente |
-| §13 | Reservar un lote y verificar el cambio de estado | Integración | pendiente |
-| §13 | Reservar nuevamente el mismo lote y verificar el rechazo | Integración | pendiente |
-| §13 | Registrar una venta y comprobar que el lote pase a VENDIDO | Integración | pendiente |
-| §13 | Crear un plan de pagos y persistir sus cuotas | Integración | pendiente |
-| §13 | Registrar un pago y verificar cuota, total pagado y saldo | Integración | pendiente |
-| §13 | Consultar lotes filtrados por estado o proyecto | Integración | pendiente |
-| §13 | Comprobar permisos de administrador, asesor y cliente | Integración | pendiente |
-| §13 | Comprobar que un cliente no acceda a operaciones de otro | Integración | pendiente |
-| §14 | E2E 01 Crear proyecto, dibujar lotes y verlos en el mapa | E2E | pendiente |
-| §14 | E2E 02 Reservar lote | E2E | pendiente |
-| §14 | E2E 03 Evitar reserva duplicada | E2E | pendiente |
-| §14 | E2E 04 Venta | E2E | pendiente |
-| §14 | E2E 05 Plan de pagos | E2E | pendiente |
-| §14 | E2E 06 Liberar reserva | E2E | pendiente |
-| §14 | E2E 07 Portal del cliente | E2E | pendiente |
-| §14 | E2E 08 Control de acceso | E2E | pendiente |
+| Consigna | Ítem | Nivel | Responsable | Prueba |
+|---|---|---|---|---|
+| §12 | Cambios permitidos de estado de un lote | Unitario | Laura | pendiente |
+| §12 | Impedir reservar un lote que no esté DISPONIBLE | Unitario | Laura | pendiente |
+| §12 | Impedir vender un lote ya VENDIDO | Unitario | Laura | pendiente |
+| §12 | Calcular total pagado y saldo pendiente | Unitario | Laura | pendiente |
+| §12 | Generar cuotas de un plan de pagos | Unitario | Laura | pendiente |
+| §12 | Impedir pagos con montos inválidos | Unitario | Laura | pendiente |
+| §12 | Impedir que el saldo resulte negativo | Unitario | Laura | pendiente |
+| §12 | Validar vencimiento de reservas | Unitario | Laura | pendiente |
+| §12 | Validar que una venta conserve el precio pactado | Unitario | Laura | pendiente |
+| §12 | Validar reglas para cancelar una reserva y liberar el lote | Unitario | Laura | pendiente |
+| §13 | Crear un proyecto y persistir sus datos | Integración | Raul | pendiente |
+| §13 | Crear o importar lotes y recuperar su geometría | Integración | Raul | pendiente |
+| §13 | Registrar un cliente | Integración | Raul | pendiente |
+| §13 | Reservar un lote y verificar el cambio de estado | Integración | Raul | pendiente |
+| §13 | Reservar nuevamente el mismo lote y verificar el rechazo | Integración | Raul | pendiente |
+| §13 | Registrar una venta y comprobar que el lote pase a VENDIDO | Integración | Luciana | pendiente |
+| §13 | Crear un plan de pagos y persistir sus cuotas | Integración | Luciana | pendiente |
+| §13 | Registrar un pago y verificar cuota, total pagado y saldo | Integración | Luciana | pendiente |
+| §13 | Consultar lotes filtrados por estado o proyecto | Integración | Raul | pendiente |
+| §13 | Comprobar permisos de administrador, asesor y cliente | Integración | Luciana | pendiente |
+| §13 | Comprobar que un cliente no acceda a operaciones de otro | Integración | Luciana | pendiente |
+| §14 | E2E 01 Crear proyecto, dibujar lotes y verlos en el mapa | E2E | Mario | pendiente |
+| §14 | E2E 02 Reservar lote | E2E | Mario | pendiente |
+| §14 | E2E 03 Evitar reserva duplicada | E2E | Mario | pendiente |
+| §14 | E2E 04 Venta | E2E | Mario | pendiente |
+| §14 | E2E 05 Plan de pagos | E2E | Mario | pendiente |
+| §14 | E2E 06 Liberar reserva | E2E | Mario | pendiente |
+| §14 | E2E 07 Portal del cliente | E2E | Mario | pendiente |
+| §14 | E2E 08 Control de acceso | E2E | Mario | pendiente |
+| §15 | Test de venta duplicada | Unitario e Integración | Laura y Luciana | pendiente |
+| §15 | Mocks/stubs cuando corresponde (servicios con repositorios simulados) | Unitario | Laura | pendiente |
+| §7 | Dos reservas simultáneas del mismo lote: una se acepta y la otra recibe 409 | Integración | Raul | pendiente |
+| §5 | Una reserva vencida libera el lote | Integración | Raul | pendiente |
+| §11 | Consistencia: si falla el registro de la venta, no queda nada a medias | Integración | Luciana | pendiente |

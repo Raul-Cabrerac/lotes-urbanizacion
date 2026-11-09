@@ -34,6 +34,7 @@ Gravedad:
 - [ ] Reglas de negocio solo en el dominio; ni en rutas, ni en repositorios, ni en React.
 - [ ] Servicios reciben puertos por constructor; escrituras múltiples dentro de `uow.transaccion`.
 - [ ] Cambios de estado de lote con `cambiarEstadoSi(id, esperado, nuevo)` y verificación del resultado.
+- [ ] Cierres de reserva, venta o pago (`finalizar`, `anular`) condicionados al estado esperado; si devuelven `false`, el servicio responde 409.
 - [ ] SQL solo en repositorios, parametrizado (`$1, $2`).
 
 **Errores** (§6)
@@ -63,6 +64,7 @@ Gravedad:
 ## 3. Lista para pruebas (criterios del checklist de la consigna)
 
 - [ ] **Prueban reglas reales**, no CRUD ni getters (consigna §12).
+- [ ] **Ubicación y dueño:** cada prueba está en la carpeta de su nivel (`backend/tests/unitarias/`, `backend/tests/integracion/`, `e2e/tests/`), nunca dentro de `src/`, y el archivo es de quien abre el pull request (`AGENTS.md` §6).
 - [ ] Comentario inicial con el ítem de la consigna; tabla de `docs/GUIA_TESTING.md` §7 actualizada.
 - [ ] Nombre "<resultado> cuando <condición>"; AAA visible; un comportamiento por `it`.
 - [ ] **Casos positivos y negativos**; límites donde la regla tiene borde (saldo exacto, vence hoy).
@@ -85,7 +87,7 @@ Verificado: typecheck ✔ · test:unit ✔ (42) · test:integracion ✔ (11) · 
    Cómo: quitar la validación de la ruta; el dominio ya lanza MONTO_EXCEDE_SALDO.
 
 ### Importantes
-1. backend/src/dominio/planPagos.test.ts:70 · Verifica el texto del mensaje; usar `expect.objectContaining({ codigo })`.
+1. backend/tests/unitarias/dominio/planPagos.test.ts:70 · Verifica el texto del mensaje; usar `expect.objectContaining({ codigo })`.
 
 ### Sugerencias
 1. frontend/src/paginas/ModalPago.tsx:31 · Reutilizar `bs()` de `utilidades/formato.ts`.

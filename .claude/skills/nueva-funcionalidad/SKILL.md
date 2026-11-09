@@ -25,7 +25,7 @@ argument-hint: "[funcionalidad o regla a agregar]"
 | 5 | `http/validacion.ts` y `http/rutas.ts` | Esquema zod; ruta con `autorizar('permiso')` y `parsear(esquema, req.body)`; si es un servicio nuevo, registrarlo en `contenedor.ts` | Ruta `/api/recurso/:id/accion` |
 | 6 | `docs/API.md` | Ruta, permiso, cuerpo y códigos de error nuevos | Mismo pull request |
 | 7 | `frontend/src/api/` | Función en `api.ts` y tipos en `tipos.ts` o `tiposOperaciones.ts` | — |
-| 8 | `frontend/src/componentes/` o `paginas/` | Control o pantalla con `data-testid` en todo elemento interactivo o verificable; tras la operación, volver a pedir los datos; errores en `aviso-error` o en el error del modal | Prefijos de `docs/CONVENCIONES.md` §7; anotar los nuevos en `docs/GUIA_TESTING.md` §6 |
+| 8 | `frontend/src/componentes/` o `paginas/` | Control o pantalla con `data-testid` en todo elemento interactivo o verificable; tras la operación, volver a pedir los datos; errores en `aviso-error` o en el error del modal | Prefijos de `docs/CONVENCIONES.md` §7; anotar los nuevos en `docs/GUIA_TESTING.md` §6. La interfaz es de Mario: todo cambio en `frontend/src/` necesita su visto bueno (`AGENTS.md` §7, regla 9) |
 | 9 | Verificación | `npm run typecheck`, `npm run dev:pruebas` y probar a mano el camino feliz y uno de error | Mostrar la salida real |
 | 10 | Pruebas | Indicar qué skill corresponde: `test-unitario` para la regla, `test-integracion` para el endpoint, `test-e2e` si cambia un flujo de §14. No escribirlas sin que lo pidan | — |
 
