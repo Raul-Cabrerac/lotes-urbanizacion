@@ -106,14 +106,14 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | `PROYECTO_YA_PUBLICADO` | 409 | `dominio/proyecto.ts` | Publicar dos veces |
 | `PROYECTO_SIN_LOTES` | 422 | `dominio/proyecto.ts` | Publicar sin lotes |
 | `FECHA_VENCIMIENTO_INVALIDA` | 422 | `dominio/reserva.ts` | Vencimiento anterior a hoy |
-| `RESERVA_NO_ACTIVA` | 409 | `dominio/reserva.ts` | Cancelar una reserva que ya no está ACTIVA |
+| `RESERVA_NO_ACTIVA` | 409 | `dominio/reserva.ts`, `ReservaServicio` | Cancelar una reserva que ya no está ACTIVA, o que otro usuario cerró al mismo tiempo |
 | `PRECIO_PACTADO_INVALIDO` · `CUOTA_INICIAL_INVALIDA` · `NUMERO_CUOTAS_INVALIDO` · `FECHA_PRIMERA_CUOTA_INVALIDA` | 422 | `dominio/planPagos.ts` | Plan de pagos imposible |
 | `MONTO_INVALIDO` | 422 | `dominio/planPagos.ts` | Pago ≤ 0 o con más de 2 decimales |
 | `MONTO_EXCEDE_SALDO` | 422 | `dominio/planPagos.ts` | El pago dejaría el saldo negativo |
 | `MONTO_EXCEDE_CUOTA` | 422 | `dominio/planPagos.ts` | El pago supera lo pendiente de la cuota |
 | `CUOTA_YA_PAGADA` | 409 | `dominio/planPagos.ts` | Pagar una cuota PAGADA |
-| `VENTA_NO_VIGENTE` | 409 | `dominio/planPagos.ts`, `dominio/venta.ts` | Pagar o anular una venta ANULADA |
-| `PAGO_YA_ANULADO` | 409 | `dominio/planPagos.ts` | Anular dos veces el mismo pago |
+| `VENTA_NO_VIGENTE` | 409 | `dominio/planPagos.ts`, `dominio/venta.ts`, `VentaServicio` | Pagar o anular una venta ANULADA (también si dos anulaciones llegan a la vez) |
+| `PAGO_YA_ANULADO` | 409 | `dominio/planPagos.ts`, `PagoServicio` | Anular dos veces el mismo pago (también a la vez) |
 | `MOTIVO_REQUERIDO` | 422 | `dominio/venta.ts` | Anular sin motivo (mínimo 5 caracteres) |
 | `DOCUMENTO_DUPLICADO` | 409 | `ClienteServicio` | Ya existe un cliente con ese CI/NIT |
 | `EMAIL_DUPLICADO` · `CLIENTE_YA_TIENE_USUARIO` | 409 | `UsuarioServicio` | Usuario repetido |

@@ -53,6 +53,15 @@ pull request que la introduce.
 Se comprobó contra Neon con reservas y ventas simultáneas sobre el mismo lote: una recibe 201 y la
 otra 409.
 
+**Cierres condicionados y orden de bloqueo.** Lo mismo vale para cerrar una operación: cancelar,
+vencer o convertir una reserva y anular una venta o un pago son `UPDATE` condicionales
+(`... WHERE id = $1 AND estado = 'ACTIVA'`). Si otra operación cerró la fila un instante antes, se
+responde 409 (`RESERVA_NO_ACTIVA`, `LOTE_NO_DISPONIBLE`, `VENTA_NO_VIGENTE`, `PAGO_YA_ANULADO`) en
+vez de pisar su resultado; por ejemplo, una reserva convertida en venta no puede quedar luego como
+CANCELADA. Además, toda operación que cambia una reserva y su lote lo hace en el mismo orden
+(primero la reserva, después el lote), para que dos transacciones no se esperen mutuamente
+(deadlock).
+
 ## 4. Arquitectura en capas con puertos
 
 - **Elegido:** dominio, aplicación (servicios), infraestructura y HTTP, con las dependencias

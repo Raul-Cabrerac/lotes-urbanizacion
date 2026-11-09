@@ -1,4 +1,4 @@
-import { ErrorNoEncontrado } from '../../dominio/errores';
+import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import { resumirPlan, validarPago, validarPagoAnulable } from '../../dominio/planPagos';
 import type { MetodoPago } from '../../dominio/tipos';
 import type { Reloj, UnidadDeTrabajo, UsuarioActual } from '../puertos';
@@ -56,7 +56,8 @@ export class PagoServicio {
       const pago = await repos.pagos.buscarPorId(pagoId);
       if (!pago) throw new ErrorNoEncontrado('Pago no encontrado.');
       validarPagoAnulable(pago, motivo);
-      await repos.pagos.anular(pagoId, { motivo: motivo.trim(), anuladoPorId: usuario.id, fecha: this.reloj.ahora() });
+      const anulado = await repos.pagos.anular(pagoId, { motivo: motivo.trim(), anuladoPorId: usuario.id, fecha: this.reloj.ahora() });
+      if (!anulado) throw new ErrorConflicto('PAGO_YA_ANULADO', 'El pago ya fue anulado.');
       return pago.ventaId;
     });
     return this.ventas.obtener(ventaId, usuario);

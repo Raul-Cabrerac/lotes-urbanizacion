@@ -80,11 +80,16 @@ export class VentaServicio {
       });
 
       validarCambioEstado(lote.estado, 'VENDIDO');
-      const vendido = await repos.lotes.cambiarEstadoSi(lote.id, lote.estado, 'VENDIDO');
+      // Primero la reserva y después el lote, el mismo orden que usan cancelar y vencer: así dos
+      // operaciones simultáneas sobre el mismo lote no se esperan mutuamente (deadlock).
+      const reservaConvertida = reservaActiva
+        ? await repos.reservas.finalizar(reservaActiva.id, 'CONVERTIDA', ahora)
+        : true;
+      const vendido = reservaConvertida && (await repos.lotes.cambiarEstadoSi(lote.id, lote.estado, 'VENDIDO'));
       if (!vendido) {
+        // El error deshace la transacción: si la reserva ya se había convertido, vuelve a ACTIVA.
         throw new ErrorConflicto('LOTE_NO_DISPONIBLE', `El lote ${lote.codigo} acaba de ser modificado por otro usuario.`);
       }
-      if (reservaActiva) await repos.reservas.finalizar(reservaActiva.id, 'CONVERTIDA', ahora);
 
       const venta = await repos.ventas.crear(
         {
@@ -127,7 +132,8 @@ export class VentaServicio {
       validarVentaAnulable(venta, motivo);
       validarCambioEstado('VENDIDO', 'DISPONIBLE');
 
-      await repos.ventas.anular(id, { motivo: motivo.trim(), anuladaPorId: usuario.id, fecha: this.reloj.ahora() });
+      const anulada = await repos.ventas.anular(id, { motivo: motivo.trim(), anuladaPorId: usuario.id, fecha: this.reloj.ahora() });
+      if (!anulada) throw new ErrorConflicto('VENTA_NO_VIGENTE', 'La venta ya fue anulada.');
       await repos.lotes.cambiarEstadoSi(venta.loteId, 'VENDIDO', 'DISPONIBLE');
     });
     return this.obtener(id, usuario);

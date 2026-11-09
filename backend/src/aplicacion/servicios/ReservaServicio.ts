@@ -78,7 +78,15 @@ export class ReservaServicio {
       validarReservaCancelable(reserva);
       validarCambioEstado('RESERVADO', 'DISPONIBLE');
 
-      await repos.reservas.finalizar(id, 'CANCELADA', this.reloj.ahora(), motivo.trim() || `Cancelada por ${usuario.nombre}`);
+      // Primero la reserva y después el lote, el mismo orden que usan la venta y el vencimiento.
+      const motivoFinal = motivo.trim() || `Cancelada por ${usuario.nombre}`;
+      const cancelada = await repos.reservas.finalizar(id, 'CANCELADA', this.reloj.ahora(), motivoFinal);
+      if (!cancelada) {
+        throw new ErrorConflicto(
+          'RESERVA_NO_ACTIVA',
+          'La reserva acaba de cambiar de estado: otro usuario la canceló o vendió el lote, o venció.',
+        );
+      }
       await repos.lotes.cambiarEstadoSi(reserva.loteId, 'RESERVADO', 'DISPONIBLE');
     });
     return this.obtener(id);
@@ -99,7 +107,8 @@ export class ReservaServicio {
       for (const candidata of candidatas) {
         const reserva = await repos.reservas.buscarPorId(candidata.id);
         if (!reserva || !estaVencida(reserva, hoy)) continue; // otra petición ya la procesó
-        await repos.reservas.finalizar(reserva.id, 'VENCIDA', this.reloj.ahora(), 'Venció el plazo de la reserva');
+        const vencida = await repos.reservas.finalizar(reserva.id, 'VENCIDA', this.reloj.ahora(), 'Venció el plazo de la reserva');
+        if (!vencida) continue; // otra operación la cerró en este mismo instante
         await repos.lotes.cambiarEstadoSi(reserva.loteId, 'RESERVADO', 'DISPONIBLE');
         vencidas++;
       }
