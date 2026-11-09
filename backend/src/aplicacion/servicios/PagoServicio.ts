@@ -26,6 +26,9 @@ export class PagoServicio {
    */
   async registrar(ventaId: number, entrada: EntradaPago, usuario: UsuarioActual) {
     await this.uow.transaccion(async (repos) => {
+      // Consigna §9, el saldo nunca es negativo: con la venta bloqueada, dos pagos simultáneos se
+      // atienden uno tras otro y el segundo se valida contra el saldo que dejó el primero.
+      await repos.ventas.bloquearPorId(ventaId);
       const venta = await repos.ventas.buscarPorId(ventaId);
       if (!venta) throw new ErrorNoEncontrado('Venta no encontrada.');
 
