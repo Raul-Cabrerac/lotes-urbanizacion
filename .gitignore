@@ -10,8 +10,9 @@ coverage/
 # Vínculo local con el proyecto de Neon (neon link / neon init)
 .neon
 
-# Skills de Neon (documentación de terceros) y ajustes locales de cada integrante
-
+# Skills de Neon (documentación de terceros: quien las quiera las instala como plugin) y ajustes
+# locales de cada integrante. En .claude/skills/ solo van las skills del equipo.
+.claude/skills/neon*/
 .claude/settings.local.json
 
 # Resultados de Playwright

@@ -172,6 +172,8 @@ DISPONIBLE ──reservar──► RESERVADO ──vender──► VENDIDO
 
 | Documento | Contenido |
 |---|---|
+| [AGENTS.md](AGENTS.md) | **Empieza aquí.** Etapas, quién es dueño de qué, reglas para no pisarse e instrucciones para los agentes de IA (Claude Code y Codex) |
+| [docs/CONSIGNA.md](docs/CONSIGNA.md) | La consigna del proyecto en texto (secciones §1 a §15) |
 | [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md) | Neon: ramas, conexión, `db:reset`, reglas del grupo |
 | [docs/GOOGLE_MAPS.md](docs/GOOGLE_MAPS.md) | Clave de Google Maps y cómo funciona el mapa |
 | [docs/API.md](docs/API.md) | Rutas de la API y catálogo de códigos de error |
