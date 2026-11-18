@@ -1,5 +1,6 @@
 /** Componentes pequeños reutilizables. */
-import type { ReactNode } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
+import { Icono } from './Icono';
 import type { EstadoCuota, EstadoLote, EstadoPago, EstadoProyecto, EstadoReserva, EstadoVenta } from '../api/tipos';
 
 type Estado = EstadoLote | EstadoProyecto | EstadoReserva | EstadoVenta | EstadoCuota | EstadoPago;
@@ -32,10 +33,12 @@ export function Insignia({ estado, testid }: { estado: Estado; testid?: string }
   );
 }
 
-export function Cargando({ texto = 'Cargando...' }: { texto?: string }) {
+/** Indicador de carga: un <progress> sin valor es "indeterminado" para los lectores de pantalla. */
+export function Cargando({ texto = 'Cargando…' }: { texto?: string }) {
   return (
-    <div className="cargando" role="status">
-      <span className="spinner" /> {texto}
+    <div className="cargando">
+      <progress className="spinner" aria-label={texto} />
+      <span aria-hidden="true">{texto}</span>
     </div>
   );
 }
@@ -74,6 +77,29 @@ export function Dato({ etiqueta, children, testid }: { etiqueta: string; childre
       <div className="dato-valor" data-testid={testid}>
         {children}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Envoltorio de una tabla: si no entra a lo ancho se desplaza, y con el teclado se puede
+ * llegar a él para desplazarla. Por debajo de 40rem cada fila se muestra como ficha
+ * (cada <td> lleva su `data-etiqueta`).
+ */
+export function ContenedorTabla({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
+  return (
+    <div className="tabla-contenedor" role="region" aria-label={etiqueta} tabIndex={0}>
+      {children}
+    </div>
+  );
+}
+
+/** Campo de texto para buscar, con la lupa adentro. */
+export function CampoBusqueda({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className={`buscador ${className ?? ''}`}>
+      <Icono nombre="buscar" />
+      <input type="search" {...props} />
     </div>
   );
 }

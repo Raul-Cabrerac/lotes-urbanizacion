@@ -2,10 +2,10 @@ import type { EstadoLote } from '../../api/tipos';
 
 /** Color de cada estado: el mismo en el mapa, la leyenda, la lista de lotes y los contadores. */
 export const COLOR_ESTADO: Record<EstadoLote, string> = {
-  DISPONIBLE: '#2e8b57',
+  DISPONIBLE: '#2f8a55',
   RESERVADO: '#e0a21b',
   VENDIDO: '#cf4a47',
-  BLOQUEADO: '#7b8794',
+  BLOQUEADO: '#80867f',
 };
 
 /** Borde del lote seleccionado y trazo del polígono que se está dibujando. */
