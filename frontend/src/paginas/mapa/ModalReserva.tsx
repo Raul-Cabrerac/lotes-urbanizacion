@@ -9,6 +9,12 @@ import { fechaEnDias } from '../../utilidades/entradas';
 import { bs, m2 } from '../../utilidades/formato';
 import { useEnvio } from '../../utilidades/useEnvio';
 
+/**
+ * Plazo que propone el formulario al reservar. Es una sugerencia, no una regla: el backend acepta
+ * cualquier fecha futura (docs/DECISIONES.md §15).
+ */
+const DIAS_RESERVA_SUGERIDOS = 7;
+
 /** Registrar la reserva de un lote DISPONIBLE (consigna, sección 7). */
 export function ModalReserva({
   lote,
@@ -23,7 +29,7 @@ export function ModalReserva({
   onConflicto: () => void;
 }) {
   const [clienteId, setClienteId] = useState<number | null>(null);
-  const [fechaVencimiento, setFechaVencimiento] = useState(fechaEnDias(7));
+  const [fechaVencimiento, setFechaVencimiento] = useState(fechaEnDias(DIAS_RESERVA_SUGERIDOS));
   const [observacion, setObservacion] = useState('');
   const { enviar, enviando, error, setError } = useEnvio({ alConflicto: onConflicto });
 

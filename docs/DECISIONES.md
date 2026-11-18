@@ -224,3 +224,26 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
     respuestas y la documentación de `docs/API.md`.
   - Con el vencimiento en su propia transacción, el lote ya liberado es un hecho guardado antes
     de que empiece la operación, en vez de un caso que cada operación debía recordar.
+
+## 15. Reglas de producto aclaradas por el grupo
+
+- **Contexto:** al reordenar el código (§14) quedaron preguntas que el código no respondía. El
+  grupo las decidió así (2026-11-18):
+- **Decisión:**
+  - **Un lote inconsistente no frena el vencimiento de reservas.** `procesarVencidas` corre antes
+    de cada petición. Si una reserva vencida apunta a un lote que ya no está RESERVADO, esa reserva
+    se omite, se avisa en el log y las demás vencen; operar sobre ese lote sí responde 409
+    `LOTE_MODIFICADO`. Antes, un solo lote así hacía responder 409 a toda la API.
+  - **El resumen por manzano muestra los lotes BLOQUEADOS.** El administrador puede retirar un lote
+    de la venta por cualquier motivo, y el resumen tiene que sumar el total.
+  - **Cada pantalla exige el permiso de lo que muestra y opera, no el de su nombre.** `/ventas` es
+    la mesa de trabajo de quien vende y cobra, así que exige `ventas:registrar`; el cliente ve sus
+    ventas en su portal y abre su detalle (`/ventas/:id`, `ventas:ver`). El mapa
+    `/proyectos/:id` opera lotes, así que exige `lotes:ver`. Cada línea de
+    `frontend/src/rutas.ts` lleva su razón.
+  - **Los valores iniciales de los formularios son sugerencias, no reglas:** 7 días de reserva y,
+    en la venta, modalidad financiada, cuota inicial del 20 % y 12 cuotas. El backend no los exige y
+    las pruebas no los tratan como reglas. Están con nombre en `ModalReserva.tsx` y
+    `ModalVenta.tsx`.
+- **Por qué:** son reglas del negocio. Escritas aquí y junto al código, nadie tiene que adivinar
+  si un valor es una regla o un descuido, ni volver a preguntarlo.

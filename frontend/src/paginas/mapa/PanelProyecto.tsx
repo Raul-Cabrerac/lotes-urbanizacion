@@ -154,12 +154,10 @@ export function PanelProyecto(props: Props) {
 }
 
 /**
- * Columnas por estado del resumen por manzano: la inicial, con el nombre completo al pasar el
- * puntero. No incluye BLOQUEADO (está preguntado al grupo si es intencional).
+ * Tabla plegable con la cantidad de lotes por etapa y manzano (consigna §3 y §10), con una columna
+ * por estado (también BLOQUEADO: el administrador puede retirar un lote de la venta): la inicial,
+ * con el nombre completo al pasar el puntero.
  */
-const ESTADOS_RESUMEN: EstadoLote[] = ['DISPONIBLE', 'RESERVADO', 'VENDIDO'];
-
-/** Tabla plegable con la cantidad de lotes por etapa y manzano (consigna §3 y §10). */
 function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
   return (
     <details className="resumen-manzanos" data-testid="resumen-manzanos">
@@ -173,7 +171,7 @@ function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
             <th>Etapa</th>
             <th>Mz</th>
             <th className="numero">Total</th>
-            {ESTADOS_RESUMEN.map((estado) => (
+            {ESTADOS_LOTE.map((estado) => (
               <th key={estado} className="numero" title={ASPECTO_ESTADO[estado].plural}>
                 {ASPECTO_ESTADO[estado].etiqueta[0]}
               </th>
@@ -186,7 +184,7 @@ function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
               <td>{g.etapa || '—'}</td>
               <td>{g.manzano || '—'}</td>
               <td className="numero">{g.total}</td>
-              {ESTADOS_RESUMEN.map((estado) => (
+              {ESTADOS_LOTE.map((estado) => (
                 <td key={estado} className="numero">
                   {g.porEstado[estado]}
                 </td>

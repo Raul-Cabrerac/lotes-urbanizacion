@@ -86,12 +86,12 @@ describe('ReservaServicio', () => {
   });
 
   describe('procesarVencidas', () => {
-    it('confirma cada vencimiento por separado y deshace solo el de la reserva cuyo lote ya no estaba RESERVADO', async () => {
-      // Arrange
+    it('omite la reserva cuyo lote ya no estaba RESERVADO y vence las demás', async () => {
+      // Arrange: la primera reserva apunta a un lote inconsistente (otro usuario lo cambió)
       const memoria = lotesYReservasEnMemoria({
         lotes: [
-          { id: 11, proyectoId: 1, codigo: 'A-01', estado: 'RESERVADO', precio: 78000 },
-          { id: 12, proyectoId: 1, codigo: 'A-02', estado: 'VENDIDO', precio: 72000 }, // otro usuario lo cambió
+          { id: 11, proyectoId: 1, codigo: 'A-01', estado: 'VENDIDO', precio: 78000 },
+          { id: 12, proyectoId: 1, codigo: 'A-02', estado: 'RESERVADO', precio: 72000 },
         ],
         reservas: [
           { id: 1, loteId: 11, clienteId: 7, estado: 'ACTIVA', fechaVencimiento: AYER },
@@ -99,11 +99,17 @@ describe('ReservaServicio', () => {
         ],
       });
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(memoria.repos, memoria), relojEnHoy());
-      // Act + Assert
-      await expect(servicio.procesarVencidas()).rejects.toMatchObject({ codigo: 'LOTE_MODIFICADO' });
-      expect(memoria.reserva(1)?.estado).toBe('VENCIDA');
-      expect(memoria.lote(11)?.estado).toBe('DISPONIBLE');
-      expect(memoria.reserva(2)?.estado).toBe('ACTIVA');
+      const aviso = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      // Act
+      const vencidas = await servicio.procesarVencidas();
+      // Assert
+      expect(vencidas).toBe(1);
+      expect(memoria.reserva(1)?.estado).toBe('ACTIVA');
+      expect(memoria.lote(11)?.estado).toBe('VENDIDO');
+      expect(memoria.reserva(2)?.estado).toBe('VENCIDA');
+      expect(memoria.lote(12)?.estado).toBe('DISPONIBLE');
+      expect(aviso).toHaveBeenCalledOnce();
+      aviso.mockRestore();
     });
   });
 });

@@ -22,6 +22,14 @@ import { useDatos } from '../../utilidades/useDatos';
 import { useEnvio } from '../../utilidades/useEnvio';
 import { useValorDiferido } from '../../utilidades/useValorDiferido';
 
+/**
+ * Condiciones que propone el formulario de venta. Son sugerencias, no reglas: el backend acepta
+ * cualquier cuota inicial y número de cuotas válidos (docs/DECISIONES.md §15).
+ */
+const MODALIDAD_SUGERIDA: ModalidadPago = 'FINANCIADO';
+const PORCENTAJE_CUOTA_INICIAL_SUGERIDA = 0.2;
+const CUOTAS_SUGERIDAS = 12;
+
 /** Registrar la venta de un lote, al contado o financiada con su plan de pagos (consigna, secciones 8 y 9). */
 export function ModalVenta({
   lote,
@@ -40,9 +48,9 @@ export function ModalVenta({
   const [clienteElegido, setClienteElegido] = useState<number | null>(reserva?.cliente.id ?? null);
   const clienteId = reserva ? reserva.cliente.id : clienteElegido;
   const [precio, setPrecio] = useState(String(lote.precio));
-  const [modalidad, setModalidad] = useState<ModalidadPago>('FINANCIADO');
-  const [cuotaInicial, setCuotaInicial] = useState(String(Math.round(lote.precio * 0.2)));
-  const [numeroCuotas, setNumeroCuotas] = useState('12');
+  const [modalidad, setModalidad] = useState<ModalidadPago>(MODALIDAD_SUGERIDA);
+  const [cuotaInicial, setCuotaInicial] = useState(String(Math.round(lote.precio * PORCENTAJE_CUOTA_INICIAL_SUGERIDA)));
+  const [numeroCuotas, setNumeroCuotas] = useState(String(CUOTAS_SUGERIDAS));
   const [fechaPrimeraCuota, setFechaPrimeraCuota] = useState('');
   const [metodo, setMetodo] = useState<MetodoPago>(METODO_PAGO_POR_DEFECTO);
   const { enviar, enviando, error, setError } = useEnvio({ alConflicto: onConflicto });

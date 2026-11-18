@@ -1,4 +1,4 @@
-import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
+import { ErrorAplicacion, ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import type { FechaISO } from '../../dominio/fechas';
 import { OPERACIONES_LOTE, validarLoteReservable } from '../../dominio/lote';
 import { estaVencida, OPERACIONES_RESERVA, validarFechaVencimiento, validarReservaCancelable } from '../../dominio/reserva';
@@ -108,7 +108,15 @@ export class ReservaServicio {
     );
     let vencidas = 0;
     for (const candidata of candidatas) {
-      if (await vencerReserva(this.uow, this.reloj, candidata.id)) vencidas++;
+      try {
+        if (await vencerReserva(this.uow, this.reloj, candidata.id)) vencidas++;
+      } catch (error) {
+        // Corre antes de cada petición: un lote inconsistente (otro usuario o un cambio a mano en la
+        // base lo sacó de RESERVADO) no debe frenar toda la API. Esa reserva queda ACTIVA, se avisa
+        // en el log y las demás se procesan; operar sobre ese lote sí responde 409.
+        if (!(error instanceof ErrorAplicacion && error.codigo === 'LOTE_MODIFICADO')) throw error;
+        console.warn(`[reservas] No se venció la reserva ${candidata.id}: ${error.message}`);
+      }
     }
     return vencidas;
   }
