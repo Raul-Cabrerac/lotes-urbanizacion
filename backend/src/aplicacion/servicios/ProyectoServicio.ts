@@ -1,4 +1,4 @@
-import { ErrorNoEncontrado } from '../../dominio/errores';
+import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import { normalizarPoligono } from '../../dominio/geometria';
 import { conteoVacio, resumirLotes, validarProyectoPublicable } from '../../dominio/proyecto';
 import type { Proyecto } from '../../dominio/tipos';
@@ -44,10 +44,18 @@ export class ProyectoServicio {
 
   /** Paso 5 del flujo de la consigna: publicar el mapa para el equipo comercial. */
   async publicar(id: number): Promise<Proyecto> {
-    const proyecto = await this.buscarExistente(id);
-    const lotes = await this.uow.repos.lotes.listarPorProyecto(id);
-    validarProyectoPublicable(proyecto, lotes.length);
-    return this.uow.repos.proyectos.actualizar(id, { estado: 'PUBLICADO' });
+    return this.uow.transaccion(async (repos) => {
+      await repos.proyectos.bloquearPorId(id);
+      const proyecto = await repos.proyectos.buscarPorId(id);
+      if (!proyecto) throw new ErrorNoEncontrado('Proyecto no encontrado.');
+      const lotes = await repos.lotes.listarPorProyecto(id);
+      validarProyectoPublicable(proyecto, lotes.length);
+      const publicado = await repos.proyectos.publicarSiBorrador(id);
+      if (!publicado) {
+        throw new ErrorConflicto('PROYECTO_YA_PUBLICADO', 'El proyecto ya está publicado.');
+      }
+      return publicado;
+    });
   }
 
   async buscarExistente(id: number): Promise<Proyecto> {

@@ -103,8 +103,9 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | `CODIGO_LOTE_REQUERIDO` · `PRECIO_INVALIDO` · `SUPERFICIE_INVALIDA` · `TEXTO_DEMASIADO_LARGO` | 422 | `dominio/lote.ts` | Datos comerciales inválidos |
 | `GEOMETRIA_INVALIDA` | 422 | `dominio/geometria.ts` | Polígono con menos de 3 vértices, coordenadas fuera de rango, etc. |
 | `KML_INVALIDO` · `KML_DATO_INVALIDO` · `KML_CON_ERRORES` | 422 | lector y `ImportacionKmlServicio` | Archivo ilegible, dato inválido, o lista de errores (en `detalles`) |
-| `PROYECTO_YA_PUBLICADO` | 409 | `dominio/proyecto.ts` | Publicar dos veces |
+| `PROYECTO_YA_PUBLICADO` | 409 | `dominio/proyecto.ts`, `ProyectoServicio` | Publicar dos veces |
 | `PROYECTO_SIN_LOTES` | 422 | `dominio/proyecto.ts` | Publicar sin lotes |
+| `PROYECTO_PUBLICADO_SIN_LOTES` | 409 | `dominio/lote.ts` | Eliminar el último lote de un proyecto ya PUBLICADO |
 | `FECHA_VENCIMIENTO_INVALIDA` | 422 | `dominio/reserva.ts` | Vencimiento anterior a hoy |
 | `RESERVA_NO_ACTIVA` | 409 | `dominio/reserva.ts`, `ReservaServicio` | Cancelar una reserva que ya no está ACTIVA, o que otro usuario cerró al mismo tiempo |
 | `PRECIO_PACTADO_INVALIDO` · `CUOTA_INICIAL_INVALIDA` · `NUMERO_CUOTAS_INVALIDO` · `FECHA_PRIMERA_CUOTA_INVALIDA` | 422 | `dominio/planPagos.ts` | Plan de pagos imposible |

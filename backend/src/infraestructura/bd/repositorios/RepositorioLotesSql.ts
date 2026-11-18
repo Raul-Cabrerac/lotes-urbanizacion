@@ -27,6 +27,10 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
       return fila && aLote(fila);
     },
 
+    async bloquearPorId(id) {
+      await bd.filas('SELECT id FROM lotes WHERE id = $1 FOR UPDATE', [id]);
+    },
+
     async buscarPorCodigo(proyectoId, codigo) {
       const fila = await bd.fila<FilaLote>(
         'SELECT * FROM lotes WHERE proyecto_id = $1 AND codigo = $2',

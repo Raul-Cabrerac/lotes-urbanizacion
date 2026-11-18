@@ -87,11 +87,15 @@ export interface DatosProyecto {
 export interface RepositorioProyectos {
   listar(soloPublicados: boolean): Promise<Proyecto[]>;
   buscarPorId(id: number): Promise<Proyecto | null>;
+  /** SELECT ... FOR UPDATE: bloquea la fila del proyecto hasta finalizar la transacción. */
+  bloquearPorId(id: number): Promise<void>;
   crear(datos: DatosProyecto): Promise<Proyecto>;
   actualizar(
     id: number,
     cambios: Partial<DatosProyecto> & { estado?: EstadoProyecto; limite?: PoligonoGeoJSON | null },
   ): Promise<Proyecto>;
+  /** Cambia el estado a PUBLICADO solo si sigue en BORRADOR; devuelve null si ya estaba publicado. */
+  publicarSiBorrador(id: number): Promise<Proyecto | null>;
 }
 
 export interface FiltrosLotes {
@@ -120,6 +124,8 @@ export interface ConteoLotes {
 export interface RepositorioLotes {
   listarPorProyecto(proyectoId: number, filtros?: FiltrosLotes): Promise<Lote[]>;
   buscarPorId(id: number): Promise<Lote | null>;
+  /** SELECT ... FOR UPDATE: bloquea la fila del lote hasta finalizar la transacción. */
+  bloquearPorId(id: number): Promise<void>;
   buscarPorCodigo(proyectoId: number, codigo: string): Promise<Lote | null>;
   crear(proyectoId: number, datos: DatosLote): Promise<Lote>;
   actualizar(id: number, cambios: Partial<DatosLote>): Promise<Lote>;
