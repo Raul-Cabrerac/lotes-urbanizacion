@@ -50,12 +50,19 @@ export class PagoServicio {
     return this.ventas.obtener(ventaId, usuario);
   }
 
-  /** Anula un pago (solo administrador) conservando quién, cuándo y por qué. */
+  /** Anula un pago (solo administrador) conservando quién, cuándo y por qué, mientras la venta siga vigente. */
   async anular(pagoId: number, motivo: string, usuario: UsuarioActual) {
     const ventaId = await this.uow.transaccion(async (repos) => {
+      const pagoInicial = await repos.pagos.buscarPorId(pagoId);
+      if (!pagoInicial) throw new ErrorNoEncontrado('Pago no encontrado.');
+      // Mismo orden de bloqueo que registrar pago y anular venta (primero ventas) para evitar carreras y deadlocks.
+      await repos.ventas.bloquearPorId(pagoInicial.ventaId);
+      const venta = await repos.ventas.buscarPorId(pagoInicial.ventaId);
+      if (!venta) throw new ErrorNoEncontrado('Venta no encontrada.');
       const pago = await repos.pagos.buscarPorId(pagoId);
       if (!pago) throw new ErrorNoEncontrado('Pago no encontrado.');
-      validarPagoAnulable(pago, motivo);
+
+      validarPagoAnulable(pago, motivo, venta.estado);
       const anulado = await repos.pagos.anular(pagoId, { motivo: motivo.trim(), anuladoPorId: usuario.id, fecha: this.reloj.ahora() });
       if (!anulado) throw new ErrorConflicto('PAGO_YA_ANULADO', 'El pago ya fue anulado.');
       return pago.ventaId;

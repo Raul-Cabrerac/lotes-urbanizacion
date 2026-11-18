@@ -209,9 +209,17 @@ export function validarPago(
 
 /**
  * Un pago no se borra ni vuelve atrás por una operación ordinaria: solo el
- * administrador puede ANULARLO indicando el motivo (queda registrado).
+ * administrador puede ANULARLO indicando el motivo (queda registrado) y solo
+ * mientras la venta siga VIGENTE.
  */
-export function validarPagoAnulable(pago: { estado: EstadoPago }, motivo: string): void {
+export function validarPagoAnulable(
+  pago: { estado: EstadoPago },
+  motivo: string,
+  estadoVenta: EstadoVenta = 'VIGENTE',
+): void {
+  if (estadoVenta !== 'VIGENTE') {
+    throw new ErrorConflicto('VENTA_NO_VIGENTE', 'La venta está anulada; no se pueden anular sus pagos.');
+  }
   if (pago.estado !== 'VALIDO') {
     throw new ErrorConflicto('PAGO_YA_ANULADO', 'El pago ya fue anulado.');
   }

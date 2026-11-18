@@ -112,7 +112,7 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | `MONTO_EXCEDE_SALDO` | 422 | `dominio/planPagos.ts` | El pago dejaría el saldo negativo |
 | `MONTO_EXCEDE_CUOTA` | 422 | `dominio/planPagos.ts` | El pago supera lo pendiente de la cuota |
 | `CUOTA_YA_PAGADA` | 409 | `dominio/planPagos.ts` | Pagar una cuota PAGADA |
-| `VENTA_NO_VIGENTE` | 409 | `dominio/planPagos.ts`, `dominio/venta.ts`, `VentaServicio` | Pagar o anular una venta ANULADA (también si dos anulaciones llegan a la vez) |
+| `VENTA_NO_VIGENTE` | 409 | `dominio/planPagos.ts`, `dominio/venta.ts`, `VentaServicio`, `PagoServicio` | Pagar, anular o anular un pago de una venta ANULADA (también ante concurrencia) |
 | `PAGO_YA_ANULADO` | 409 | `dominio/planPagos.ts`, `PagoServicio` | Anular dos veces el mismo pago (también a la vez) |
 | `MOTIVO_REQUERIDO` | 422 | `dominio/venta.ts` | Anular sin motivo (mínimo 5 caracteres) |
 | `DOCUMENTO_DUPLICADO` | 409 | `ClienteServicio` | Ya existe un cliente con ese CI/NIT |
