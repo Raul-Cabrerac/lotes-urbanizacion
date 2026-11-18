@@ -130,7 +130,7 @@ export function ModalLote({
             Cancelar
           </button>
           <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="lote-guardar">
-            {guardando ? 'Guardando...' : 'Guardar lote'}
+            {guardando ? 'Guardando…' : 'Guardar lote'}
           </button>
         </div>
       </form>

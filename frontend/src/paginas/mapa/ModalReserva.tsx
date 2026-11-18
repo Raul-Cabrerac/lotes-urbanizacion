@@ -69,8 +69,8 @@ export function ModalReserva({
           <button type="button" className="boton" onClick={onCerrar} data-testid="reserva-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-ambar" disabled={enviando} data-testid="reserva-confirmar">
-            {enviando ? 'Reservando...' : 'Confirmar reserva'}
+          <button type="submit" className="boton boton-primario" disabled={enviando} data-testid="reserva-confirmar">
+            {enviando ? 'Reservando…' : 'Confirmar reserva'}
           </button>
         </div>
       </form>

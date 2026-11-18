@@ -4,10 +4,11 @@ import { api } from '../api/api';
 import type { Cuota, Pago } from '../api/tiposOperaciones';
 import { useSesion } from '../auth/Sesion';
 import { useAvisos } from '../componentes/Avisos';
-import { Cargando, Dato, Encabezado, Insignia, MensajeError } from '../componentes/Basicos';
+import { Cargando, ContenedorTabla, Dato, Encabezado, Insignia, MensajeError } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
 import { MapaLotes } from '../componentes/mapa/MapaLotes';
 import { ModalConfirmar } from '../componentes/ModalConfirmar';
-import { bs, fecha, fechaHora, m2 } from '../utilidades/formato';
+import { bs, fecha, fechaHora, m2, plural } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 import { AccesoDenegado } from './Errores';
 import { ModalPago } from './ModalPago';
@@ -35,7 +36,8 @@ export function VentaDetalle() {
   return (
     <div className="pagina">
       <Link to={esCliente ? '/mi-portal' : '/ventas'} className="enlace-volver" data-testid="volver-ventas">
-        ← {esCliente ? 'Mis lotes' : 'Ventas'}
+        <Icono nombre="volver" />
+        {esCliente ? 'Mis lotes' : 'Ventas'}
       </Link>
       <Encabezado
         titulo={`Plan de pagos · Lote ${venta.lote.codigo}`}
@@ -43,7 +45,7 @@ export function VentaDetalle() {
       >
         <Insignia estado={venta.estado} testid="venta-estado" />
         {vigente && puede('ventas:anular') && (
-          <button className="boton boton-texto-peligro" onClick={() => setAnulandoVenta(true)} data-testid="anular-venta">
+          <button type="button" className="boton boton-texto-peligro" onClick={() => setAnulandoVenta(true)} data-testid="anular-venta">
             Anular venta
           </button>
         )}
@@ -69,17 +71,15 @@ export function VentaDetalle() {
               {bs(resumen.saldoPendiente)}
             </span>
           </Dato>
-          <div className="barra-progreso" title={`${porcentajePagado}% pagado`}>
-            <span style={{ width: `${porcentajePagado}%` }} />
-          </div>
+          <progress className="barra-progreso" value={porcentajePagado} max={100} aria-label="Porcentaje pagado" />
           <div className="texto-suave pequeno">
             {resumen.saldada
-              ? '¡Venta completamente pagada!'
+              ? 'Venta pagada en su totalidad'
               : `${porcentajePagado}% pagado · ${resumen.cuotasPagadas} de ${venta.cuotas.length} cuotas pagadas`}
           </div>
           {vigente && resumen.cuotasVencidas > 0 && (
             <div className="texto-alerta pequeno" data-testid="venta-vencidas">
-              {resumen.cuotasVencidas} cuota(s) vencida(s) por {bs(resumen.montoVencido)}
+              {plural(resumen.cuotasVencidas, 'cuota vencida', 'cuotas vencidas')} por {bs(resumen.montoVencido)}
             </div>
           )}
         </div>
@@ -110,7 +110,7 @@ export function VentaDetalle() {
       </div>
 
       <h2 className="titulo-seccion">Cronograma de cuotas</h2>
-      <div className="tarjeta sin-relleno">
+      <ContenedorTabla etiqueta="Cronograma de cuotas">
         <table className="tabla" data-testid="tabla-cuotas">
           <thead>
             <tr>
@@ -127,18 +127,18 @@ export function VentaDetalle() {
           <tbody>
             {venta.cuotas.map((c) => (
               <tr key={c.id} data-testid={`cuota-${c.numero}`} data-estado={c.estado}>
-                <td>{c.numero}</td>
-                <td>{c.concepto}</td>
-                <td>{fecha(c.fechaVencimiento)}</td>
-                <td className="numero">{bs(c.monto)}</td>
-                <td className="numero">{bs(c.montoPagado)}</td>
-                <td className="numero">{bs(c.montoPendiente)}</td>
-                <td>
+                <td data-etiqueta="N°">{c.numero}</td>
+                <td data-etiqueta="Concepto">{c.concepto}</td>
+                <td data-etiqueta="Vence">{fecha(c.fechaVencimiento)}</td>
+                <td className="numero" data-etiqueta="Monto">{bs(c.monto)}</td>
+                <td className="numero" data-etiqueta="Pagado">{bs(c.montoPagado)}</td>
+                <td className="numero" data-etiqueta="Pendiente">{bs(c.montoPendiente)}</td>
+                <td data-etiqueta="Estado">
                   <Insignia estado={c.estado} testid={`cuota-${c.numero}-estado`} />
                 </td>
                 <td className="numero">
                   {vigente && c.estado !== 'PAGADA' && puede('pagos:registrar') && (
-                    <button className="boton boton-chico boton-primario" onClick={() => setPagando(c)} data-testid={`pagar-cuota-${c.numero}`}>
+                    <button type="button" className="boton boton-chico boton-primario" onClick={() => setPagando(c)} data-testid={`pagar-cuota-${c.numero}`}>
                       Registrar pago
                     </button>
                   )}
@@ -147,10 +147,10 @@ export function VentaDetalle() {
             ))}
           </tbody>
         </table>
-      </div>
+      </ContenedorTabla>
 
       <h2 className="titulo-seccion">Historial de pagos</h2>
-      <div className="tarjeta sin-relleno">
+      <ContenedorTabla etiqueta="Historial de pagos">
         {venta.pagos.length === 0 ? (
           <div className="vacio">Todavía no hay pagos.</div>
         ) : (
@@ -170,23 +170,25 @@ export function VentaDetalle() {
             <tbody>
               {venta.pagos.map((p) => (
                 <tr key={p.id} className={p.estado === 'ANULADO' ? 'fila-anulada' : ''} data-testid={`pago-${p.id}`}>
-                  <td>{fechaHora(p.fecha)}</td>
-                  <td>{p.cuotaConcepto}</td>
-                  <td className="numero">{bs(p.monto)}</td>
-                  <td>{p.metodo}</td>
-                  <td>{p.referencia || '—'}</td>
-                  <td>{p.registradoPor.nombre}</td>
-                  <td>
-                    <Insignia estado={p.estado} />
-                    {p.estado === 'ANULADO' && (
-                      <div className="texto-suave pequeno">
-                        {fechaHora(p.anuladoEn)} · {p.anuladoPor?.nombre}: {p.motivoAnulacion}
-                      </div>
-                    )}
+                  <td data-etiqueta="Fecha">{fechaHora(p.fecha)}</td>
+                  <td data-etiqueta="Cuota">{p.cuotaConcepto}</td>
+                  <td className="numero" data-etiqueta="Monto">{bs(p.monto)}</td>
+                  <td data-etiqueta="Método">{p.metodo}</td>
+                  <td data-etiqueta="Referencia">{p.referencia || '—'}</td>
+                  <td data-etiqueta="Registrado por">{p.registradoPor.nombre}</td>
+                  <td data-etiqueta="Estado">
+                    <div>
+                      <Insignia estado={p.estado} />
+                      {p.estado === 'ANULADO' && (
+                        <div className="texto-suave pequeno">
+                          {fechaHora(p.anuladoEn)} · {p.anuladoPor?.nombre}: {p.motivoAnulacion}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="numero">
                     {p.estado === 'VALIDO' && vigente && puede('pagos:anular') && (
-                      <button className="boton boton-chico boton-texto-peligro" onClick={() => setAnulandoPago(p)} data-testid={`anular-pago-${p.id}`}>
+                      <button type="button" className="boton boton-chico boton-texto-peligro" onClick={() => setAnulandoPago(p)} data-testid={`anular-pago-${p.id}`}>
                         Anular
                       </button>
                     )}
@@ -196,7 +198,7 @@ export function VentaDetalle() {
             </tbody>
           </table>
         )}
-      </div>
+      </ContenedorTabla>
 
       {pagando && (
         <ModalPago

@@ -4,6 +4,7 @@ import { api } from '../api/api';
 import { ESTADOS_LOTE } from '../api/tipos';
 import { useSesion } from '../auth/Sesion';
 import { Cargando, Encabezado, Insignia, MensajeError, Vacio } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
 import { COLOR_ESTADO } from '../componentes/mapa/colores';
 import { fecha } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
@@ -21,7 +22,8 @@ export function Proyectos() {
       <Encabezado titulo="Proyectos" subtitulo="Seleccione un proyecto para ver su mapa de lotes.">
         {puede('proyectos:gestionar') && (
           <button className="boton boton-primario" onClick={() => setCreando(true)} data-testid="nuevo-proyecto">
-            + Nuevo proyecto
+            <Icono nombre="mas" />
+            Nuevo proyecto
           </button>
         )}
       </Encabezado>
@@ -37,7 +39,10 @@ export function Proyectos() {
               <h2>{p.nombre}</h2>
               <Insignia estado={p.estado} />
             </div>
-            <p className="texto-suave">{p.ubicacion}</p>
+            <p className="proyecto-ubicacion">
+              <Icono nombre="ubicacion" tamano={14} />
+              {p.ubicacion}
+            </p>
             {p.descripcion && <p className="descripcion">{p.descripcion}</p>}
             <div className="barra-estados" title="Lotes por estado">
               {ESTADOS_LOTE.map((estado) =>
@@ -50,9 +55,20 @@ export function Proyectos() {
                 ) : null,
               )}
             </div>
-            <div className="texto-suave pequeno">
-              {p.totalLotes} lotes · {p.lotesPorEstado.DISPONIBLE} disponibles · creado el {fecha(p.creadoEn)}
-            </div>
+            <dl className="proyecto-cifras">
+              <div>
+                <dt>Lotes</dt>
+                <dd>{p.totalLotes}</dd>
+              </div>
+              <div>
+                <dt>Disponibles</dt>
+                <dd>{p.lotesPorEstado.DISPONIBLE}</dd>
+              </div>
+              <div>
+                <dt>Creado</dt>
+                <dd>{fecha(p.creadoEn)}</dd>
+              </div>
+            </dl>
           </Link>
         ))}
       </div>

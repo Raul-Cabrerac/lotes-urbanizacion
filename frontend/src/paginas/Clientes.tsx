@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { api } from '../api/api';
 import type { Cliente } from '../api/tipos';
 import { useSesion } from '../auth/Sesion';
 import { useAvisos } from '../componentes/Avisos';
-import { Cargando, Encabezado, MensajeError, Vacio } from '../componentes/Basicos';
+import { CampoBusqueda, Cargando, ContenedorTabla, Encabezado, MensajeError, Vacio } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
 import { useDatos } from '../utilidades/useDatos';
 import { ModalCliente } from './ModalCliente';
 
@@ -27,15 +28,17 @@ export function Clientes() {
     <div className="pagina">
       <Encabezado titulo="Clientes" subtitulo="Personas que reservan o compran lotes.">
         {puede('clientes:gestionar') && (
-          <button className="boton boton-primario" onClick={() => setEditando('nuevo')} data-testid="nuevo-cliente">
-            + Registrar cliente
+          <button type="button" className="boton boton-primario" onClick={() => setEditando('nuevo')} data-testid="nuevo-cliente">
+            <Icono nombre="mas" />
+            Registrar cliente
           </button>
         )}
       </Encabezado>
 
-      <input
-        className="buscador"
-        placeholder="Buscar por nombre, documento, teléfono o correo..."
+      <CampoBusqueda
+        className="buscador-pagina"
+        placeholder="Nombre, documento, teléfono o correo"
+        aria-label="Buscar cliente"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         data-testid="buscar-cliente"
@@ -45,7 +48,7 @@ export function Clientes() {
       {clientes?.length === 0 && <Vacio>No se encontraron clientes.</Vacio>}
 
       {clientes && clientes.length > 0 && (
-        <div className="tarjeta sin-relleno">
+        <ContenedorTabla etiqueta="Clientes">
           <table className="tabla" data-testid="tabla-clientes">
             <thead>
               <tr>
@@ -60,11 +63,15 @@ export function Clientes() {
             <tbody>
               {clientes.map((c) => (
                 <tr key={c.id} className="fila-clic" onClick={() => navegar(`/clientes/${c.id}`)} data-testid={`fila-cliente-${c.documento}`}>
-                  <td>{c.nombreCompleto}</td>
-                  <td>{c.documento}</td>
-                  <td>{c.telefono}</td>
-                  <td>{c.email || '—'}</td>
-                  <td>{c.direccion || '—'}</td>
+                  <td>
+                    <Link to={`/clientes/${c.id}`} onClick={(e) => e.stopPropagation()}>
+                      {c.nombreCompleto}
+                    </Link>
+                  </td>
+                  <td data-etiqueta="Documento">{c.documento}</td>
+                  <td data-etiqueta="Teléfono">{c.telefono}</td>
+                  <td data-etiqueta="Correo">{c.email || '—'}</td>
+                  <td data-etiqueta="Dirección">{c.direccion || '—'}</td>
                   <td className="numero">
                     {puede('clientes:gestionar') && (
                       <button
@@ -83,7 +90,7 @@ export function Clientes() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ContenedorTabla>
       )}
 
       {editando && (

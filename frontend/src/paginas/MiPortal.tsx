@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { api } from '../api/api';
 import { useSesion } from '../auth/Sesion';
 import { Cargando, Encabezado, Insignia, MensajeError, Vacio } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
 import { LeyendaEstados } from '../componentes/mapa/LeyendaEstados';
 import { MapaLotes, type LoteEnMapa } from '../componentes/mapa/MapaLotes';
 import { bs, fecha, m2 } from '../utilidades/formato';
@@ -38,8 +39,8 @@ export function MiPortal() {
   return (
     <div className="pagina">
       <Encabezado
-        titulo={`Hola, ${usuario?.nombre.split(' ')[0]}`}
-        subtitulo="Aquí puede ver sus lotes, su plan de pagos y su saldo. Haga clic en una compra para ubicarla en el mapa."
+        titulo="Mis lotes"
+        subtitulo={`${usuario?.nombre ?? ''} · sus compras, su plan de pagos y el saldo pendiente. Elija una compra para ubicarla en el mapa.`}
       />
 
       <div className="portal">
@@ -54,7 +55,11 @@ export function MiPortal() {
               data-testid={`mi-compra-${v.lote.codigo}`}
             >
               <div className="fila-espaciada">
-                <h3>Lote {v.lote.codigo}</h3>
+                <h3>
+                  <button type="button" className="tarjeta-compra-titulo" onClick={() => setSeleccionado(v.lote.id)}>
+                    Lote {v.lote.codigo}
+                  </button>
+                </h3>
                 <Insignia estado={v.lote.estado} />
               </div>
               <div className="texto-suave">
@@ -77,11 +82,12 @@ export function MiPortal() {
               {v.resumen.proximaCuota && (
                 <div className={`pequeno ${v.resumen.proximaCuota.estado === 'VENCIDA' ? 'texto-alerta' : 'texto-suave'}`}>
                   Próxima cuota: {fecha(v.resumen.proximaCuota.fechaVencimiento)} · {bs(v.resumen.proximaCuota.montoPendiente)}
-                  {v.resumen.proximaCuota.estado === 'VENCIDA' && ' (VENCIDA)'}
+                  {v.resumen.proximaCuota.estado === 'VENCIDA' && ' (vencida)'}
                 </div>
               )}
-              <Link to={`/ventas/${v.id}`} className="boton boton-chico boton-primario" data-testid={`mi-plan-${v.lote.codigo}`}>
+              <Link to={`/ventas/${v.id}`} className="boton boton-chico" data-testid={`mi-plan-${v.lote.codigo}`}>
                 Ver plan de pagos y pagos
+                <Icono nombre="flecha" tamano={14} />
               </Link>
             </div>
           ))}
@@ -95,7 +101,11 @@ export function MiPortal() {
               data-testid={`mi-reserva-${r.lote.codigo}`}
             >
               <div className="fila-espaciada">
-                <h3>Lote {r.lote.codigo}</h3>
+                <h3>
+                  <button type="button" className="tarjeta-compra-titulo" onClick={() => setSeleccionado(r.lote.id)}>
+                    Lote {r.lote.codigo}
+                  </button>
+                </h3>
                 <Insignia estado={r.estado} />
               </div>
               <div className="texto-suave">

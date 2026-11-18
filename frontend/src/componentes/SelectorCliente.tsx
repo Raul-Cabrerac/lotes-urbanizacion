@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api/api';
 import type { Cliente } from '../api/tipos';
+import { CampoBusqueda } from './Basicos';
+import { Icono } from './Icono';
 import { ModalCliente } from '../paginas/ModalCliente';
 import { useDatos } from '../utilidades/useDatos';
 
@@ -28,14 +30,16 @@ export function SelectorCliente({
   return (
     <div className="selector-cliente">
       <div className="fila-campos">
-        <input
-          placeholder="Buscar por nombre o documento..."
+        <CampoBusqueda
+          placeholder="Nombre o documento"
+          aria-label="Buscar cliente"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           data-testid={`${testid}-buscar`}
         />
         <button type="button" className="boton" onClick={() => setRegistrando(true)} data-testid={`${testid}-nuevo`}>
-          + Nuevo cliente
+          <Icono nombre="mas" />
+          Nuevo cliente
         </button>
       </div>
       <select

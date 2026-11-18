@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { Poligono } from '../../api/tipos';
+import { Icono } from '../Icono';
 import type { CapaHtml } from './capaHtml';
 import { AZUL_SELECCION } from './colores';
 import type { GoogleMaps } from './cargarGoogleMaps';
@@ -89,19 +90,23 @@ export function HerramientaDibujo({ api, mapa, capaVertices, verticesExistentes,
         {vertices.length} {vertices.length === 1 ? 'vértice' : 'vértices'}
       </span>
       <button
+        type="button"
         className="boton boton-chico"
         onClick={() => setVertices(vertices.slice(0, -1))}
         disabled={vertices.length === 0}
         data-testid="deshacer-vertice"
       >
+        <Icono nombre="deshacer" />
         Deshacer punto
       </button>
       <button
+        type="button"
         className="boton boton-chico boton-primario"
         onClick={terminar}
         disabled={!puedeTerminar}
         data-testid="terminar-dibujo"
       >
+        <Icono nombre="listo" />
         Terminar polígono
       </button>
     </div>

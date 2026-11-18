@@ -4,7 +4,8 @@ import { mensajeDeError } from '../api/http';
 import type { Rol } from '../api/tipos';
 import { useSesion } from '../auth/Sesion';
 import { useAvisos } from '../componentes/Avisos';
-import { Campo, Cargando, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Campo, Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
 import { Modal } from '../componentes/Modal';
 import { fecha, NOMBRE_ROL } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
@@ -29,14 +30,15 @@ export function Usuarios() {
   return (
     <div className="pagina">
       <Encabezado titulo="Usuarios" subtitulo="Cuentas de acceso: administradores, asesores y clientes (portal).">
-        <button className="boton boton-primario" onClick={() => setCreando(true)} data-testid="nuevo-usuario">
-          + Nuevo usuario
+        <button type="button" className="boton boton-primario" onClick={() => setCreando(true)} data-testid="nuevo-usuario">
+          <Icono nombre="mas" />
+          Nuevo usuario
         </button>
       </Encabezado>
       <MensajeError mensaje={error} />
       {cargando && !usuarios && <Cargando />}
       {usuarios && (
-        <div className="tarjeta sin-relleno">
+        <ContenedorTabla etiqueta="Usuarios">
           <table className="tabla" data-testid="tabla-usuarios">
             <thead>
               <tr>
@@ -52,12 +54,14 @@ export function Usuarios() {
             <tbody>
               {usuarios.map((u) => (
                 <tr key={u.id} className={u.activo ? '' : 'fila-anulada'} data-testid={`fila-usuario-${u.email}`}>
-                  <td>{u.nombre}</td>
-                  <td>{u.email}</td>
-                  <td>{NOMBRE_ROL[u.rol]}</td>
-                  <td>{u.cliente?.nombre ?? '—'}</td>
-                  <td>{fecha(u.creadoEn)}</td>
-                  <td>{u.activo ? 'Activo' : 'Inactivo'}</td>
+                  <td>
+                    <strong>{u.nombre}</strong>
+                  </td>
+                  <td data-etiqueta="Correo">{u.email}</td>
+                  <td data-etiqueta="Rol">{NOMBRE_ROL[u.rol]}</td>
+                  <td data-etiqueta="Cliente vinculado">{u.cliente?.nombre ?? '—'}</td>
+                  <td data-etiqueta="Creado">{fecha(u.creadoEn)}</td>
+                  <td data-etiqueta="Estado">{u.activo ? 'Activo' : 'Inactivo'}</td>
                   <td className="numero">
                     {u.id !== actual?.id && (
                       <button
@@ -73,7 +77,7 @@ export function Usuarios() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ContenedorTabla>
       )}
       {creando && (
         <ModalUsuario
@@ -153,7 +157,7 @@ function ModalUsuario({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: 
             Cancelar
           </button>
           <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="usuario-guardar">
-            {guardando ? 'Guardando...' : 'Crear usuario'}
+            {guardando ? 'Guardando…' : 'Crear usuario'}
           </button>
         </div>
       </form>

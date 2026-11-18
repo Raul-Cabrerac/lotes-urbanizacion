@@ -84,7 +84,7 @@ export function ModalPago({ venta, cuota, onCerrar, onPagado, onConflicto }: Pro
             Cancelar
           </button>
           <button type="submit" className="boton boton-primario" disabled={enviando} data-testid="pago-confirmar">
-            {enviando ? 'Registrando...' : 'Registrar pago'}
+            {enviando ? 'Registrando…' : 'Registrar pago'}
           </button>
         </div>
       </form>

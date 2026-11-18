@@ -198,11 +198,11 @@ export function ModalVenta({
           </button>
           <button
             type="submit"
-            className="boton boton-rojo"
+            className="boton boton-primario"
             disabled={enviando || !plan || lote.estado === 'VENDIDO' || lote.estado === 'BLOQUEADO'}
             data-testid="venta-confirmar"
           >
-            {enviando ? 'Registrando...' : 'Confirmar venta'}
+            {enviando ? 'Registrando…' : 'Confirmar venta'}
           </button>
         </div>
       </form>

@@ -2,9 +2,10 @@ import { Link } from 'react-router';
 import type { FiltrosLotes } from '../../api/api';
 import { ESTADOS_LOTE, type EstadoLote, type Lote, type ProyectoDetalle } from '../../api/tipos';
 import { useSesion } from '../../auth/Sesion';
-import { Cargando, Insignia } from '../../componentes/Basicos';
+import { CampoBusqueda, Cargando, Insignia } from '../../componentes/Basicos';
+import { Icono } from '../../componentes/Icono';
 import { COLOR_ESTADO } from '../../componentes/mapa/colores';
-import { bs, m2 } from '../../utilidades/formato';
+import { bs, capitalizar, m2 } from '../../utilidades/formato';
 
 interface Props {
   proyecto: ProyectoDetalle;
@@ -28,13 +29,17 @@ export function PanelProyecto(props: Props) {
   return (
     <aside className="panel-lateral">
       <Link to="/proyectos" className="enlace-volver" data-testid="volver-proyectos">
-        ← Proyectos
+        <Icono nombre="volver" />
+        Proyectos
       </Link>
       <div className="fila-espaciada">
         <h1 data-testid="proyecto-titulo">{proyecto.nombre}</h1>
         <Insignia estado={proyecto.estado} testid="proyecto-estado" />
       </div>
-      <p className="texto-suave">{proyecto.ubicacion}</p>
+      <p className="proyecto-ubicacion">
+        <Icono nombre="ubicacion" tamano={14} />
+        {proyecto.ubicacion}
+      </p>
       {proyecto.descripcion && <p className="descripcion pequeno">{proyecto.descripcion}</p>}
 
       {puede('proyectos:gestionar') && (
@@ -54,18 +59,19 @@ export function PanelProyecto(props: Props) {
         </div>
       )}
 
-      <div className="contadores">
+      <div className="contadores" role="group" aria-label="Filtrar lotes por estado">
         {ESTADOS_LOTE.map((estado) => (
           <button
             key={estado}
-            className={`contador ${filtros.estado === estado ? 'activo' : ''}`}
-            style={{ borderTopColor: COLOR_ESTADO[estado] }}
+            type="button"
+            className="contador"
+            style={{ ['--color-estado' as string]: COLOR_ESTADO[estado] }}
+            aria-pressed={filtros.estado === estado}
             onClick={() => onFiltros((f) => ({ ...f, estado: f.estado === estado ? '' : estado }))}
             data-testid={`contador-${estado}`}
-            title="Filtrar por este estado"
           >
+            <span>{capitalizar(estado)}</span>
             <strong>{resumen.porEstado[estado]}</strong>
-            <span>{estado.toLowerCase()}</span>
           </button>
         ))}
       </div>
@@ -80,7 +86,7 @@ export function PanelProyecto(props: Props) {
           <option value="">Estado: todos</option>
           {ESTADOS_LOTE.map((estado) => (
             <option key={estado} value={estado}>
-              {estado}
+              {capitalizar(estado)}
             </option>
           ))}
         </select>
@@ -108,8 +114,8 @@ export function PanelProyecto(props: Props) {
             </option>
           ))}
         </select>
-        <input
-          placeholder="Buscar código..."
+        <CampoBusqueda
+          placeholder="Código"
           aria-label="Buscar por código"
           value={props.busqueda}
           onChange={(e) => props.onBusqueda(e.target.value)}
@@ -123,7 +129,9 @@ export function PanelProyecto(props: Props) {
         {lotes?.map((l) => (
           <button
             key={l.id}
+            type="button"
             className={`item-lote ${l.id === seleccionadoId ? 'seleccionado' : ''}`}
+            aria-current={l.id === seleccionadoId ? 'true' : undefined}
             onClick={() => props.onSeleccionar(l.id)}
             data-testid={`item-lote-${l.codigo}`}
             data-estado={l.estado}
@@ -134,7 +142,7 @@ export function PanelProyecto(props: Props) {
               {l.manzano && `Mz ${l.manzano} · `}
               {m2(l.superficieM2)}
             </span>
-            <span className="item-lote-precio">{l.precio > 0 ? bs(l.precio) : 'sin precio'}</span>
+            <span className="item-lote-precio">{l.precio > 0 ? bs(l.precio) : 'Sin precio'}</span>
           </button>
         ))}
       </div>
@@ -148,7 +156,10 @@ export function PanelProyecto(props: Props) {
 function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
   return (
     <details className="resumen-manzanos" data-testid="resumen-manzanos">
-      <summary>Resumen por etapa y manzano</summary>
+      <summary>
+        Resumen por etapa y manzano
+        <Icono nombre="abajo" />
+      </summary>
       <table className="tabla tabla-compacta">
         <thead>
           <tr>

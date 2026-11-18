@@ -5,7 +5,7 @@ import type { EstadoReserva } from '../api/tipos';
 import type { Reserva } from '../api/tiposOperaciones';
 import { useSesion } from '../auth/Sesion';
 import { useAvisos } from '../componentes/Avisos';
-import { Cargando, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
 import { ModalConfirmar } from '../componentes/ModalConfirmar';
 import { TablaReservas } from '../componentes/TablasOperaciones';
 import { useDatos } from '../utilidades/useDatos';
@@ -29,11 +29,13 @@ export function Reservas() {
   return (
     <div className="pagina">
       <Encabezado titulo="Reservas" subtitulo="Las reservas vencidas liberan su lote automáticamente." />
-      <div className="pestanas">
+      <div className="pestanas" role="group" aria-label="Filtrar reservas por estado">
         {PESTANAS.map((p) => (
           <button
             key={p.texto}
-            className={`pestana ${estado === p.estado ? 'activa' : ''}`}
+            type="button"
+            className="pestana"
+            aria-pressed={estado === p.estado}
             onClick={() => setEstado(p.estado)}
             data-testid={`pestana-reservas-${p.estado || 'TODAS'}`}
           >
@@ -44,7 +46,7 @@ export function Reservas() {
       <MensajeError mensaje={error} />
       {cargando && !reservas && <Cargando />}
       {reservas && (
-        <div className="tarjeta sin-relleno">
+        <ContenedorTabla etiqueta="Reservas">
           <TablaReservas
             reservas={reservas}
             acciones={(r) => (
@@ -57,14 +59,14 @@ export function Reservas() {
                   Ver en mapa
                 </Link>
                 {r.estado === 'ACTIVA' && puede('reservas:gestionar') && (
-                  <button className="boton boton-chico" onClick={() => setCancelando(r)} data-testid={`cancelar-reserva-${r.lote.codigo}`}>
+                  <button type="button" className="boton boton-chico" onClick={() => setCancelando(r)} data-testid={`cancelar-reserva-${r.lote.codigo}`}>
                     Cancelar
                   </button>
                 )}
               </span>
             )}
           />
-        </div>
+        </ContenedorTabla>
       )}
 
       {cancelando && (

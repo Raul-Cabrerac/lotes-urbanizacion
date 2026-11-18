@@ -65,7 +65,7 @@ export function ModalCliente({
             Cancelar
           </button>
           <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="cliente-guardar">
-            {guardando ? 'Guardando...' : 'Guardar cliente'}
+            {guardando ? 'Guardando…' : 'Guardar cliente'}
           </button>
         </div>
       </form>

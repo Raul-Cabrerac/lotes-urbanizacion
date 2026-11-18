@@ -71,7 +71,7 @@ export function ModalConfirmar({
             disabled={enviando}
             data-testid="confirmar-aceptar"
           >
-            {enviando ? 'Procesando...' : textoConfirmar}
+            {enviando ? 'Procesando…' : textoConfirmar}
           </button>
         </div>
       </form>

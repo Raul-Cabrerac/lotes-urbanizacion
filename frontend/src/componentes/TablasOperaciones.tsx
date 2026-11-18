@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Reserva, Venta } from '../api/tiposOperaciones';
-import { bs, fecha } from '../utilidades/formato';
+import { bs, fecha, plural } from '../utilidades/formato';
 import { Insignia, Vacio } from './Basicos';
 
 export function TablaVentas({ ventas, mostrarCliente = true }: { ventas: Venta[]; mostrarCliente?: boolean }) {
@@ -26,22 +26,26 @@ export function TablaVentas({ ventas, mostrarCliente = true }: { ventas: Venta[]
       <tbody>
         {ventas.map((v) => (
           <tr key={v.id} data-testid={`fila-venta-${v.lote.codigo}`}>
-            <td>{fecha(v.fecha)}</td>
-            <td>
-              <strong>{v.lote.codigo}</strong>
+            <td data-etiqueta="Fecha">{fecha(v.fecha)}</td>
+            <td data-etiqueta="Lote">
+              <strong className="codigo">{v.lote.codigo}</strong>
             </td>
-            <td>{v.lote.proyecto.nombre}</td>
-            {mostrarCliente && <td>{v.cliente.nombreCompleto}</td>}
-            <td>{v.modalidad === 'CONTADO' ? 'Contado' : `Financiado (${v.numeroCuotas} cuotas)`}</td>
-            <td className="numero">{bs(v.precioPactado)}</td>
-            <td className="numero">{bs(v.resumen.totalPagado)}</td>
-            <td className="numero">
-              {bs(v.resumen.saldoPendiente)}
-              {v.resumen.cuotasVencidas > 0 && v.estado === 'VIGENTE' && (
-                <div className="texto-alerta pequeno">{v.resumen.cuotasVencidas} cuota(s) vencida(s)</div>
-              )}
+            <td data-etiqueta="Proyecto">{v.lote.proyecto.nombre}</td>
+            {mostrarCliente && <td data-etiqueta="Cliente">{v.cliente.nombreCompleto}</td>}
+            <td data-etiqueta="Modalidad">
+              {v.modalidad === 'CONTADO' ? 'Contado' : `Financiado en ${plural(v.numeroCuotas, 'cuota', 'cuotas')}`}
             </td>
-            <td>
+            <td className="numero" data-etiqueta="Precio pactado">{bs(v.precioPactado)}</td>
+            <td className="numero" data-etiqueta="Pagado">{bs(v.resumen.totalPagado)}</td>
+            <td className="numero" data-etiqueta="Saldo">
+              <div>
+                {bs(v.resumen.saldoPendiente)}
+                {v.resumen.cuotasVencidas > 0 && v.estado === 'VIGENTE' && (
+                  <div className="texto-alerta pequeno">{plural(v.resumen.cuotasVencidas, 'cuota vencida', 'cuotas vencidas')}</div>
+                )}
+              </div>
+            </td>
+            <td data-etiqueta="Estado">
               <Insignia estado={v.estado} />
             </td>
             <td>
@@ -84,18 +88,20 @@ export function TablaReservas({
       <tbody>
         {reservas.map((r) => (
           <tr key={r.id} data-testid={`fila-reserva-${r.lote.codigo}`}>
-            <td>{fecha(r.fecha)}</td>
-            <td>
-              <strong>{r.lote.codigo}</strong>
+            <td data-etiqueta="Fecha">{fecha(r.fecha)}</td>
+            <td data-etiqueta="Lote">
+              <strong className="codigo">{r.lote.codigo}</strong>
             </td>
-            <td>{r.lote.proyecto.nombre}</td>
-            {mostrarCliente && <td>{r.cliente.nombreCompleto}</td>}
-            <td>{r.fechaVencimiento ? fecha(r.fechaVencimiento) : 'Sin vencimiento'}</td>
-            <td>{r.asesor.nombre}</td>
-            <td>
+            <td data-etiqueta="Proyecto">{r.lote.proyecto.nombre}</td>
+            {mostrarCliente && <td data-etiqueta="Cliente">{r.cliente.nombreCompleto}</td>}
+            <td data-etiqueta="Vence">{r.fechaVencimiento ? fecha(r.fechaVencimiento) : 'Sin vencimiento'}</td>
+            <td data-etiqueta="Asesor">{r.asesor.nombre}</td>
+            <td data-etiqueta="Estado">
               <Insignia estado={r.estado} />
             </td>
-            <td className="texto-suave pequeno">{r.motivoFinalizacion ?? r.observacion}</td>
+            <td className="texto-suave pequeno" data-etiqueta="Observación">
+              {r.motivoFinalizacion ?? r.observacion}
+            </td>
             {acciones && <td className="numero">{acciones(r)}</td>}
           </tr>
         ))}

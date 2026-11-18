@@ -3,6 +3,7 @@ import { api } from '../../api/api';
 import { mensajeDeError } from '../../api/http';
 import type { ResultadoImportacion } from '../../api/tiposOperaciones';
 import { Campo, MensajeError } from '../../componentes/Basicos';
+import { Icono } from '../../componentes/Icono';
 import { Modal } from '../../componentes/Modal';
 import { numeroOIndefinido } from '../../utilidades/formato';
 
@@ -76,11 +77,12 @@ export function ModalImportarKml({
           <span className="texto-suave pequeno" data-testid="kml-nombre">
             {nombreArchivo ? `Seleccionado: ${nombreArchivo}` : 'Ningún archivo seleccionado'}
           </span>
-          <span>
+          <span className="acciones">
             <button type="button" className="boton boton-chico" onClick={usarEjemplo} data-testid="kml-usar-ejemplo">
               Usar KML de ejemplo
-            </button>{' '}
-            <a className="pequeno" href={EJEMPLO} download>
+            </button>
+            <a className="boton boton-chico boton-fantasma" href={EJEMPLO} download>
+              <Icono nombre="descargar" />
               Descargar ejemplo
             </a>
           </span>
@@ -102,7 +104,7 @@ export function ModalImportarKml({
             Cancelar
           </button>
           <button type="submit" className="boton boton-primario" disabled={importando} data-testid="kml-importar">
-            {importando ? 'Importando...' : 'Importar'}
+            {importando ? 'Importando…' : 'Importar'}
           </button>
         </div>
       </form>

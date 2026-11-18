@@ -52,7 +52,7 @@ export function ModalProyecto({
             Cancelar
           </button>
           <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="proyecto-guardar">
-            {guardando ? 'Guardando...' : 'Guardar'}
+            {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </form>

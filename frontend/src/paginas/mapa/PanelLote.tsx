@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import type { EstadoLote, LoteDetalle } from '../../api/tipos';
 import { useSesion } from '../../auth/Sesion';
 import { Cargando, Dato, Insignia, MensajeError } from '../../componentes/Basicos';
+import { Icono } from '../../componentes/Icono';
 import { bs, fecha, m2 } from '../../utilidades/formato';
 
 export interface AccionesLote {
@@ -34,8 +35,8 @@ export function PanelLote({
       <aside className="panel-detalle" data-testid="panel-lote">
         <div className="panel-cabecera">
           <span />
-          <button className="boton-icono" onClick={onCerrar} aria-label="Cerrar detalle" data-testid="detalle-cerrar">
-            ×
+          <button type="button" className="boton-icono" onClick={onCerrar} aria-label="Cerrar detalle" data-testid="detalle-cerrar">
+            <Icono nombre="cerrar" tamano={18} />
           </button>
         </div>
         {error ? <MensajeError mensaje={error} /> : <Cargando />}
@@ -55,8 +56,8 @@ export function PanelLote({
           <h2 data-testid="detalle-codigo">Lote {lote.codigo}</h2>
           <Insignia estado={lote.estado} testid="detalle-estado" />
         </div>
-        <button className="boton-icono" onClick={onCerrar} aria-label="Cerrar detalle" data-testid="detalle-cerrar">
-          ×
+        <button type="button" className="boton-icono" onClick={onCerrar} aria-label="Cerrar detalle" data-testid="detalle-cerrar">
+          <Icono nombre="cerrar" tamano={18} />
         </button>
       </div>
 
@@ -94,7 +95,8 @@ export function PanelLote({
             <Dato etiqueta="Saldo">{bs(venta.saldoPendiente)}</Dato>
           </div>
           <Link to={`/ventas/${venta.id}`} className="boton boton-chico" data-testid="detalle-ver-venta">
-            Ver plan de pagos →
+            Ver plan de pagos
+            <Icono nombre="flecha" tamano={14} />
           </Link>
         </div>
       )}
@@ -106,19 +108,19 @@ export function PanelLote({
 
       {/* Acciones comerciales (asesor y administrador), ocultas mientras se edita la forma */}
       {!editandoForma && (
-        <div className="acciones-panel">
+        <div className="acciones-panel acciones-comerciales">
           {lote.estado === 'DISPONIBLE' && comercializable && puede('reservas:gestionar') && (
-            <button className="boton boton-ambar" onClick={acciones.reservar} data-testid="accion-reservar">
+            <button type="button" className="boton" onClick={acciones.reservar} data-testid="accion-reservar">
               Reservar
             </button>
           )}
           {(lote.estado === 'DISPONIBLE' || lote.estado === 'RESERVADO') && comercializable && puede('ventas:registrar') && (
-            <button className="boton boton-rojo" onClick={acciones.vender} data-testid="accion-vender">
+            <button type="button" className="boton boton-primario" onClick={acciones.vender} data-testid="accion-vender">
               {reserva ? `Vender a ${reserva.cliente.nombreCompleto.split(' ')[0]}` : 'Vender'}
             </button>
           )}
           {reserva && puede('reservas:gestionar') && (
-            <button className="boton" onClick={acciones.cancelarReserva} data-testid="accion-cancelar-reserva">
+            <button type="button" className="boton boton-fantasma" onClick={acciones.cancelarReserva} data-testid="accion-cancelar-reserva">
               Cancelar reserva
             </button>
           )}
@@ -130,19 +132,19 @@ export function PanelLote({
         <div className="acciones-panel acciones-admin">
           <span className="texto-suave pequeno">Administración del lote</span>
           <div className="acciones-panel">
-            <button className="boton boton-chico" onClick={acciones.editarDatos} data-testid="accion-editar-lote">
+            <button type="button" className="boton boton-chico" onClick={acciones.editarDatos} data-testid="accion-editar-lote">
               Editar datos y precio
             </button>
-            <button className="boton boton-chico" onClick={acciones.editarForma} data-testid="accion-editar-forma">
+            <button type="button" className="boton boton-chico" onClick={acciones.editarForma} data-testid="accion-editar-forma">
               Editar forma
             </button>
             {lote.estado === 'DISPONIBLE' && (
-              <button className="boton boton-chico" onClick={() => acciones.cambiarEstado('BLOQUEADO')} data-testid="accion-bloquear">
+              <button type="button" className="boton boton-chico" onClick={() => acciones.cambiarEstado('BLOQUEADO')} data-testid="accion-bloquear">
                 Bloquear
               </button>
             )}
             {lote.estado === 'BLOQUEADO' && (
-              <button className="boton boton-chico" onClick={() => acciones.cambiarEstado('DISPONIBLE')} data-testid="accion-desbloquear">
+              <button type="button" className="boton boton-chico" onClick={() => acciones.cambiarEstado('DISPONIBLE')} data-testid="accion-desbloquear">
                 Desbloquear
               </button>
             )}
