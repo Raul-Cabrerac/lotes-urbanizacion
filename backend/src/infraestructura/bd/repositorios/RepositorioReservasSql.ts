@@ -1,7 +1,14 @@
 import type { RepositorioReservas } from '../../../aplicacion/puertos';
-import { construirWhere, type Consultas } from './consultas';
+import { construirWhere, ejecutarConUnicidad, type Consultas } from './consultas';
 import { aReserva, aReservaVista } from './conversiones';
 import { COLUMNAS_LOTE, type FilaReserva, type FilaReservaVista } from './filas';
+
+const UNICIDAD_RESERVAS = {
+  reservas_una_activa_por_lote: {
+    codigo: 'LOTE_NO_DISPONIBLE',
+    mensaje: 'El lote ya tiene una reserva activa.',
+  },
+} as const;
 
 /** Reserva con su lote, proyecto, cliente y asesor (para mostrarla sin más consultas). */
 const SQL_RESERVA_VISTA = `
@@ -52,10 +59,14 @@ export function crearRepositorioReservas(bd: Consultas): RepositorioReservas {
     },
 
     async crear(d) {
-      const fila = await bd.filaObligatoria<FilaReserva>(
-        `INSERT INTO reservas (lote_id, cliente_id, asesor_id, fecha, fecha_vencimiento, observacion)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [d.loteId, d.clienteId, d.asesorId, d.fecha, d.fechaVencimiento, d.observacion],
+      const fila = await ejecutarConUnicidad(
+        () =>
+          bd.filaObligatoria<FilaReserva>(
+            `INSERT INTO reservas (lote_id, cliente_id, asesor_id, fecha, fecha_vencimiento, observacion)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [d.loteId, d.clienteId, d.asesorId, d.fecha, d.fechaVencimiento, d.observacion],
+          ),
+        UNICIDAD_RESERVAS,
       );
       return aReserva(fila);
     },

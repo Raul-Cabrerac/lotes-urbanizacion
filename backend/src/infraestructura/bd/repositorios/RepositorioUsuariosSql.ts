@@ -1,7 +1,15 @@
 import type { RepositorioUsuarios } from '../../../aplicacion/puertos';
-import type { Consultas } from './consultas';
+import { ejecutarConUnicidad, type Consultas } from './consultas';
 import { aUsuario } from './conversiones';
 import type { FilaUsuario } from './filas';
+
+const UNICIDAD_USUARIOS = {
+  usuarios_email_key: { codigo: 'EMAIL_DUPLICADO', mensaje: 'Ya existe un usuario con ese correo electrónico.' },
+  usuarios_cliente_id_key: {
+    codigo: 'CLIENTE_YA_TIENE_USUARIO',
+    mensaje: 'Ese cliente ya tiene un usuario para el portal.',
+  },
+} as const;
 
 export function crearRepositorioUsuarios(bd: Consultas): RepositorioUsuarios {
   return {
@@ -35,10 +43,14 @@ export function crearRepositorioUsuarios(bd: Consultas): RepositorioUsuarios {
     },
 
     async crear(d) {
-      const fila = await bd.filaObligatoria<FilaUsuario>(
-        `INSERT INTO usuarios (nombre, email, password_hash, rol, cliente_id)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [d.nombre, d.email, d.passwordHash, d.rol, d.clienteId],
+      const fila = await ejecutarConUnicidad(
+        () =>
+          bd.filaObligatoria<FilaUsuario>(
+            `INSERT INTO usuarios (nombre, email, password_hash, rol, cliente_id)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [d.nombre, d.email, d.passwordHash, d.rol, d.clienteId],
+          ),
+        UNICIDAD_USUARIOS,
       );
       return aUsuario(fila);
     },

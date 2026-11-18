@@ -1,7 +1,14 @@
 import type { RepositorioClientes } from '../../../aplicacion/puertos';
-import { construirUpdate, type Consultas } from './consultas';
+import { construirUpdate, ejecutarConUnicidad, type Consultas } from './consultas';
 import { aCliente } from './conversiones';
 import type { FilaCliente } from './filas';
+
+const UNICIDAD_CLIENTES = {
+  clientes_documento_key: {
+    codigo: 'DOCUMENTO_DUPLICADO',
+    mensaje: 'Ya existe un cliente con ese documento de identidad.',
+  },
+} as const;
 
 export function crearRepositorioClientes(bd: Consultas): RepositorioClientes {
   return {
@@ -33,10 +40,14 @@ export function crearRepositorioClientes(bd: Consultas): RepositorioClientes {
     },
 
     async crear(d) {
-      const fila = await bd.filaObligatoria<FilaCliente>(
-        `INSERT INTO clientes (nombre_completo, documento, telefono, email, direccion)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [d.nombreCompleto, d.documento, d.telefono, d.email, d.direccion],
+      const fila = await ejecutarConUnicidad(
+        () =>
+          bd.filaObligatoria<FilaCliente>(
+            `INSERT INTO clientes (nombre_completo, documento, telefono, email, direccion)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [d.nombreCompleto, d.documento, d.telefono, d.email, d.direccion],
+          ),
+        UNICIDAD_CLIENTES,
       );
       return aCliente(fila);
     },
@@ -54,7 +65,9 @@ export function crearRepositorioClientes(bd: Consultas): RepositorioClientes {
         },
         false,
       );
-      return aCliente(await bd.filaObligatoria<FilaCliente>(sql, parametros));
+      return aCliente(
+        await ejecutarConUnicidad(() => bd.filaObligatoria<FilaCliente>(sql, parametros), UNICIDAD_CLIENTES),
+      );
     },
   };
 }

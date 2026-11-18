@@ -1,8 +1,15 @@
 import type { RepositorioLotes } from '../../../aplicacion/puertos';
 import type { EstadoLote } from '../../../dominio/tipos';
-import { construirUpdate, construirWhere, type Consultas } from './consultas';
+import { construirUpdate, construirWhere, ejecutarConUnicidad, type Consultas } from './consultas';
 import { aLote } from './conversiones';
 import type { FilaLote } from './filas';
+
+const UNICIDAD_LOTES = {
+  lotes_proyecto_id_codigo_key: {
+    codigo: 'CODIGO_LOTE_DUPLICADO',
+    mensaje: 'Ya existe un lote con ese código en este proyecto.',
+  },
+} as const;
 
 export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
   return {
@@ -36,19 +43,23 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
     },
 
     async crear(proyectoId, d) {
-      const fila = await bd.filaObligatoria<FilaLote>(
-        `INSERT INTO lotes (proyecto_id, codigo, manzano, etapa, superficie_m2, dimensiones, precio, geometria)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [
-          proyectoId,
-          d.codigo,
-          d.manzano,
-          d.etapa,
-          d.superficieM2,
-          d.dimensiones,
-          d.precio,
-          JSON.stringify(d.geometria),
-        ],
+      const fila = await ejecutarConUnicidad(
+        () =>
+          bd.filaObligatoria<FilaLote>(
+            `INSERT INTO lotes (proyecto_id, codigo, manzano, etapa, superficie_m2, dimensiones, precio, geometria)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [
+              proyectoId,
+              d.codigo,
+              d.manzano,
+              d.etapa,
+              d.superficieM2,
+              d.dimensiones,
+              d.precio,
+              JSON.stringify(d.geometria),
+            ],
+          ),
+        UNICIDAD_LOTES,
       );
       return aLote(fila);
     },
@@ -68,7 +79,7 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
         },
         true,
       );
-      return aLote(await bd.filaObligatoria<FilaLote>(sql, parametros));
+      return aLote(await ejecutarConUnicidad(() => bd.filaObligatoria<FilaLote>(sql, parametros), UNICIDAD_LOTES));
     },
 
     async cambiarEstadoSi(id, estadoEsperado, nuevoEstado) {

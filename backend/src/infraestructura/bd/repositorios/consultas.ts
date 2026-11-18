@@ -4,7 +4,33 @@
  * Todas las consultas usan parámetros ($1, $2...) y nunca concatenan valores dentro del SQL: así
  * se evita la inyección SQL.
  */
+import { ErrorConflicto } from '../../../dominio/errores';
 import type { EjecutorSql } from '../baseDeDatos';
+
+export interface ConflictoUnicidad {
+  codigo: string;
+  mensaje: string;
+}
+
+/**
+ * Ejecuta una escritura SQL y traduce colisiones de índice único (23505) al ErrorConflicto
+ * específico del dominio según el nombre de la restricción en PostgreSQL.
+ */
+export async function ejecutarConUnicidad<T>(
+  operacion: () => Promise<T>,
+  mapa: Readonly<Record<string, ConflictoUnicidad>>,
+): Promise<T> {
+  try {
+    return await operacion();
+  } catch (error: unknown) {
+    const pgError = error as { code?: unknown; constraint?: unknown } | null;
+    if (pgError?.code === '23505' && typeof pgError.constraint === 'string') {
+      const conflicto = mapa[pgError.constraint];
+      if (conflicto) throw new ErrorConflicto(conflicto.codigo, conflicto.mensaje);
+    }
+    throw error;
+  }
+}
 
 export interface Consultas {
   /** Ejecuta la consulta y devuelve todas las filas. */
