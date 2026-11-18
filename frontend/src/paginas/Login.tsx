@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
-import { mensajeDeError } from '../api/http';
 import { inicioSegunRol, useSesion } from '../auth/Sesion';
-import { MensajeError } from '../componentes/Basicos';
+import { Campo, MensajeError } from '../componentes/Basicos';
 import { Marca } from '../componentes/Icono';
 import { PlanoLotes } from '../componentes/PlanoLotes';
+import { useEnvio } from '../utilidades/useEnvio';
 
 /** Usuarios de los datos de demostración (solo se muestran en modo desarrollo). */
 const USUARIOS_DEMO = [
@@ -20,38 +20,30 @@ export function Login() {
   const ubicacion = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const { enviar, enviando, error } = useEnvio();
 
   if (usuario) return <Navigate to={inicioSegunRol(usuario)} replace />;
 
-  const enviar = async (e: FormEvent) => {
+  const ingresar = (e: FormEvent) => {
     e.preventDefault();
-    setEnviando(true);
-    setError(null);
-    try {
+    void enviar(async () => {
       const usuarioActual = await iniciarSesion(email, password);
       const desde = (ubicacion.state as { desde?: string } | null)?.desde;
       navegar(desde && desde !== '/login' ? desde : inicioSegunRol(usuarioActual), { replace: true });
-    } catch (err) {
-      setError(mensajeDeError(err));
-    } finally {
-      setEnviando(false);
-    }
+    });
   };
 
   return (
     <div className="pantalla-login">
       <main className="login-columna">
-        <form className="login" onSubmit={enviar} data-testid="formulario-login">
+        <form className="login" onSubmit={ingresar} data-testid="formulario-login">
           <div className="login-cabecera">
             <Marca tamano={40} />
             <h1>Urbanizaciones y Lotes</h1>
             <p>Ingrese con su cuenta para ver los proyectos, el mapa de lotes y las operaciones de venta.</p>
           </div>
 
-          <label className="campo">
-            <span className="campo-etiqueta">Correo electrónico</span>
+          <Campo etiqueta="Correo electrónico">
             <input
               type="email"
               value={email}
@@ -60,9 +52,8 @@ export function Login() {
               required
               data-testid="login-email"
             />
-          </label>
-          <label className="campo">
-            <span className="campo-etiqueta">Contraseña</span>
+          </Campo>
+          <Campo etiqueta="Contraseña">
             <input
               type="password"
               value={password}
@@ -71,7 +62,7 @@ export function Login() {
               required
               data-testid="login-password"
             />
-          </label>
+          </Campo>
 
           <MensajeError mensaje={error} testid="login-error" />
 

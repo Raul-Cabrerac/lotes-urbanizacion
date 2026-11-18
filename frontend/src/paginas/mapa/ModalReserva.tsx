@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api/api';
-import { ApiError, mensajeDeError } from '../../api/http';
 import type { LoteDetalle } from '../../api/tipos';
 import type { Reserva } from '../../api/tiposOperaciones';
 import { Campo, MensajeError } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { SelectorCliente } from '../../componentes/SelectorCliente';
-import { bs, fechaEnDias, m2 } from '../../utilidades/formato';
+import { fechaEnDias } from '../../utilidades/entradas';
+import { bs, m2 } from '../../utilidades/formato';
+import { useEnvio } from '../../utilidades/useEnvio';
 
 /** Registrar la reserva de un lote DISPONIBLE (consigna, sección 7). */
 export function ModalReserva({
@@ -24,21 +25,14 @@ export function ModalReserva({
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [fechaVencimiento, setFechaVencimiento] = useState(fechaEnDias(7));
   const [observacion, setObservacion] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const { enviar, enviando, error, setError } = useEnvio({ alConflicto: onConflicto });
 
-  const reservar = async (e: FormEvent) => {
+  const reservar = (e: FormEvent) => {
     e.preventDefault();
     if (!clienteId) return setError('Seleccione un cliente.');
-    setEnviando(true);
-    setError(null);
-    try {
-      onReservado(await api.reservas.crear({ loteId: lote.id, clienteId, fechaVencimiento: fechaVencimiento || null, observacion }));
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setEnviando(false);
-      if (err instanceof ApiError && err.estado === 409) onConflicto();
-    }
+    void enviar(async () =>
+      onReservado(await api.reservas.crear({ loteId: lote.id, clienteId, fechaVencimiento: fechaVencimiento || null, observacion })),
+    );
   };
 
   return (

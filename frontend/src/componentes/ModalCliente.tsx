@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api/api';
-import { mensajeDeError } from '../api/http';
 import type { Cliente } from '../api/tipos';
-import { Campo, MensajeError } from '../componentes/Basicos';
-import { Modal } from '../componentes/Modal';
+import { useEnvio } from '../utilidades/useEnvio';
+import { Campo, MensajeError } from './Basicos';
+import { Modal } from './Modal';
 
 /** Registrar (sin `cliente`) o editar un cliente. */
 export function ModalCliente({
@@ -22,21 +22,15 @@ export function ModalCliente({
     email: cliente?.email ?? '',
     direccion: cliente?.direccion ?? '',
   });
-  const [error, setError] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState(false);
+  const { enviar, enviando, error } = useEnvio();
   const cambiar = (campo: keyof typeof datos) => (e: { target: { value: string } }) =>
     setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
-  const guardar = async (e: FormEvent) => {
+  const guardar = (e: FormEvent) => {
     e.preventDefault();
-    setGuardando(true);
-    setError(null);
-    try {
-      onGuardado(cliente ? await api.clientes.actualizar(cliente.id, datos) : await api.clientes.crear(datos));
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setGuardando(false);
-    }
+    void enviar(async () =>
+      onGuardado(cliente ? await api.clientes.actualizar(cliente.id, datos) : await api.clientes.crear(datos)),
+    );
   };
 
   return (
@@ -64,8 +58,8 @@ export function ModalCliente({
           <button type="button" className="boton" onClick={onCerrar} data-testid="cliente-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="cliente-guardar">
-            {guardando ? 'Guardando…' : 'Guardar cliente'}
+          <button type="submit" className="boton boton-primario" disabled={enviando} data-testid="cliente-guardar">
+            {enviando ? 'Guardando…' : 'Guardar cliente'}
           </button>
         </div>
       </form>

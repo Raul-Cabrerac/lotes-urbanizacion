@@ -5,24 +5,57 @@
  * - Asesor y administrador: reservar, vender y cancelar reservas desde el mapa.
  * - Administrador: dibujar lotes y el perímetro, editar formas, importar KML y publicar.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api, type FiltrosLotes } from '../../api/api';
-import type { EstadoLote, Poligono } from '../../api/tipos';
+import type { LoteDetalle, Poligono } from '../../api/tipos';
+import { OPERACIONES_LOTE } from '../../dominio';
 import { useSesion } from '../../auth/Sesion';
 import { useAvisos } from '../../componentes/Avisos';
 import { Cargando, MensajeError } from '../../componentes/Basicos';
 import { LeyendaEstados } from '../../componentes/mapa/LeyendaEstados';
-import { MapaLotes } from '../../componentes/mapa/MapaLotes';
+import { MapaLotes, type ControlMapa } from '../../componentes/mapa/MapaLotes';
 import { useDatos } from '../../utilidades/useDatos';
-import { BarraMapa, type Modo } from './BarraMapa';
+import { useOperacion } from '../../utilidades/useOperacion';
+import { useValorDiferido } from '../../utilidades/useValorDiferido';
+import { BarraMapa, type Modo, type ModoDibujo } from './BarraMapa';
 import { DialogosLote, type DialogoLote } from './DialogosLote';
 import { DialogosProyecto, type DialogoProyecto } from './DialogosProyecto';
 import { ModalLote } from './ModalLote';
-import { PanelLote, type AccionesLote } from './PanelLote';
+import { PanelLote, type AccionesLote, type CambioEstadoLote } from './PanelLote';
 import { PanelProyecto } from './PanelProyecto';
 
-const FILTROS_VACIOS: FiltrosLotes = { estado: '', etapa: '', manzano: '', q: '' };
+/**
+ * Lo que el usuario está haciendo sobre el mapa: una sola cosa a la vez. Entrar en un modo o abrir
+ * un diálogo deja atrás lo anterior; al cancelar una edición de forma, el mapa recupera la forma.
+ */
+type Interaccion =
+  | { tipo: 'normal' }
+  | { tipo: ModoDibujo }
+  | { tipo: 'editar-forma'; forma: Poligono | null }
+  | { tipo: 'nuevo-lote'; geometria: Poligono }
+  // La reserva es la que se veía al abrir el diálogo: si otro la cierra (409) y el mapa se recarga,
+  // el diálogo sigue sobre esa misma reserva y muestra el error, en vez de cerrarse o pasar a otra.
+  | { tipo: 'dialogo-lote'; dialogo: DialogoLote; reserva: LoteDetalle['reservaActiva'] }
+  | { tipo: 'dialogo-proyecto'; dialogo: DialogoProyecto };
+
+const NORMAL: Interaccion = { tipo: 'normal' };
+const FILTROS_VACIOS: FiltrosLotes = { estado: '', etapa: '', manzano: '' };
+
+/** Cómo queda el lote después de cada cambio de estado manual, para el aviso. */
+const RESULTADO_CAMBIO: Record<CambioEstadoLote, string> = { bloquear: 'bloqueado', desbloquear: 'desbloqueado' };
+
+/** El modo de la barra del mapa: en un diálogo, la barra sigue en 'normal'. */
+function modoDe(interaccion: Interaccion): Modo {
+  switch (interaccion.tipo) {
+    case 'dibujar-lote':
+    case 'dibujar-limite':
+    case 'editar-forma':
+      return interaccion.tipo;
+    default:
+      return 'normal';
+  }
+}
 
 export function ProyectoMapa() {
   const proyectoId = Number(useParams().id);
@@ -30,11 +63,14 @@ export function ProyectoMapa() {
   const { puede } = useSesion();
   const avisos = useAvisos();
   const esAdmin = puede('lotes:gestionar');
+  const mapa = useRef<ControlMapa>(null);
 
   const proyecto = useDatos(() => api.proyectos.obtener(proyectoId), [proyectoId]);
   const [filtros, setFiltros] = useState<FiltrosLotes>(FILTROS_VACIOS);
   const [busqueda, setBusqueda] = useState('');
-  const lotes = useDatos(() => api.proyectos.lotes(proyectoId, filtros), [proyectoId, filtros]);
+  // La búsqueda por código se aplica cuando el usuario deja de escribir.
+  const q = useValorDiferido(busqueda);
+  const lotes = useDatos(() => api.proyectos.lotes(proyectoId, { ...filtros, q }), [proyectoId, filtros, q]);
 
   // El lote seleccionado vive en la URL (?lote=ID) para poder enlazarlo desde otras pantallas.
   const seleccionadoId = Number(parametros.get('lote')) || null;
@@ -43,18 +79,8 @@ export function ProyectoMapa() {
     [seleccionadoId],
   );
 
-  const [modo, setModo] = useState<Modo>('normal');
-  const [dialogoLote, setDialogoLote] = useState<DialogoLote | null>(null);
-  const [dialogo, setDialogo] = useState<DialogoProyecto | null>(null);
-  const [poligonoNuevo, setPoligonoNuevo] = useState<Poligono | null>(null);
-  const [formaEditada, setFormaEditada] = useState<Poligono | null>(null);
-  const [claveVista, setClaveVista] = useState(0);
-
-  // La búsqueda por código se aplica cuando el usuario deja de escribir.
-  useEffect(() => {
-    const espera = setTimeout(() => setFiltros((f) => (f.q === busqueda ? f : { ...f, q: busqueda })), 300);
-    return () => clearTimeout(espera);
-  }, [busqueda]);
+  const [interaccion, setInteraccion] = useState<Interaccion>(NORMAL);
+  const modo = modoDe(interaccion);
 
   // Mientras carga el detalle de otro lote no se muestran los datos (ni botones) del anterior.
   const lote = detalle.datos && detalle.datos.id === seleccionadoId ? detalle.datos : null;
@@ -65,89 +91,74 @@ export function ProyectoMapa() {
   );
 
   const refrescar = async () => { await Promise.all([proyecto.recargar(), lotes.recargar(), detalle.recargar()]); };
-  const cerrarDialogo = () => { setDialogo(null); setDialogoLote(null); };
-  const limpiarModo = () => { setModo('normal'); setFormaEditada(null); };
-
-  const cancelarModo = async () => {
-    const estabaEditando = modo === 'editar-forma';
-    limpiarModo();
-    if (estabaEditando) await lotes.recargar(); // descarta los vértices movidos
-  };
+  const volverANormal = () => setInteraccion(NORMAL);
 
   const seleccionar = (id: number | null) => {
     if (id === seleccionadoId) return;
-    if (modo !== 'normal') void cancelarModo();
+    if (modo !== 'normal') volverANormal();
     setParametros(id ? { lote: String(id) } : {}, { replace: true });
   };
 
-  const abrirDialogoProyecto = (nuevo: DialogoProyecto) => {
-    if (modo !== 'normal') void cancelarModo();
-    setDialogo(nuevo);
-  };
-
-  /** Ejecuta una operación sin diálogo: si sale bien avisa y refresca; si falla muestra el error. */
-  const ejecutar = async (operacion: () => Promise<unknown>, mensaje: string): Promise<boolean> => {
-    try {
-      await operacion();
-      avisos.exito(mensaje);
-      await refrescar();
-      return true;
-    } catch (err) {
-      avisos.error(err);
-      return false;
-    }
-  };
+  /** Operación sin diálogo: si sale bien avisa y refresca; si falla muestra el error (y ante un 409 refresca). */
+  const ejecutar = useOperacion(refrescar);
 
   /** Después de una operación exitosa: cierra el diálogo, avisa y vuelve a pedir los datos. */
-  const terminarOperacion = async (mensaje: string, deseleccionar = false) => {
-    cerrarDialogo();
-    if (modo !== 'normal') limpiarModo();
+  const terminarOperacion = async (mensaje: string) => {
+    volverANormal();
     avisos.exito(mensaje);
-    if (deseleccionar) {
-      seleccionar(null);
-      await Promise.all([proyecto.recargar(), lotes.recargar()]);
-      return;
-    }
     await refrescar();
   };
 
+  /** El lote seleccionado ya no existe: se cierra su panel y no se vuelve a pedir su detalle. */
+  const terminarEliminacion = async (mensaje: string) => {
+    volverANormal();
+    avisos.exito(mensaje);
+    seleccionar(null);
+    await Promise.all([proyecto.recargar(), lotes.recargar()]);
+  };
+
+  const abrirDialogoLote = (dialogo: DialogoLote) =>
+    setInteraccion({ tipo: 'dialogo-lote', dialogo, reserva: lote?.reservaActiva ?? null });
+  const abrirDialogoProyecto = (dialogo: DialogoProyecto) => setInteraccion({ tipo: 'dialogo-proyecto', dialogo });
+
   const acciones: AccionesLote = {
-    reservar: () => setDialogoLote('reservar'),
-    vender: () => setDialogoLote('vender'),
-    cancelarReserva: () => setDialogoLote('cancelar-reserva'),
-    editarDatos: () => setDialogoLote('editar-lote'),
-    eliminar: () => setDialogoLote('eliminar-lote'),
-    editarForma: () => {
-      setFormaEditada(null);
-      setModo('editar-forma');
-    },
-    cambiarEstado: (estado: EstadoLote) => {
+    reservar: () => abrirDialogoLote('reservar'),
+    vender: () => abrirDialogoLote('vender'),
+    cancelarReserva: () => abrirDialogoLote('cancelar-reserva'),
+    editarDatos: () => abrirDialogoLote('editar-lote'),
+    eliminar: () => abrirDialogoLote('eliminar-lote'),
+    editarForma: () => setInteraccion({ tipo: 'editar-forma', forma: null }),
+    cambiarEstado: (operacion) => {
       if (!lote) return;
-      const accion = estado === 'BLOQUEADO' ? 'bloqueado' : 'desbloqueado';
-      void ejecutar(() => api.lotes.cambiarEstado(lote.id, estado), `Lote ${lote.codigo}: ${accion}.`);
+      const estado = OPERACIONES_LOTE[operacion].a;
+      void ejecutar(() => api.lotes.cambiarEstado(lote.id, estado), `Lote ${lote.codigo}: ${RESULTADO_CAMBIO[operacion]}.`);
     },
   };
+
+  const formaEditada = interaccion.tipo === 'editar-forma' ? interaccion.forma : null;
 
   const guardarForma = async () => {
-    if (!lote || !formaEditada) return limpiarModo();
+    if (!lote || !formaEditada) return volverANormal();
     const guardar = () => api.lotes.actualizar(lote.id, { geometria: formaEditada });
-    if (await ejecutar(guardar, `Se actualizó la forma del lote ${lote.codigo}.`)) limpiarModo();
+    if (await ejecutar(guardar, `Se actualizó la forma del lote ${lote.codigo}.`)) volverANormal();
   };
 
+  const alEditarForma = (forma: Poligono) =>
+    setInteraccion((actual) => (actual.tipo === 'editar-forma' ? { ...actual, forma } : actual));
+
   const alTerminarDibujo = async (geometria: Poligono) => {
-    const eraPerimetro = modo === 'dibujar-limite';
-    setModo('normal');
-    if (!eraPerimetro) {
-      setPoligonoNuevo(geometria); // se abre el formulario con código, manzano, precio...
+    if (interaccion.tipo !== 'dibujar-limite') {
+      setInteraccion({ tipo: 'nuevo-lote', geometria }); // se abre el formulario con código, manzano, precio...
       return;
     }
+    volverANormal();
     await ejecutar(() => api.proyectos.definirLimite(proyectoId, geometria), 'Se guardó el perímetro del proyecto.');
   };
 
   if (proyecto.error) return <div className="pagina"><MensajeError mensaje={proyecto.error} /></div>;
   if (!proyecto.datos) return <Cargando />;
   const p = proyecto.datos;
-  const sinFiltros = !filtros.estado && !filtros.q && !filtros.etapa && !filtros.manzano;
+  const sinFiltros = !filtros.estado && !q && !filtros.etapa && !filtros.manzano;
 
   return (
     <div className="pagina-mapa">
@@ -170,22 +181,22 @@ export function ProyectoMapa() {
           modo={modo}
           codigoEditando={lote?.codigo ?? null}
           puedeGuardarForma={formaEditada !== null}
-          onModo={setModo}
+          onModo={(dibujo) => setInteraccion({ tipo: dibujo })}
           onImportarKml={() => abrirDialogoProyecto('importar-kml')}
           onActualizar={refrescar}
           onGuardarForma={guardarForma}
-          onCancelar={cancelarModo}
+          onCancelar={volverANormal}
         />
         <MapaLotes
-          lotes={lotes.datos ?? []}
+          ref={mapa}
+          lotes={lotes.datos}
           limite={p.limite}
           seleccionadoId={seleccionadoId}
           onSeleccionar={seleccionar}
           dibujando={modo === 'dibujar-lote' || modo === 'dibujar-limite'}
           onPoligonoDibujado={alTerminarDibujo}
           editandoId={modo === 'editar-forma' ? seleccionadoId : null}
-          onGeometriaEditada={setFormaEditada}
-          claveVista={lotes.datos ? `${proyectoId}-${claveVista}` : undefined}
+          onGeometriaEditada={alEditarForma}
         />
         <LeyendaEstados />
         {lotes.datos?.length === 0 && sinFiltros && modo === 'normal' && (
@@ -208,37 +219,40 @@ export function ProyectoMapa() {
         />
       )}
 
-      {lote && dialogoLote && (
+      {lote && interaccion.tipo === 'dialogo-lote' && (
         <DialogosLote
-          dialogo={dialogoLote}
+          dialogo={interaccion.dialogo}
           lote={lote}
+          reserva={interaccion.reserva}
           sugerencias={sugerencias}
-          onCerrar={cerrarDialogo}
+          onCerrar={volverANormal}
           onTerminado={terminarOperacion}
+          onEliminado={terminarEliminacion}
           onConflicto={refrescar}
         />
       )}
-      {poligonoNuevo && (
+      {interaccion.tipo === 'nuevo-lote' && (
         <ModalLote
           proyectoId={proyectoId}
-          geometria={poligonoNuevo}
+          geometria={interaccion.geometria}
           sugerencias={sugerencias}
-          onCerrar={() => setPoligonoNuevo(null)}
+          onCerrar={volverANormal}
           onGuardado={async (nuevo) => {
-            setPoligonoNuevo(null);
+            volverANormal();
             avisos.exito(`Lote ${nuevo.codigo} creado.`);
             await Promise.all([proyecto.recargar(), lotes.recargar()]);
             seleccionar(nuevo.id);
           }}
         />
       )}
-      {dialogo && (
+      {interaccion.tipo === 'dialogo-proyecto' && (
         <DialogosProyecto
-          dialogo={dialogo}
+          dialogo={interaccion.dialogo}
           proyecto={p}
-          onCerrar={cerrarDialogo}
+          onCerrar={volverANormal}
           onTerminado={terminarOperacion}
-          onLotesImportados={() => setClaveVista((c) => c + 1)}
+          onConflicto={refrescar}
+          onLotesImportados={() => mapa.current?.encuadrar()}
         />
       )}
     </div>

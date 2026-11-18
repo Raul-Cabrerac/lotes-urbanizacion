@@ -23,8 +23,8 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
 
 ### Orden acíclico de bloqueos y unicidad concurrente (transversal)
 
-- **Orden global de bloqueo entre transacciones (`docs/DECISIONES.md` §3):** `proyectos -> lotes -> reservas -> ventas`. Ninguna transacción bloquea una tabla superior después de bloquear una inferior; los bloqueos múltiples dentro de la misma tabla siguen orden determinista (`ORDER BY id`).
-- **Mapeo contractual de colisiones `23505`:** `ejecutarConUnicidad` (`backend/src/infraestructura/bd/repositorios/consultas.ts`) envuelve las escrituras con índices únicos en `RepositorioClientesSql`, `RepositorioUsuariosSql`, `RepositorioLotesSql`, `RepositorioReservasSql` y `RepositorioVentasSql` para devolver el código `409` específico de dominio bajo concurrencia.
+- **Orden global de bloqueo entre transacciones (`UnidadDeTrabajo` en `backend/src/aplicacion/puertos.ts`):** `proyecto -> lote` (publicar, eliminar lote), `reserva -> lote` (cancelar, vencer, vender) y `venta -> pago` (registrar y anular pagos). Ninguna transacción toma esos bloqueos en el orden inverso; los bloqueos múltiples dentro de la misma tabla siguen orden determinista (`ORDER BY id`).
+- **Mapeo contractual de colisiones `23505`:** `crearConsultas` (`backend/src/infraestructura/bd/repositorios/consultas.ts`) traduce cada error de PostgreSQL en un solo lugar: una colisión con una restricción única de `RESTRICCIONES_UNICAS` devuelve el código `409` específico del dominio bajo concurrencia, y los demás rechazos, el genérico (`REGISTRO_DUPLICADO`, `REGISTRO_RELACIONADO`, `DATO_FUERA_DE_RANGO`).
 
 ---
 
@@ -59,29 +59,29 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
   - `VENDIDO` *(comercializado con venta vigente)*
   - `BLOQUEADO` *(inhabilitado manualmente para comercialización)*
 - **Invariantes:**
-  - **INV-LOT-1 (Pertenencia y código único):** Todo lote pertenece a un proyecto (`NOT NULL REFERENCES proyectos`) con `(proyecto_id, codigo)` único (`409 CODIGO_LOTE_DUPLICADO` incluso en colisión concurrente vía `ejecutarConUnicidad`).
+  - **INV-LOT-1 (Pertenencia y código único):** Todo lote pertenece a un proyecto (`NOT NULL REFERENCES proyectos`) con `(proyecto_id, codigo)` único (`409 CODIGO_LOTE_DUPLICADO` incluso en colisión concurrente vía `RESTRICCIONES_UNICAS` en `consultas.ts`).
   - **INV-LOT-2 (Sincronía Lote–Reserva):** `lote.estado === 'RESERVADO'` ⇔ existe exactamente una fila en `reservas` con `lote_id = lote.id` y `estado = 'ACTIVA'` (`reservas_una_activa_por_lote`).
   - **INV-LOT-3 (Sincronía Lote–Venta):** `lote.estado === 'VENDIDO'` ⇔ existe exactamente una fila en `ventas` con `lote_id = lote.id` y `estado = 'VIGENTE'` (`ventas_una_vigente_por_lote`).
   - **INV-LOT-4 (Precio comercializable):** Un lote `RESERVADO` mantiene `precio > 0` mientras siga en proceso de venta: `validarLoteReservable`, `validarLoteVendible` y `validarPrecioLoteReservado` (en `LoteServicio.actualizar`) rechazan `precio <= 0` con `422 LOTE_SIN_PRECIO`.
   - **INV-LOT-5 (Integridad histórica y de proyecto al eliminar):** Un lote solo pasa a `NO_EXISTE` *(eliminado)* si está en `DISPONIBLE` o `BLOQUEADO`, nunca tuvo filas en `reservas` ni `ventas` (`validarLoteEliminable` -> `409 LOTE_CON_OPERACIONES`), y no es el último lote de un proyecto `PUBLICADO` (`409 PROYECTO_PUBLICADO_SIN_LOTES`), serializado en `uow.transaccion` con bloqueo `proyectos -> lotes`.
-  - **INV-LOT-6 (Bloqueo estricto por máquina):** `TRANSICIONES_LOTE` define exactamente qué transiciones son legales; `BLOQUEADO` no pasa directo a `RESERVADO` ni `VENDIDO`, ni `VENDIDO` a `RESERVADO` o `BLOQUEADO`.
+  - **INV-LOT-6 (Bloqueo estricto por máquina):** `OPERACIONES_LOTE` (`dominio/lote.ts`) define exactamente qué transiciones son legales, y la misma tabla usan las validaciones, el UPDATE condicional del repositorio y los botones de la interfaz; `BLOQUEADO` no pasa directo a `RESERVADO` ni `VENDIDO`, ni `VENDIDO` a `RESERVADO` o `BLOQUEADO`.
 - **Tabla de transiciones:**
 
 | Origen | Evento / Operación | Guardia / Precondición | Destino | Mecanismo / Error si falla |
 |---|---|---|---|---|
-| `NO_EXISTE` | `POST /api/proyectos/:id/lotes` / `importar-kml` | Rol `ADMIN`; `codigo` único en proyecto; `datosComerciales` y `geometria` válidos | `DISPONIBLE` | `409 CODIGO_LOTE_DUPLICADO` (vía `ejecutarConUnicidad`), `422` validación dominio |
+| `NO_EXISTE` | `POST /api/proyectos/:id/lotes` / `importar-kml` | Rol `ADMIN`; `codigo` único en proyecto; `datosComerciales` y `geometria` válidos | `DISPONIBLE` | `409 CODIGO_LOTE_DUPLICADO` (vía `RESTRICCIONES_UNICAS`), `422` validación dominio |
 | `DISPONIBLE` / `RESERVADO` / `VENDIDO` / `BLOQUEADO` | `PUT /api/lotes/:id` (`LoteServicio.actualizar`) | Rol `ADMIN`; `uow.transaccion` + `bloquearPorId`; `validarPrecioLoteReservado` | Mismo estado | `422 LOTE_SIN_PRECIO` (si `RESERVADO` y `precio <= 0`), `409 CODIGO_LOTE_DUPLICADO`, `404 NO_ENCONTRADO` si se eliminó en paralelo |
-| `DISPONIBLE` | `POST /api/reservas` (`ReservaServicio.crear`) | Proyecto `PUBLICADO`; `precio > 0`; `fechaVencimiento >= hoy` *(o reserva previa vencida auto-expirada)* | `RESERVADO` | `expirarReservaSiVencida` + `bloquearPorId(loteId)` + `cambiarEstadoSi(id, 'DISPONIBLE', 'RESERVADO')`; `409 LOTE_NO_DISPONIBLE`, `404 NO_ENCONTRADO`, `422 PROYECTO_NO_PUBLICADO` / `LOTE_SIN_PRECIO` |
-| `DISPONIBLE` | `POST /api/ventas` (`VentaServicio.registrar`) | Proyecto `PUBLICADO`; `precio > 0`; plan de pagos válido | `VENDIDO` | Transacción + `cambiarEstadoSi(id, 'DISPONIBLE', 'VENDIDO')`; `409 LOTE_NO_DISPONIBLE`, `404 NO_ENCONTRADO`, `422 LOTE_SIN_PRECIO` |
-| `DISPONIBLE` | `PATCH /api/lotes/:id/estado` (`{ estado: 'BLOQUEADO' }`) | Rol `ADMIN`; `uow.transaccion` + `bloquearPorId`; estado actual `DISPONIBLE` | `BLOQUEADO` | `validarCambioEstadoManual` + `cambiarEstadoSi(id, 'DISPONIBLE', 'BLOQUEADO')`; `409 LOTE_MODIFICADO`, `404 NO_ENCONTRADO` |
+| `DISPONIBLE` | `POST /api/reservas` (`ReservaServicio.crear`) | Proyecto `PUBLICADO`; `precio > 0`; `fechaVencimiento >= hoy` *(o reserva previa vencida auto-expirada)* | `RESERVADO` | `vencerReservaDelLote` (transacción propia) + `bloquearPorId(loteId)` + `cambiarEstadoSi(id, OPERACIONES_LOTE.reservar)`; `409 LOTE_NO_DISPONIBLE`, `404 NO_ENCONTRADO`, `422 PROYECTO_NO_PUBLICADO` / `LOTE_SIN_PRECIO` |
+| `DISPONIBLE` | `POST /api/ventas` (`VentaServicio.registrar`) | Proyecto `PUBLICADO`; `precio > 0`; plan de pagos válido | `VENDIDO` | Transacción + `cambiarEstadoSi(id, { de: [estado leído], a: 'VENDIDO' })`; `409 LOTE_NO_DISPONIBLE`, `404 NO_ENCONTRADO`, `422 LOTE_SIN_PRECIO` |
+| `DISPONIBLE` | `PATCH /api/lotes/:id/estado` (`{ estado: 'BLOQUEADO' }`) | Rol `ADMIN`; `uow.transaccion` + `bloquearPorId`; estado actual `DISPONIBLE` | `BLOQUEADO` | `validarCambioEstadoManual` + `cambiarEstadoSi(id, OPERACIONES_LOTE.bloquear)`; `409 LOTE_MODIFICADO`, `404 NO_ENCONTRADO` |
 | `DISPONIBLE` / `BLOQUEADO` | `DELETE /api/lotes/:id` (`LoteServicio.eliminar`) | Rol `ADMIN`; `uow.transaccion` (`proyectos -> lotes`); `!tieneOperaciones`; proyecto `BORRADOR` o `cantidadLotes > 1` | `NO_EXISTE` *(eliminado)* | `409 LOTE_CON_OPERACIONES`, `409 PROYECTO_PUBLICADO_SIN_LOTES`, `404 NO_ENCONTRADO` |
-| `RESERVADO` | `POST /api/reservas/:id/cancelar` (`ReservaServicio.cancelar`) | Reserva `ACTIVA` y `!estaVencida(reserva, hoy)` | `DISPONIBLE` | Transacción: reserva -> `CANCELADA`, `cambiarEstadoSi(loteId, 'RESERVADO', 'DISPONIBLE')` verificado; si vencida, expira a `VENCIDA`, libera lote y responde `409 RESERVA_NO_ACTIVA` |
+| `RESERVADO` | `POST /api/reservas/:id/cancelar` (`ReservaServicio.cancelar`) | Reserva `ACTIVA` y `!estaVencida(reserva, hoy)` | `DISPONIBLE` | Transacción: reserva -> `CANCELADA`, `cambiarEstadoSi(loteId, OPERACIONES_LOTE.liberarReserva)` verificado; si estaba vencida, `vencerReserva` (transacción propia, antes) la deja `VENCIDA` y libera el lote, y la cancelación responde `409 RESERVA_NO_ACTIVA` |
 | `RESERVADO` | `ReservaServicio.procesarVencidas` | Reserva `ACTIVA` y `fechaVencimiento < hoy` | `DISPONIBLE` | `ORDER BY id`; una transacción independiente por candidata: reserva -> `VENCIDA`, `cambiarEstadoSi` verificado |
-| `RESERVADO` | `POST /api/ventas` (`VentaServicio.registrar`) | Proyecto `PUBLICADO`; `precio > 0`; si reserva vigente: `reservaActiva.clienteId === clienteId`; si vencida: `expirarReservaSiVencida` libera lote a `DISPONIBLE` | `VENDIDO` | Si vigente: reserva -> `CONVERTIDA`, lote -> `VENDIDO` (`409 LOTE_RESERVADO_POR_OTRO_CLIENTE` si otro cliente). Si vencida: vende como `DISPONIBLE` con `reservaId: null` |
+| `RESERVADO` | `POST /api/ventas` (`VentaServicio.registrar`) | Proyecto `PUBLICADO`; `precio > 0`; si reserva vigente: `reservaActiva.clienteId === clienteId`; si vencida: `vencerReservaDelLote` (transacción propia, antes) libera el lote a `DISPONIBLE` | `VENDIDO` | Si vigente: reserva -> `CONVERTIDA`, lote -> `VENDIDO` (`409 LOTE_RESERVADO_POR_OTRO_CLIENTE` si otro cliente). Si vencida: vende como `DISPONIBLE` con `reservaId: null` |
 | `RESERVADO` | `POST /api/reservas` o `PATCH .../estado` | — | *(rechazada)* | `409 LOTE_NO_DISPONIBLE` / `422 CAMBIO_ESTADO_NO_PERMITIDO` |
-| `VENDIDO` | `POST /api/ventas/:id/anular` (`VentaServicio.anular`) | Rol `ADMIN`; venta `VIGENTE`; `motivo.trim().length >= 5` | `DISPONIBLE` | Transacción: venta -> `ANULADA`, `cambiarEstadoSi(loteId, 'VENDIDO', 'DISPONIBLE')` verificado |
+| `VENDIDO` | `POST /api/ventas/:id/anular` (`VentaServicio.anular`) | Rol `ADMIN`; venta `VIGENTE`; `motivo.trim().length >= 5` | `DISPONIBLE` | Transacción: venta -> `ANULADA`, `cambiarEstadoSi(loteId, OPERACIONES_LOTE.anularVenta)` verificado |
 | `VENDIDO` | `POST /api/reservas` / `POST /api/ventas` / `PATCH .../estado` / `DELETE` | — | *(rechazada)* | `409 LOTE_NO_DISPONIBLE` / `409 LOTE_YA_VENDIDO` / `422 CAMBIO_ESTADO_NO_PERMITIDO` / `409 LOTE_CON_OPERACIONES` |
-| `BLOQUEADO` | `PATCH /api/lotes/:id/estado` (`{ estado: 'DISPONIBLE' }`) | Rol `ADMIN`; `uow.transaccion` + `bloquearPorId`; estado actual `BLOQUEADO` | `DISPONIBLE` | `validarCambioEstadoManual` + `cambiarEstadoSi(id, 'BLOQUEADO', 'DISPONIBLE')`; `409 LOTE_MODIFICADO`, `404 NO_ENCONTRADO` |
+| `BLOQUEADO` | `PATCH /api/lotes/:id/estado` (`{ estado: 'DISPONIBLE' }`) | Rol `ADMIN`; `uow.transaccion` + `bloquearPorId`; estado actual `BLOQUEADO` | `DISPONIBLE` | `validarCambioEstadoManual` + `cambiarEstadoSi(id, OPERACIONES_LOTE.desbloquear)`; `409 LOTE_MODIFICADO`, `404 NO_ENCONTRADO` |
 | `BLOQUEADO` | `POST /api/reservas` / `POST /api/ventas` | — | *(rechazada)* | `409 LOTE_NO_DISPONIBLE` / `409 LOTE_BLOQUEADO` |
 
 ---
@@ -96,16 +96,16 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
   - **INV-RES-1 (Máximo una activa por lote):** Índice único parcial `reservas_una_activa_por_lote ON reservas (lote_id) WHERE estado = 'ACTIVA'`.
   - **INV-RES-2 (Estados finales inmutables):** `CANCELADA`, `VENCIDA` y `CONVERTIDA` son terminales (`WHERE id = $4 AND estado = 'ACTIVA'`).
   - **INV-RES-3 (Vigencia en límite de día):** Una reserva con `fechaVencimiento === hoy` sigue siendo válida todo el día (`fechaVencimiento < hoy` es falso).
-  - **INV-RES-4 (Expiración automática antes de cancelar, reservar o vender):** Una reserva en `ACTIVA_EXPIRADA_PENDIENTE` solo pasa a `VENCIDA` (nunca a `CANCELADA` ni `CONVERTIDA`) mediante `expirarReservaSiVencida` al ejecutar `ReservaServicio.cancelar`, `ReservaServicio.crear` o `VentaServicio.registrar`, además de `procesarVencidas`. En `cancelar`, la expiración se persiste antes de responder `409 RESERVA_NO_ACTIVA`.
+  - **INV-RES-4 (Expiración antes de cancelar, reservar o vender):** Una reserva en `ACTIVA_EXPIRADA_PENDIENTE` solo pasa a `VENCIDA` (nunca a `CANCELADA` ni `CONVERTIDA`). `vencerReserva` / `vencerReservaDelLote` (`aplicacion/servicios/expirarReserva.ts`) la cierran en su propia transacción antes de `ReservaServicio.cancelar`, `ReservaServicio.crear` y `VentaServicio.registrar`, además de `procesarVencidas` en cada petición: el vencimiento queda guardado aunque la operación siguiente falle (por ejemplo, `cancelar` responde `409 RESERVA_NO_ACTIVA`).
 - **Tabla de transiciones:**
 
 | Origen | Evento / Operación | Guardia / Precondición | Destino | Mecanismo / Error si falla |
 |---|---|---|---|---|
-| `—` | `POST /api/reservas` (`ReservaServicio.crear`) | Lote `DISPONIBLE` (o con reserva previa vencida auto-expirada) con precio en proyecto `PUBLICADO`; `fechaVencimiento == null \|\| >= hoy` | `ACTIVA` | `expirarReservaSiVencida` + `bloquearPorId(loteId)` + lote `DISPONIBLE->RESERVADO` + `INSERT`; `422 FECHA_VENCIMIENTO_INVALIDA`, `409 LOTE_NO_DISPONIBLE`, `404 NO_ENCONTRADO` |
+| `—` | `POST /api/reservas` (`ReservaServicio.crear`) | Lote `DISPONIBLE` (o con reserva previa vencida auto-expirada) con precio en proyecto `PUBLICADO`; `fechaVencimiento == null \|\| >= hoy` | `ACTIVA` | `vencerReservaDelLote` (transacción propia) + `bloquearPorId(loteId)` + lote `DISPONIBLE->RESERVADO` + `INSERT`; `422 FECHA_VENCIMIENTO_INVALIDA`, `409 LOTE_NO_DISPONIBLE`, `404 NO_ENCONTRADO` |
 | `ACTIVA` *(vigente)* | `POST /api/reservas/:id/cancelar` (`ReservaServicio.cancelar`) | `reserva.estado === 'ACTIVA' && !estaVencida(reserva, hoy)` | `CANCELADA` | `finalizar(..., 'CANCELADA')` (`WHERE estado='ACTIVA'`) + `cambiarEstadoSi` verificado; `409 RESERVA_NO_ACTIVA` |
 | `ACTIVA` *(expirada: `fechaVencimiento < hoy`)* | `ReservaServicio.procesarVencidas` | `estaVencida(reserva, hoy)` | `VENCIDA` | `ORDER BY id`, transacción independiente por reserva: `finalizar(..., 'VENCIDA')` + `cambiarEstadoSi` verificado |
-| `ACTIVA` *(expirada: `fechaVencimiento < hoy`)* | `ReservaServicio.cancelar` | `estaVencida(reserva, hoy)` | `VENCIDA` *(y rechaza cancelación)* | `expirarReservaSiVencida` confirma `VENCIDA` + lote `DISPONIBLE`, luego lanza `409 RESERVA_NO_ACTIVA` |
-| `ACTIVA` *(expirada: `fechaVencimiento < hoy`)* | `ReservaServicio.crear` / `VentaServicio.registrar` | `estaVencida(reserva, hoy)` | `VENCIDA` *(y libera lote)* | `expirarReservaSiVencida` persiste `VENCIDA` + lote `DISPONIBLE`, permitiendo crear la nueva reserva o registrar venta para cualquier comprador |
+| `ACTIVA` *(expirada: `fechaVencimiento < hoy`)* | `ReservaServicio.cancelar` | `estaVencida(reserva, hoy)` | `VENCIDA` *(y rechaza cancelación)* | `vencerReserva` (transacción propia) confirma `VENCIDA` + lote `DISPONIBLE`; luego `validarReservaCancelable` lanza `409 RESERVA_NO_ACTIVA` |
+| `ACTIVA` *(expirada: `fechaVencimiento < hoy`)* | `ReservaServicio.crear` / `VentaServicio.registrar` | `estaVencida(reserva, hoy)` | `VENCIDA` *(y libera lote)* | `vencerReservaDelLote` (transacción propia, antes de la operación) persiste `VENCIDA` + lote `DISPONIBLE`, permitiendo crear la nueva reserva o registrar venta para cualquier comprador |
 | `ACTIVA` *(vigente)* | `POST /api/ventas` (`VentaServicio.registrar`) | `clienteId === reserva.clienteId`, lote `RESERVADO` con precio, proyecto `PUBLICADO`, plan válido | `CONVERTIDA` | Transacción: `finalizar(..., 'CONVERTIDA')` + lote `VENDIDO` + `INSERT venta`; `409 LOTE_NO_DISPONIBLE` / `LOTE_RESERVADO_POR_OTRO_CLIENTE` |
 | `CANCELADA` / `VENCIDA` / `CONVERTIDA` | `cancelar` / `procesarVencidas` / `registrar` | — | *(rechazada)* | `409 RESERVA_NO_ACTIVA` / `409 LOTE_NO_DISPONIBLE` |
 
@@ -131,7 +131,7 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
 | Origen | Evento / Operación | Guardia / Precondición | Destino | Mecanismo / Error si falla |
 |---|---|---|---|---|
 | `—` | `POST /api/ventas` (`VentaServicio.registrar`) | Lote `DISPONIBLE` (o `RESERVADO` del mismo cliente, o con reserva vencida auto-expirada); proyecto `PUBLICADO`; `lote.precio > 0`; `generarPlanDePagos` válido | `VIGENTE` | Transacción única: expira vencida si aplica o convierte reserva vigente -> lote `VENDIDO` -> `INSERT venta + cuotas + pago inicial/contado` (`404 NO_ENCONTRADO` si el lote no existe) |
-| `VIGENTE` | `POST /api/ventas/:id/anular` (`VentaServicio.anular`) | Rol `ADMIN`; `venta.estado === 'VIGENTE'`; `motivo.trim().length >= 5` | `ANULADA` | Transacción: `UPDATE ventas ... WHERE id=$4 AND estado='VIGENTE'`, `cambiarEstadoSi(loteId, 'VENDIDO', 'DISPONIBLE')` verificado; `409 VENTA_NO_VIGENTE`, `422 MOTIVO_REQUERIDO` |
+| `VIGENTE` | `POST /api/ventas/:id/anular` (`VentaServicio.anular`) | Rol `ADMIN`; `venta.estado === 'VIGENTE'`; `motivo.trim().length >= 5` | `ANULADA` | Transacción: `UPDATE ventas ... WHERE id=$4 AND estado='VIGENTE'`, `cambiarEstadoSi(loteId, OPERACIONES_LOTE.anularVenta)` verificado; `409 VENTA_NO_VIGENTE`, `422 MOTIVO_REQUERIDO` |
 | `ANULADA` | `POST /api/ventas/:id/anular` | — | *(rechazada)* | `409 VENTA_NO_VIGENTE` |
 | `ANULADA` | `POST /api/ventas/:id/pagos` | — | *(rechazada)* | `409 VENTA_NO_VIGENTE` |
 | `ANULADA` | `POST /api/pagos/:id/anular` | — | *(rechazada)* | `409 VENTA_NO_VIGENTE` (`PagoServicio.anular` bloquea `ventas` con `bloquearPorId` y `validarPagoAnulable` verifica `venta.estado === 'VIGENTE'`) |
@@ -178,7 +178,7 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
 
 | Origen | Evento / Operación | Guardia / Precondición | Destino | Mecanismo / Error si falla |
 |---|---|---|---|---|
-| `—` | `POST /api/usuarios` | Rol `ADMIN`; password ≥ 6; vínculo `CLIENTE` válido; `email` y `clienteId` libres | `ACTIVO (true)` | `422 PASSWORD_DEBIL` / `CLIENTE_REQUERIDO` / `CLIENTE_NO_PERMITIDO`, `409 EMAIL_DUPLICADO` / `CLIENTE_YA_TIENE_USUARIO` (también bajo `23505` concurrente vía `ejecutarConUnicidad`) |
+| `—` | `POST /api/usuarios` | Rol `ADMIN`; password ≥ 6; vínculo `CLIENTE` válido; `email` y `clienteId` libres | `ACTIVO (true)` | `422 PASSWORD_DEBIL` / `CLIENTE_REQUERIDO` / `CLIENTE_NO_PERMITIDO`, `409 EMAIL_DUPLICADO` / `CLIENTE_YA_TIENE_USUARIO` (también bajo `23505` concurrente vía `RESTRICCIONES_UNICAS`) |
 | `ACTIVO` | `PATCH /api/usuarios/:id { activo: false }` | Rol `ADMIN`; `id !== usuarioActual.id` | `INACTIVO (false)` | `422 NO_PUEDE_DESACTIVARSE`, `404 NO_ENCONTRADO` |
 | `INACTIVO` | `PATCH /api/usuarios/:id { activo: true }` | Rol `ADMIN` | `ACTIVO (true)` | `404 NO_ENCONTRADO` |
 
@@ -240,7 +240,7 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
   BUG-03a VentaServicio.registrar sobre reserva vencida -> venta: VIGENTE reserva.estado: CONVERTIDA
   BUG-03b ReservaServicio.cancelar sobre reserva vencida -> reserva.estado: CANCELADA
   ```
-- **Resolución implementada:** Se extrajo `expirarReservaSiVencida` (`backend/src/aplicacion/servicios/expirarReserva.ts`). `ReservaServicio.cancelar` expira y confirma `VENCIDA` + lote `DISPONIBLE` antes de lanzar `409 RESERVA_NO_ACTIVA`; `ReservaServicio.crear` expira una reserva vencida previa y vuelve a bloquear el lote con `bloquearPorId(entrada.loteId)`; `VentaServicio.registrar` expira la reserva vencida y registra la venta sobre el lote como `DISPONIBLE` para cualquier comprador (`reservaId: null`).
+- **Resolución implementada:** Se extrajo `expirarReservaSiVencida` (`backend/src/aplicacion/servicios/expirarReserva.ts`). `ReservaServicio.cancelar` expira y confirma `VENCIDA` + lote `DISPONIBLE` antes de lanzar `409 RESERVA_NO_ACTIVA`; `ReservaServicio.crear` expira una reserva vencida previa y vuelve a bloquear el lote con `bloquearPorId(entrada.loteId)`; `VentaServicio.registrar` expira la reserva vencida y registra la venta sobre el lote como `DISPONIBLE` para cualquier comprador (`reservaId: null`). *(Refactor posterior: el vencimiento pasó a `vencerReserva` / `vencerReservaDelLote`, que lo guardan en su propia transacción antes de cada operación; ver INV-RES-4.)*
 
 ---
 
@@ -277,7 +277,7 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
   BUG-06b procesarVencidas con cambiarEstadoSi=false -> vencidas: 1 reservaEstado: VENCIDA lote: DISPONIBLE
   BUG-06b anular venta con cambiarEstadoSi=false -> venta: ANULADA lote: DISPONIBLE
   ```
-- **Resolución implementada:** `RepositorioReservasSql.listarActivasVencidas` ordena determinísticamente (`ORDER BY id`); `ReservaServicio.procesarVencidas` ejecuta cada expiración en su propia transacción independiente para evitar bloqueos cruzados entre lotes/reservas distintos; y tanto `ReservaServicio.cancelar`, `ReservaServicio.procesarVencidas`, `expirarReservaSiVencida` como `VentaServicio.anular` verifican el retorno booleano de `lotes.cambiarEstadoSi(...)`.
+- **Resolución implementada:** `RepositorioReservasSql.listarCandidatasAVencer` ordena determinísticamente (`ORDER BY id`) y `estaVencida` decide cuáles vencieron; `ReservaServicio.procesarVencidas` ejecuta cada expiración en su propia transacción independiente para evitar bloqueos cruzados entre lotes/reservas distintos; y tanto `cerrarReservaYLiberarLote` (cancelar y vencer) como `VentaServicio.anular` verifican el retorno booleano de `lotes.cambiarEstadoSi(...)`.
 
 ---
 
@@ -298,7 +298,7 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
   ```text
   BUG-07 cliente duplicado concurrente -> 409 REGISTRO_DUPLICADO
   ```
-- **Resolución implementada:** `ejecutarConUnicidad` en `backend/src/infraestructura/bd/repositorios/consultas.ts` traduce colisiones PostgreSQL `23505` en `RepositorioClientesSql`, `RepositorioUsuariosSql`, `RepositorioLotesSql`, `RepositorioReservasSql` y `RepositorioVentasSql` al código `409` específico documentado en `docs/API.md` (`DOCUMENTO_DUPLICADO`, `EMAIL_DUPLICADO`, `CLIENTE_YA_TIENE_USUARIO`, `CODIGO_LOTE_DUPLICADO`, etc.).
+- **Resolución implementada:** `crearConsultas` en `backend/src/infraestructura/bd/repositorios/consultas.ts` traduce colisiones PostgreSQL `23505` de cualquier repositorio (mapa `RESTRICCIONES_UNICAS`) al código `409` específico documentado en `docs/API.md` (`DOCUMENTO_DUPLICADO`, `EMAIL_DUPLICADO`, `CLIENTE_YA_TIENE_USUARIO`, `CODIGO_LOTE_DUPLICADO`, etc.).
 
 ---
 
@@ -324,22 +324,23 @@ Documento maestro de análisis, invariantes, tablas de transiciones, hallazgos r
 
 ## 5. Cobertura de pruebas de regresión agregadas
 
-- **Apoyo para concurrencia determinista en PGlite:** `crearAppInterceptable` en `backend/tests/apoyo/app.ts` inyecta ganchos SQL dentro de la transacción para reproducir intercalados concurrentes de forma determinista sobre PGlite.
+- **Apoyo para concurrencia determinista en PGlite:** `intercalarUnaVez` en `backend/tests/apoyo/carreras.ts` hace actuar al "otro usuario" (`otroUsuario.*`) justo antes o después de una consulta con nombre (`CONSULTAS`) dentro de la transacción, y hace fallar la prueba si esa consulta nunca se ejecutó.
 - **Unitarias backend (`backend/tests/unitarias/` — Vitest):**
-  - `dominio/lote.test.ts` (7 casos)
-  - `dominio/planPagos.test.ts` (4 casos)
-  - `servicios/ProyectoServicio.test.ts` (2 casos)
-  - `servicios/LoteServicio.test.ts` (2 casos)
-  - `servicios/PagoServicio.test.ts` (3 casos)
-  - `servicios/ReservaServicio.test.ts` (4 casos)
-  - `servicios/VentaServicio.test.ts` (2 casos)
+  - `dominio/lote.test.ts`
+  - `dominio/planPagos.test.ts`
+  - `dominio/venta.test.ts`
+  - `servicios/ProyectoServicio.test.ts`
+  - `servicios/LoteServicio.test.ts`
+  - `servicios/PagoServicio.test.ts`
+  - `servicios/ReservaServicio.test.ts`
+  - `servicios/VentaServicio.test.ts`
 - **Integración backend (`backend/tests/integracion/` — Supertest + PGlite):**
-  - `pagos.test.ts` (2 casos)
-  - `proyectos.test.ts` (2 casos)
-  - `lotes.test.ts` (5 casos)
-  - `reservas.test.ts` (3 casos)
-  - `ventas.test.ts` (1 caso)
-  - `clientes.test.ts` (1 caso)
-  - `usuarios.test.ts` (3 casos)
+  - `pagos.test.ts`
+  - `proyectos.test.ts`
+  - `lotes.test.ts`
+  - `reservas.test.ts`
+  - `ventas.test.ts`
+  - `clientes.test.ts`
+  - `usuarios.test.ts`
 - **E2E UI (`e2e/tests/` — Playwright Chromium):**
-  - `regresion-modos-y-conflictos.spec.ts` (3 casos, con apoyo de `e2e/apoyo/sesion.ts`).
+  - `regresion-modos-y-conflictos.spec.ts` (con apoyo de `e2e/apoyo/sesion.ts`).

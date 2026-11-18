@@ -1,43 +1,19 @@
 /** Tipos de los datos que devuelve la API REST (mismos nombres que en el backend). */
 
-export type Rol = 'ADMIN' | 'ASESOR' | 'CLIENTE';
-export type EstadoProyecto = 'BORRADOR' | 'PUBLICADO';
-export type EstadoLote = 'DISPONIBLE' | 'RESERVADO' | 'VENDIDO' | 'BLOQUEADO';
-export type EstadoReserva = 'ACTIVA' | 'CANCELADA' | 'VENCIDA' | 'CONVERTIDA';
-export type EstadoVenta = 'VIGENTE' | 'ANULADA';
-export type EstadoCuota = 'PENDIENTE' | 'PAGADA' | 'VENCIDA';
-export type EstadoPago = 'VALIDO' | 'ANULADO';
-export type Modalidad = 'CONTADO' | 'FINANCIADO';
-export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'QR' | 'TARJETA';
-
-export const ESTADOS_LOTE: EstadoLote[] = ['DISPONIBLE', 'RESERVADO', 'VENDIDO', 'BLOQUEADO'];
-export const METODOS_PAGO: MetodoPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'QR', 'TARJETA'];
-
-export type Permiso =
-  | 'proyectos:ver'
-  | 'proyectos:gestionar'
-  | 'lotes:ver'
-  | 'lotes:gestionar'
-  | 'clientes:ver'
-  | 'clientes:gestionar'
-  | 'reservas:ver'
-  | 'reservas:gestionar'
-  | 'ventas:ver'
-  | 'ventas:registrar'
-  | 'ventas:anular'
-  | 'pagos:registrar'
-  | 'pagos:anular'
-  | 'usuarios:gestionar'
-  | 'reportes:ver'
-  | 'portal:ver';
+import type {
+  ConteoPorEstado,
+  EstadoLote,
+  EstadoProyecto,
+  ModalidadPago,
+  Permiso,
+  Rol,
+} from '../dominio';
 
 /** Polígono GeoJSON: coordenadas [longitud, latitud]. */
 export interface Poligono {
   type: 'Polygon';
   coordinates: [number, number][][];
 }
-
-export type ConteoPorEstado = Record<EstadoLote, number>;
 
 export interface Referencia {
   id: number;
@@ -69,7 +45,7 @@ export interface ProyectoListado extends Proyecto {
   lotesPorEstado: ConteoPorEstado;
 }
 
-export interface ResumenManzano {
+interface ResumenManzano {
   manzano: string;
   etapa: string;
   total: number;
@@ -124,7 +100,7 @@ export interface LoteDetalle extends Lote {
     id: number;
     fecha: string;
     precioPactado: number;
-    modalidad: Modalidad;
+    modalidad: ModalidadPago;
     cliente: ClienteResumen;
     asesor: Referencia;
     totalPagado: number;

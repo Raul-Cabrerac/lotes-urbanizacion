@@ -19,7 +19,7 @@ for (const archivo of ['.env.local', '.env']) {
 const variable = (nombre: string, porDefecto = ''): string =>
   process.env[nombre]?.trim() || porDefecto;
 
-export type Entorno = 'desarrollo' | 'pruebas';
+type Entorno = 'desarrollo' | 'pruebas';
 
 const entorno: Entorno = variable('ENTORNO') === 'pruebas' ? 'pruebas' : 'desarrollo';
 

@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api/api';
-import { mensajeDeError } from '../../api/http';
 import type { ResultadoImportacion } from '../../api/tiposOperaciones';
 import { Campo, MensajeError } from '../../componentes/Basicos';
 import { Icono } from '../../componentes/Icono';
 import { Modal } from '../../componentes/Modal';
-import { numeroOIndefinido } from '../../utilidades/formato';
+import { numeroOIndefinido } from '../../utilidades/entradas';
+import { useEnvio } from '../../utilidades/useEnvio';
 
 const EJEMPLO = '/ejemplos/urbanizacion_el_mirador.kml';
 
@@ -24,8 +24,7 @@ export function ModalImportarKml({
   const [precio, setPrecio] = useState('');
   const [manzano, setManzano] = useState('');
   const [etapa, setEtapa] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [importando, setImportando] = useState(false);
+  const { enviar, enviando, error, setError } = useEnvio();
 
   const leerArchivo = async (archivo: File | undefined) => {
     if (!archivo) return;
@@ -35,18 +34,21 @@ export function ModalImportarKml({
   };
 
   const usarEjemplo = async () => {
-    const respuesta = await fetch(EJEMPLO);
-    setKml(await respuesta.text());
-    setNombreArchivo('urbanizacion_el_mirador.kml (ejemplo)');
-    setError(null);
+    try {
+      const respuesta = await fetch(EJEMPLO);
+      if (!respuesta.ok) throw new Error(`Error ${respuesta.status}`);
+      setKml(await respuesta.text());
+      setNombreArchivo('urbanizacion_el_mirador.kml (ejemplo)');
+      setError(null);
+    } catch {
+      setError('No se pudo cargar el KML de ejemplo. Elija un archivo o vuelva a intentarlo.');
+    }
   };
 
-  const importar = async (e: FormEvent) => {
+  const importar = (e: FormEvent) => {
     e.preventDefault();
     if (!kml) return setError('Seleccione un archivo KML.');
-    setImportando(true);
-    setError(null);
-    try {
+    void enviar(async () =>
       onImportado(
         await api.proyectos.importarKml(proyectoId, {
           kml,
@@ -54,11 +56,8 @@ export function ModalImportarKml({
           manzanoPorDefecto: manzano || undefined,
           etapaPorDefecto: etapa || undefined,
         }),
-      );
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setImportando(false);
-    }
+      ),
+    );
   };
 
   return (
@@ -103,8 +102,8 @@ export function ModalImportarKml({
           <button type="button" className="boton" onClick={onCerrar} data-testid="kml-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-primario" disabled={importando} data-testid="kml-importar">
-            {importando ? 'Importando…' : 'Importar'}
+          <button type="submit" className="boton boton-primario" disabled={enviando} data-testid="kml-importar">
+            {enviando ? 'Importando…' : 'Importar'}
           </button>
         </div>
       </form>

@@ -1,6 +1,7 @@
 import { ErrorNoAutenticado } from '../../dominio/errores';
 import { permisosDeRol } from '../../dominio/permisos';
 import type { Usuario } from '../../dominio/tipos';
+import { normalizarEmail } from '../../dominio/usuario';
 import type { Hasher, ServicioTokens, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 
 export function aUsuarioActual(usuario: Usuario): UsuarioActual {
@@ -23,7 +24,7 @@ export class AuthServicio {
   ) {}
 
   async iniciarSesion(email: string, password: string): Promise<{ token: string; usuario: UsuarioActual }> {
-    const usuario = await this.uow.repos.usuarios.buscarPorEmail(email.trim().toLowerCase());
+    const usuario = await this.uow.repos.usuarios.buscarPorEmail(normalizarEmail(email));
     // Mismo mensaje si el correo no existe o la contraseña es incorrecta (no revelar cuál falló).
     const credencialesValidas = usuario !== null && (await this.hasher.comparar(password, usuario.passwordHash));
     if (!usuario || !credencialesValidas) {
@@ -32,7 +33,7 @@ export class AuthServicio {
     if (!usuario.activo) {
       throw new ErrorNoAutenticado('Su usuario está desactivado. Contacte al administrador.', 'USUARIO_INACTIVO');
     }
-    const token = this.tokens.generar({ usuarioId: usuario.id, rol: usuario.rol });
+    const token = this.tokens.generar({ usuarioId: usuario.id });
     return { token, usuario: aUsuarioActual(usuario) };
   }
 

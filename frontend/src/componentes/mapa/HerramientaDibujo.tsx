@@ -9,15 +9,15 @@
  */
 import { useEffect, useState } from 'react';
 import type { Poligono } from '../../api/tipos';
+import { MIN_VERTICES } from '../../dominio';
+import { COLOR_SELECCION } from '../../utilidades/estados';
 import { Icono } from '../Icono';
 import type { CapaHtml } from './capaHtml';
-import { AZUL_SELECCION } from './colores';
 import type { GoogleMaps } from './cargarGoogleMaps';
 import { aPoligono, verticeCercano, type Punto } from './geometriaMapa';
 
 /** Distancia en píxeles para pegar un clic a un vértice cercano. */
 const RADIO_IMAN_PX = 12;
-const MINIMO_VERTICES = 3;
 
 interface Props {
   api: GoogleMaps;
@@ -30,7 +30,7 @@ interface Props {
 
 export function HerramientaDibujo({ api, mapa, capaVertices, verticesExistentes, onTerminar }: Props) {
   const [vertices, setVertices] = useState<Punto[]>([]);
-  const puedeTerminar = vertices.length >= MINIMO_VERTICES;
+  const puedeTerminar = vertices.length >= MIN_VERTICES;
 
   const terminar = () => {
     if (puedeTerminar) onTerminar(aPoligono(vertices));
@@ -63,7 +63,7 @@ export function HerramientaDibujo({ api, mapa, capaVertices, verticesExistentes,
 
   // Vista previa: líneas entre los vértices, guía hasta el puntero y puntos en cada vértice.
   useEffect(() => {
-    const opciones = { map: mapa, clickable: false, strokeColor: AZUL_SELECCION };
+    const opciones = { map: mapa, clickable: false, strokeColor: COLOR_SELECCION };
     const trazo = new api.maps.Polyline({ ...opciones, path: vertices, strokeWeight: 3 });
     const guia = new api.maps.Polyline({ ...opciones, strokeWeight: 2, strokeOpacity: 0.6 });
     const primero = vertices[0];

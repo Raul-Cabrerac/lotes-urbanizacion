@@ -162,7 +162,7 @@ de `docs/API.md` y §3 de la guía; Mario recorriendo a mano los 8 flujos del `R
 4. **Archivos compartidos congelados.** Solo Raul los cambia, en un pull request propio y
    agregando (sin romper lo existente):
    - ayudantes de prueba: `backend/tests/apoyo/` y `e2e/apoyo/`;
-   - `backend/src/infraestructura/bd/datosDemo.ts` (las pruebas dependen de esos datos);
+   - `backend/src/datosDemo.ts` (las pruebas dependen de esos datos);
    - migraciones existentes (un cambio de esquema es una migración nueva);
    - `package.json` y `package-lock.json` (no se instalan dependencias por cuenta propia);
    - configuración: `vitest.config.ts`, `playwright.config.ts`, `tsconfig.json`, `.github/`.

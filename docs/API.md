@@ -77,6 +77,8 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 
 ## 4. Catálogo de códigos de error
 
+Los códigos del dominio están definidos una sola vez en `backend/src/dominio/errores.ts` (`CODIGOS_ERROR`): cada código tiene un tipo, y el tipo decide el estado HTTP. Un código nuevo se agrega ahí y en esta tabla.
+
 | Código | HTTP | Dónde se lanza | Significado |
 |---|---|---|---|
 | `VALIDACION` | 400 | `http/validacion.ts` | Campos obligatorios vacíos o con formato inválido |
@@ -95,8 +97,7 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | `LOTE_RESERVADO_POR_OTRO_CLIENTE` | 409 | `dominio/lote.ts` | Vender un lote RESERVADO a un cliente distinto del de la reserva |
 | `LOTE_CON_OPERACIONES` | 409 | `dominio/lote.ts` | Eliminar un lote que tuvo reservas o ventas |
 | `LOTE_MODIFICADO` | 409 | `LoteServicio` | Otro usuario cambió el estado mientras se bloqueaba |
-| `CODIGO_LOTE_DUPLICADO` | 409 / 422 | `LoteServicio` / `ImportacionKmlServicio` | El código ya existe en el proyecto o se repite en el KML |
-| `TRANSICION_INVALIDA` | 422 | `dominio/lote.ts` | Cambio de estado no permitido por la máquina de estados |
+| `CODIGO_LOTE_DUPLICADO` | 409 | `LoteServicio`, repositorio de lotes | El código ya existe en el proyecto (en un KML, un código repetido se informa dentro de `KML_CON_ERRORES`) |
 | `CAMBIO_ESTADO_NO_PERMITIDO` | 422 | `dominio/lote.ts` | A mano solo se bloquea o desbloquea |
 | `PROYECTO_NO_PUBLICADO` | 422 | `dominio/lote.ts` | Reservar o vender en un proyecto en BORRADOR |
 | `LOTE_SIN_PRECIO` | 422 | `dominio/lote.ts` | Reservar o vender un lote sin precio |
@@ -119,6 +120,6 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | `DOCUMENTO_DUPLICADO` | 409 | `ClienteServicio` | Ya existe un cliente con ese CI/NIT |
 | `EMAIL_DUPLICADO` · `CLIENTE_YA_TIENE_USUARIO` | 409 | `UsuarioServicio` | Usuario repetido |
 | `PASSWORD_DEBIL` · `CLIENTE_REQUERIDO` · `CLIENTE_NO_PERMITIDO` · `NO_PUEDE_DESACTIVARSE` | 422 | `dominio/usuario.ts`, `UsuarioServicio` | Reglas de usuarios |
-| `REGISTRO_DUPLICADO` · `REGISTRO_RELACIONADO` | 409 | `manejadorErrores.ts` | Segunda barrera: un índice único o una clave foránea de PostgreSQL rechazó la operación |
-| `DATO_FUERA_DE_RANGO` | 422 | `manejadorErrores.ts` | Segunda barrera: un CHECK o un tamaño de PostgreSQL rechazó un valor |
+| `REGISTRO_DUPLICADO` · `REGISTRO_RELACIONADO` | 409 | repositorios SQL (`consultas.ts`) | Segunda barrera: un índice único o una clave foránea de PostgreSQL rechazó la operación |
+| `DATO_FUERA_DE_RANGO` | 422 | repositorios SQL (`consultas.ts`) | Segunda barrera: un CHECK o un tamaño de PostgreSQL rechazó un valor |
 | `ERROR_INTERNO` | 500 | `manejadorErrores.ts` | Error inesperado |

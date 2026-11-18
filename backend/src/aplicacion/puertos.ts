@@ -32,7 +32,6 @@ export interface Hasher {
 
 export interface DatosToken {
   usuarioId: number;
-  rol: Rol;
 }
 
 export interface ServicioTokens {
@@ -67,6 +66,10 @@ export interface UsuarioActual {
  * Unidad de trabajo: agrupa varias escrituras en UNA transacción.
  * Si algo falla dentro de `transaccion`, no se guarda nada (atomicidad):
  * por ejemplo, registrar una venta y marcar el lote como VENDIDO.
+ *
+ * Orden de bloqueo, el mismo en todas las operaciones para que dos transacciones simultáneas no se
+ * esperen mutuamente (deadlock): proyecto -> lote (publicar, eliminar lote), reserva -> lote
+ * (cancelar, vencer, vender) y venta -> pago (registrar y anular pagos).
  */
 export interface UnidadDeTrabajo {
   readonly repos: Repositorios;

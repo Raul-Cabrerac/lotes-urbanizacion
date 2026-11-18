@@ -3,7 +3,8 @@ import { api } from '../api/api';
 import { Cargando, ContenedorTabla, Dato, Encabezado, MensajeError } from '../componentes/Basicos';
 import { Icono } from '../componentes/Icono';
 import { TablaReservas, TablaVentas } from '../componentes/TablasOperaciones';
-import { bs, fecha, sumarMontos } from '../utilidades/formato';
+import { saldoPendienteDelCliente } from '../dominio';
+import { bs, fecha } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 
 /** Un cliente con todas sus operaciones: reservas, ventas, pagos y saldo. */
@@ -15,7 +16,7 @@ export function ClienteDetalle() {
   if (!cliente) return <Cargando />;
 
   const vigentes = cliente.ventas.filter((v) => v.estado === 'VIGENTE');
-  const saldoTotal = sumarMontos(vigentes.map((v) => v.resumen.saldoPendiente));
+  const saldoTotal = saldoPendienteDelCliente(cliente.ventas);
 
   return (
     <div className="pagina">

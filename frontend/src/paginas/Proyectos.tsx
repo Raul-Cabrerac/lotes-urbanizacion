@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/api';
-import { ESTADOS_LOTE } from '../api/tipos';
+import { ESTADOS_LOTE } from '../dominio';
 import { useSesion } from '../auth/Sesion';
 import { Cargando, Encabezado, Insignia, MensajeError, Vacio } from '../componentes/Basicos';
 import { Icono } from '../componentes/Icono';
-import { COLOR_ESTADO } from '../componentes/mapa/colores';
+import { ASPECTO_ESTADO, estiloEstado } from '../utilidades/estados';
 import { fecha } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 import { ModalProyecto } from './ModalProyecto';
@@ -49,8 +49,8 @@ export function Proyectos() {
                 p.lotesPorEstado[estado] ? (
                   <span
                     key={estado}
-                    style={{ flex: p.lotesPorEstado[estado], background: COLOR_ESTADO[estado] }}
-                    title={`${estado}: ${p.lotesPorEstado[estado]}`}
+                    style={{ ...estiloEstado(estado), flex: p.lotesPorEstado[estado] }}
+                    title={`${ASPECTO_ESTADO[estado].etiqueta}: ${p.lotesPorEstado[estado]}`}
                   />
                 ) : null,
               )}
@@ -61,7 +61,7 @@ export function Proyectos() {
                 <dd>{p.totalLotes}</dd>
               </div>
               <div>
-                <dt>Disponibles</dt>
+                <dt>{ASPECTO_ESTADO.DISPONIBLE.plural}</dt>
                 <dd>{p.lotesPorEstado.DISPONIBLE}</dd>
               </div>
               <div>

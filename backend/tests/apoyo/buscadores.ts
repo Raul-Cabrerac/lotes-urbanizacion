@@ -1,5 +1,6 @@
 import request from 'supertest';
 import type { AppDePrueba } from './app';
+import { PROYECTO_PUBLICADO } from './datosDemo';
 
 export interface ProyectoPrueba {
   id: number;
@@ -47,14 +48,16 @@ export async function buscarProyecto(app: AppDePrueba, token: string, nombre: st
   return proyecto;
 }
 
+/** Busca un lote por su código dentro del proyecto indicado (por nombre; por defecto, el publicado). */
 export async function buscarLote(
   app: AppDePrueba,
   token: string,
   codigo: string,
-  proyectoId = 1,
+  nombreProyecto = PROYECTO_PUBLICADO,
 ): Promise<LotePrueba> {
+  const proyecto = await buscarProyecto(app, token, nombreProyecto);
   const res = await request(app.express)
-    .get(`/api/proyectos/${proyectoId}/lotes`)
+    .get(`/api/proyectos/${proyecto.id}/lotes`)
     .set('Authorization', `Bearer ${token}`)
     .expect(200);
   const lote = (res.body as LotePrueba[]).find((l) => l.codigo === codigo);

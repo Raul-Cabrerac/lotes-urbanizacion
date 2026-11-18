@@ -122,18 +122,19 @@ lotes-urbanizacion/
 ├── backend/
 │   ├── src/
 │   │   ├── dominio/          reglas de negocio puras: lote, reserva, planPagos, venta, dinero,
-│   │   │                     fechas, geometria, permisos, errores
+│   │   │                     fechas, geometria, permisos, errores, transiciones (máquinas de estado)
 │   │   ├── aplicacion/
 │   │   │   ├── puertos.ts    interfaces (Reloj, Hasher, LectorKml, UnidadDeTrabajo...)
 │   │   │   ├── repositorios.ts  interfaces de los repositorios y vistas de lectura
 │   │   │   └── servicios/    ReservaServicio, VentaServicio, PagoServicio, ImportacionKmlServicio...
 │   │   ├── infraestructura/
-│   │   │   ├── bd/           conexión (Neon o en memoria), migraciones, repositorios SQL, datos demo
+│   │   │   ├── bd/           conexión (Neon o en memoria), migraciones, repositorios SQL, vaciado
 │   │   │   ├── kml/          lector de archivos KML
 │   │   │   ├── seguridad.ts  bcrypt y JWT
 │   │   │   └── reloj.ts      RelojSistema y RelojFijo
 │   │   ├── http/             rutas, validación con zod, autenticación y errores
 │   │   ├── contenedor.ts     arma los servicios con sus dependencias
+│   │   ├── datosDemo.ts      carga los datos de demostración a través de los servicios
 │   │   ├── app.ts            app Express sin escuchar un puerto (para Supertest)
 │   │   └── servidor.ts       punto de entrada
 │   └── tests/
@@ -144,6 +145,7 @@ lotes-urbanizacion/
 │   ├── componentes/mapa/     Google Maps: MapaLotes, HerramientaDibujo, capas y colores
 │   ├── paginas/              login, proyectos, mapa del proyecto, clientes, reservas, ventas, portal
 │   ├── api/                  cliente HTTP y tipos
+│   ├── dominio.ts            único punto que importa del backend: estados y reglas puras del dominio
 │   └── auth/                 sesión y rutas protegidas por rol
 ├── e2e/
 │   ├── tests/                pruebas E2E (§14): los 8 flujos completos en el navegador

@@ -32,6 +32,11 @@ export function comparar(a: number, b: number): number {
 /** Monto máximo aceptado (mil millones de bolivianos): evita valores absurdos. */
 export const MONTO_MAXIMO = 999_999_999.99;
 
+/** Monto en el formato de los mensajes: 1234.5 -> "Bs 1.234,50". */
+export function enBolivianos(monto: number): string {
+  return `Bs ${monto.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 /** true si el número tiene como máximo 2 decimales (centavos). */
 export function tieneHastaDosDecimales(monto: number): boolean {
   return Math.abs(monto * 100 - Math.round(monto * 100)) < 1e-6;

@@ -1,7 +1,11 @@
 import { Link } from 'react-router';
 import { api } from '../api/api';
+import { ESTADOS_LOTE } from '../dominio';
+import type { Reporte } from '../api/tiposOperaciones';
 import { Cargando, ContenedorTabla, Encabezado, Insignia, MensajeError } from '../componentes/Basicos';
 import { Icono } from '../componentes/Icono';
+import { Tabla } from '../componentes/Tabla';
+import { ASPECTO_ESTADO } from '../utilidades/estados';
 import { bs, fechaHora } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 
@@ -41,46 +45,44 @@ export function Reportes() {
           </div>
 
           <ContenedorTabla etiqueta="Resumen por proyecto">
-            <table className="tabla" data-testid="tabla-reporte">
-              <thead>
-                <tr>
-                  <th>Proyecto</th>
-                  <th className="numero">Lotes</th>
-                  <th className="numero">Disponibles</th>
-                  <th className="numero">Reservados</th>
-                  <th className="numero">Vendidos</th>
-                  <th className="numero">Bloqueados</th>
-                  <th className="numero">Reservas activas</th>
-                  <th className="numero">Vendido</th>
-                  <th className="numero">Cobrado</th>
-                  <th className="numero">Por cobrar</th>
-                  <th className="numero">Cuotas vencidas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reporte.proyectos.map((f) => (
-                  <tr key={f.proyecto.id}>
-                    <td>
+            <Tabla
+              testid="tabla-reporte"
+              filas={reporte.proyectos}
+              clave={(f) => f.proyecto.id}
+              columnas={[
+                {
+                  titulo: 'Proyecto',
+                  encabezaFicha: true,
+                  celda: (f) => (
+                    <>
                       <Link to={`/proyectos/${f.proyecto.id}`} data-testid={`reporte-proyecto-${f.proyecto.id}`}>
                         {f.proyecto.nombre}
-                      </Link> <Insignia estado={f.proyecto.estado} />
-                    </td>
-                    <td className="numero" data-etiqueta="Lotes">{f.lotes.total}</td>
-                    <td className="numero" data-etiqueta="Disponibles">{f.lotes.porEstado.DISPONIBLE}</td>
-                    <td className="numero" data-etiqueta="Reservados">{f.lotes.porEstado.RESERVADO}</td>
-                    <td className="numero" data-etiqueta="Vendidos">{f.lotes.porEstado.VENDIDO}</td>
-                    <td className="numero" data-etiqueta="Bloqueados">{f.lotes.porEstado.BLOQUEADO}</td>
-                    <td className="numero" data-etiqueta="Reservas activas">{f.reservasActivas}</td>
-                    <td className="numero" data-etiqueta="Vendido">{bs(f.montoVendido)}</td>
-                    <td className="numero" data-etiqueta="Cobrado">{bs(f.totalCobrado)}</td>
-                    <td className="numero" data-etiqueta="Por cobrar">{bs(f.saldoPorCobrar)}</td>
-                    <td className="numero" data-etiqueta="Cuotas vencidas">
+                      </Link>{' '}
+                      <Insignia estado={f.proyecto.estado} />
+                    </>
+                  ),
+                },
+                { titulo: 'Lotes', clase: 'numero', celda: (f) => f.lotes.total },
+                ...ESTADOS_LOTE.map((estado) => ({
+                  titulo: ASPECTO_ESTADO[estado].plural,
+                  clase: 'numero',
+                  celda: (f: Reporte['proyectos'][number]) => f.lotes.porEstado[estado],
+                })),
+                { titulo: 'Reservas activas', clase: 'numero', celda: (f) => f.reservasActivas },
+                { titulo: 'Vendido', clase: 'numero', celda: (f) => bs(f.montoVendido) },
+                { titulo: 'Cobrado', clase: 'numero', celda: (f) => bs(f.totalCobrado) },
+                { titulo: 'Por cobrar', clase: 'numero', celda: (f) => bs(f.saldoPorCobrar) },
+                {
+                  titulo: 'Cuotas vencidas',
+                  clase: 'numero',
+                  celda: (f) => (
+                    <>
                       {f.cuotasVencidas} {f.cuotasVencidas > 0 && <span className="texto-alerta">({bs(f.montoVencido)})</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </>
+                  ),
+                },
+              ]}
+            />
           </ContenedorTabla>
         </>
       )}

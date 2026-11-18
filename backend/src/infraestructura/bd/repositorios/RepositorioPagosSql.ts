@@ -1,5 +1,6 @@
 import type { RepositorioPagos } from '../../../aplicacion/puertos';
-import type { Consultas } from './consultas';
+import { OPERACIONES_PAGO } from '../../../dominio/planPagos';
+import { transicionarSi, type Consultas } from './consultas';
 import { aPago } from './conversiones';
 import type { FilaPago } from './filas';
 
@@ -25,13 +26,9 @@ export function crearRepositorioPagos(bd: Consultas): RepositorioPagos {
 
     async anular(id, { motivo, anuladoPorId, fecha }) {
       // Un pago nunca se borra: se marca ANULADO con motivo, usuario y fecha (trazabilidad).
-      // Solo si sigue VALIDO: en dos anulaciones simultáneas, la segunda no pisa a la primera.
-      const actualizadas = await bd.filas(
-        `UPDATE pagos SET estado = 'ANULADO', motivo_anulacion = $1, anulado_por_id = $2, anulado_en = $3
-         WHERE id = $4 AND estado = 'VALIDO' RETURNING id`,
-        [motivo, anuladoPorId, fecha, id],
-      );
-      return actualizadas.length === 1;
+      // En dos anulaciones simultáneas, la segunda no pisa a la primera.
+      const columnas = { motivo_anulacion: motivo, anulado_por_id: anuladoPorId, anulado_en: fecha };
+      return (await transicionarSi(bd, 'pagos', id, OPERACIONES_PAGO.anular, columnas)) !== null;
     },
   };
 }

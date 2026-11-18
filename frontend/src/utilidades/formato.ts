@@ -1,4 +1,4 @@
-/** Formatos de presentación (moneda en bolivianos, fechas y superficies). */
+/** Formatos de presentación (moneda en bolivianos, fechas, superficies y cantidades). */
 
 const formatoNumero = (decimales: number) =>
   new Intl.NumberFormat('es-BO', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
@@ -30,33 +30,7 @@ export function fechaHora(valor: string | null | undefined): string {
   return `${fecha(valor)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** Fecha de hoy + n días en formato 'AAAA-MM-DD' (para inputs de tipo date). */
-export function fechaEnDias(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** Convierte el texto de un input numérico: '' -> undefined. */
-export function numeroOIndefinido(texto: string): number | undefined {
-  if (texto.trim() === '') return undefined;
-  const numero = Number(texto.replace(',', '.'));
-  return Number.isFinite(numero) ? numero : NaN;
-}
-
 /** 1 -> "1 cuota vencida"; 3 -> "3 cuotas vencidas" */
 export function plural(cantidad: number, singular: string, enPlural: string): string {
   return `${cantidad} ${cantidad === 1 ? singular : enPlural}`;
-}
-
-/** 'DISPONIBLE' -> 'Disponible' */
-export function capitalizar(texto: string): string {
-  return texto.charAt(0) + texto.slice(1).toLowerCase();
-}
-
-export const NOMBRE_ROL = { ADMIN: 'Administrador', ASESOR: 'Asesor comercial', CLIENTE: 'Cliente' } as const;
-
-/** Suma montos en centavos para evitar errores de redondeo (0.1 + 0.2). */
-export function sumarMontos(montos: number[]): number {
-  return montos.reduce((total, monto) => total + Math.round(monto * 100), 0) / 100;
 }

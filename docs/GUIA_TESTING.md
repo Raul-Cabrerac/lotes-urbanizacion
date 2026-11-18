@@ -28,7 +28,7 @@ Las reglas son funciones puras en `backend/src/dominio/`: se prueban sin base de
 
 | Consigna §12 | Módulo | Qué llamar |
 |---|---|---|
-| Cambios permitidos de estado de un lote | `dominio/lote.ts` | `TRANSICIONES_LOTE`, `puedeCambiarEstado`, `validarCambioEstado`, `validarCambioEstadoManual` |
+| Cambios permitidos de estado de un lote | `dominio/lote.ts` · `dominio/transiciones.ts` | `OPERACIONES_LOTE` (con `admite`), `operacionesDelLote`, `validarCambioEstadoManual` |
 | Impedir reservar un lote que no esté DISPONIBLE | `dominio/lote.ts` | `validarLoteReservable(lote, 'PUBLICADO')` → `LOTE_NO_DISPONIBLE` |
 | Impedir vender un lote ya VENDIDO | `dominio/lote.ts` | `validarLoteVendible(lote, 'PUBLICADO', clienteId, reservaActiva)` → `LOTE_YA_VENDIDO` |
 | Calcular total pagado y saldo pendiente | `dominio/planPagos.ts` | `resumirPlan(precioPactado, cuotas, pagos, hoy)` |
@@ -63,15 +63,16 @@ Al simular repositorios, tener en cuenta lo que devuelven desde las correcciones
   otro usuario la cerró antes, y el servicio debe responder con su código 409
   (`RESERVA_NO_ACTIVA`, `VENTA_NO_VIGENTE`, `PAGO_YA_ANULADO`). Un `vi.fn()` sin valor devuelve
   `undefined`, que cuenta como `false`.
-- `PagoServicio.registrar` llama primero a `ventas.bloquearPorId(ventaId)`: el doble necesita ese
-  método (`vi.fn()` alcanza).
+- Los servicios bloquean la fila antes de cambiarla (`bloquearPorId`). `unidadDeTrabajoFalsa(repos)`
+  de `backend/tests/apoyo/dobles.ts` agrega esos métodos sola; las pruebas afirman el resultado y
+  lo que queda guardado, no las llamadas internas.
 
 ## 3. Integración: puntos de entrada reales
 
 | Qué | Dónde | Uso |
 |---|---|---|
 | PostgreSQL en memoria | `infraestructura/bd/baseDeDatos.ts` | `const bd = await abrirBaseDeDatos()` sin URL: base nueva, vacía y con el esquema. Al final `await bd.cerrar()` |
-| Datos demo | `infraestructura/bd/datosDemo.ts` | `await cargarDatosDemo(bd, new Date('2026-03-15T12:00:00'))` |
+| Datos demo | `src/datosDemo.ts` | `await cargarDatosDemo(bd, new Date('2026-03-15T12:00:00'))` |
 | Reloj fijo | `infraestructura/reloj.ts` | `new RelojFijo(fecha)`; `avanzarDias(10)` para vencimientos |
 | Servicios reales | `src/contenedor.ts` | `crearContenedor({ bd, jwtSecreto: 'pruebas', jwtExpiraEn: '1h', reloj, bcryptRondas: 4 })` |
 | API sin abrir un puerto | `src/app.ts` | `request(crearApp(servicios)).post('/api/reservas')` con Supertest |

@@ -3,8 +3,8 @@
  * lotes, coloreados con los mismos tonos de estado que el mapa real. Es determinista: siempre
  * se dibuja igual, sin azar.
  */
-import type { EstadoLote } from '../api/tipos';
-import { COLOR_ESTADO } from './mapa/colores';
+import type { EstadoLote } from '../dominio';
+import { ASPECTO_ESTADO } from '../utilidades/estados';
 
 const COLUMNAS = 5;
 const FILAS = 7;
@@ -53,7 +53,7 @@ export function PlanoLotes() {
             y={lote.y}
             width={anchoLote}
             height={altoLote}
-            fill={lote.estado ? COLOR_ESTADO[lote.estado] : 'rgb(255 255 255 / 0.04)'}
+            fill={lote.estado ? ASPECTO_ESTADO[lote.estado].color : 'rgb(255 255 255 / 0.04)'}
             fillOpacity={lote.estado ? 0.78 : 1}
             stroke="rgb(255 255 255 / 0.22)"
             strokeWidth="1"

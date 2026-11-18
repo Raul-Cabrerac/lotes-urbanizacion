@@ -7,27 +7,45 @@ test.describe('Regresión UI · modos del mapa y conflictos 409', () => {
     await reiniciarDatos(request);
   });
 
-  test('cancela modos incompatibles en mapa y oculta acciones comerciales durante editar-forma', async ({ page }) => {
+  test('sale del modo dibujo al seleccionar otro lote desde el panel', async ({ page }) => {
     // Arrange
     await iniciarSesionComo(page, 'admin');
     await abrirProyecto(page);
-    // Act 1: entrar en dibujo y seleccionar otro lote desde el panel
     await page.getByTestId('dibujar-lote').click();
     await expect(page.getByTestId('aviso-dibujo')).toBeVisible();
+    // Act
     await page.getByTestId('item-lote-C-02').click();
-    // Assert 1: salió de dibujo y abrió detalle
+    // Assert
     await expect(page.getByTestId('aviso-dibujo')).toBeHidden();
     await expect(page.getByTestId('panel-lote')).toBeVisible();
-    // Act 2: entrar en editar-forma
+  });
+
+  test('oculta las acciones comerciales mientras se edita la forma del lote', async ({ page }) => {
+    // Arrange
+    await iniciarSesionComo(page, 'admin');
+    await abrirProyecto(page);
+    await page.getByTestId('item-lote-C-02').click();
+    await expect(page.getByTestId('accion-reservar')).toBeVisible();
+    await expect(page.getByTestId('accion-vender')).toBeVisible();
+    // Act
     await page.getByTestId('accion-editar-forma').click();
-    // Assert 2: aviso-edicion visible y acciones comerciales ocultas
+    // Assert
     await expect(page.getByTestId('aviso-edicion')).toBeVisible();
     await expect(page.getByTestId('cancelar-forma')).toBeVisible();
     await expect(page.getByTestId('accion-reservar')).toBeHidden();
     await expect(page.getByTestId('accion-vender')).toBeHidden();
-    // Act 3: abrir diálogo de proyecto durante editar-forma
+  });
+
+  test('cancela la edición de forma al abrir un diálogo del proyecto', async ({ page }) => {
+    // Arrange
+    await iniciarSesionComo(page, 'admin');
+    await abrirProyecto(page);
+    await page.getByTestId('item-lote-C-02').click();
+    await page.getByTestId('accion-editar-forma').click();
+    await expect(page.getByTestId('aviso-edicion')).toBeVisible();
+    // Act
     await page.getByTestId('editar-proyecto').click();
-    // Assert 3: modal-proyecto abierto y modo edición cancelado
+    // Assert
     await expect(page.getByTestId('modal-proyecto')).toBeVisible();
     await expect(page.getByTestId('aviso-edicion')).toBeHidden();
   });
@@ -73,7 +91,8 @@ test.describe('Regresión UI · modos del mapa y conflictos 409', () => {
     await page.goto('/reservas');
     await expect(page.getByTestId('fila-reserva-A-03')).toBeVisible();
     await page.getByTestId('cancelar-reserva-A-03').click();
-    await expect(page.getByTestId('confirmar-aceptar')).toBeVisible();
+    const modal = page.getByTestId('modal-confirmar');
+    await expect(modal.getByTestId('confirmar-aceptar')).toBeVisible();
     // Otro usuario cancela antes
     const cancelRes = await request.post(`/api/reservas/${reservaA03?.id}/cancelar`, {
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -81,10 +100,11 @@ test.describe('Regresión UI · modos del mapa y conflictos 409', () => {
     });
     expect(cancelRes.status()).toBe(200);
     // Act
-    await page.getByTestId('confirmar-aceptar').click();
-    // Assert: error visible y al cerrar la fila ya no aparece en Activas
-    await expect(page.getByTestId('mensaje-error')).toBeVisible();
-    await page.getByTestId('confirmar-cancelar').click();
+    await modal.getByTestId('confirmar-aceptar').click();
+    // Assert: el error se ve en el modal y, al cerrarlo, la tabla de Activas ya no tiene la fila
+    await expect(modal.getByTestId('mensaje-error')).toBeVisible();
+    await modal.getByTestId('confirmar-cancelar').click();
+    await expect(page.getByTestId('tabla-reservas')).toBeVisible();
     await expect(page.getByTestId('fila-reserva-A-03')).toBeHidden();
   });
 });

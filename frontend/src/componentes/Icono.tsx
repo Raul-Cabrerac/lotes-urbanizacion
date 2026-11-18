@@ -71,7 +71,7 @@ const TRAZOS = {
   ),
 } satisfies Record<string, ReactNode>;
 
-export type NombreIcono = keyof typeof TRAZOS;
+type NombreIcono = keyof typeof TRAZOS;
 
 export function Icono({ nombre, tamano = 16 }: { nombre: NombreIcono; tamano?: number }) {
   return (

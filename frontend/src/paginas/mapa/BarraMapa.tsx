@@ -1,6 +1,7 @@
 import { Icono } from '../../componentes/Icono';
 
-export type Modo = 'normal' | 'dibujar-lote' | 'dibujar-limite' | 'editar-forma';
+export type ModoDibujo = 'dibujar-lote' | 'dibujar-limite';
+export type Modo = 'normal' | ModoDibujo | 'editar-forma';
 
 interface Props {
   esAdmin: boolean;
@@ -8,7 +9,7 @@ interface Props {
   /** Código del lote cuya forma se está editando. */
   codigoEditando: string | null;
   puedeGuardarForma: boolean;
-  onModo: (modo: Modo) => void;
+  onModo: (modo: ModoDibujo) => void;
   onImportarKml: () => void;
   onActualizar: () => void;
   onGuardarForma: () => void;

@@ -4,8 +4,8 @@
  * vuelve a crear el esquema con las migraciones y carga los datos de demostración.
  */
 import { config } from '../src/config';
+import { cargarDatosDemo, USUARIOS_DEMO } from '../src/datosDemo';
 import { esEnMemoria, recrearEsquema } from '../src/infraestructura/bd/baseDeDatos';
-import { cargarDatosDemo, USUARIOS_DEMO } from '../src/infraestructura/bd/datosDemo';
 import { abrirPostgresNeon } from '../src/infraestructura/bd/postgresNeon';
 import { RelojSistema } from '../src/infraestructura/reloj';
 

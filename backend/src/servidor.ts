@@ -5,8 +5,8 @@
 import { crearApp } from './app';
 import { config } from './config';
 import { crearContenedor } from './contenedor';
-import { abrirBaseDeDatos, esEnMemoria } from './infraestructura/bd/baseDeDatos';
-import { baseSinDatos, cargarDatosDemo, reiniciarDatosDemo } from './infraestructura/bd/datosDemo';
+import { cargarDatosDemo, reiniciarDatosDemo } from './datosDemo';
+import { abrirBaseDeDatos, baseSinDatos, esEnMemoria } from './infraestructura/bd/baseDeDatos';
 import { RelojSistema } from './infraestructura/reloj';
 
 async function iniciar() {

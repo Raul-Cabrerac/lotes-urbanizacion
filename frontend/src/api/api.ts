@@ -1,21 +1,7 @@
 /** Funciones para cada endpoint de la API REST. */
 import { consulta, pedir } from './http';
-import type {
-  Cliente,
-  EstadoLote,
-  EstadoReserva,
-  EstadoVenta,
-  Lote,
-  LoteDetalle,
-  MetodoPago,
-  Modalidad,
-  Poligono,
-  Proyecto,
-  ProyectoDetalle,
-  ProyectoListado,
-  Rol,
-  Usuario,
-} from './tipos';
+import type { EstadoLote, EstadoReserva, EstadoVenta, MetodoPago, ModalidadPago, Rol } from '../dominio';
+import type { Cliente, Lote, LoteDetalle, Poligono, Proyecto, ProyectoDetalle, ProyectoListado, Usuario } from './tipos';
 import type {
   ClienteDetalle,
   CuotaSimulada,
@@ -27,13 +13,13 @@ import type {
   Venta,
 } from './tiposOperaciones';
 
-export interface DatosProyecto {
+interface DatosProyecto {
   nombre: string;
   descripcion: string;
   ubicacion: string;
 }
 
-export interface DatosLote {
+interface DatosLote {
   codigo: string;
   manzano: string;
   etapa: string;
@@ -50,7 +36,7 @@ export interface FiltrosLotes {
   q?: string;
 }
 
-export interface DatosCliente {
+interface DatosCliente {
   nombreCompleto: string;
   documento: string;
   telefono: string;
@@ -58,10 +44,10 @@ export interface DatosCliente {
   direccion: string;
 }
 
-export interface DatosVenta {
+interface DatosVenta {
   loteId: number;
   clienteId: number;
-  modalidad: Modalidad;
+  modalidad: ModalidadPago;
   precioPactado?: number;
   cuotaInicial?: number;
   numeroCuotas?: number;
@@ -82,7 +68,7 @@ export const api = {
     crear: (datos: DatosProyecto) => pedir<Proyecto>('POST', '/proyectos', datos),
     actualizar: (id: number, datos: DatosProyecto) => pedir<Proyecto>('PUT', `/proyectos/${id}`, datos),
     publicar: (id: number) => pedir<Proyecto>('POST', `/proyectos/${id}/publicar`),
-    definirLimite: (id: number, geometria: Poligono | null) => pedir<Proyecto>('PUT', `/proyectos/${id}/limite`, { geometria }),
+    definirLimite: (id: number, geometria: Poligono) => pedir<Proyecto>('PUT', `/proyectos/${id}/limite`, { geometria }),
     lotes: (id: number, filtros: FiltrosLotes = {}) =>
       pedir<Lote[]>('GET', `/proyectos/${id}/lotes${consulta({ ...filtros })}`),
     crearLote: (id: number, datos: DatosLote) => pedir<Lote>('POST', `/proyectos/${id}/lotes`, datos),
@@ -107,8 +93,7 @@ export const api = {
   },
 
   reservas: {
-    listar: (filtros: { estado?: EstadoReserva | ''; proyectoId?: number; clienteId?: number } = {}) =>
-      pedir<Reserva[]>('GET', `/reservas${consulta(filtros)}`),
+    listar: (filtros: { estado: EstadoReserva | '' }) => pedir<Reserva[]>('GET', `/reservas${consulta(filtros)}`),
     crear: (datos: { loteId: number; clienteId: number; fechaVencimiento?: string | null; observacion?: string }) =>
       pedir<Reserva>('POST', '/reservas', datos),
     cancelar: (id: number, motivo: string) => pedir<Reserva>('POST', `/reservas/${id}/cancelar`, { motivo }),

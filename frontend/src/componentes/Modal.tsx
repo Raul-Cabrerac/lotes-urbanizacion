@@ -6,8 +6,8 @@ interface Props {
   titulo: string;
   onCerrar: () => void;
   children: ReactNode;
-  pie?: ReactNode;
-  ancho?: 'normal' | 'ancho';
+  /** Modal ancho (p. ej. la venta, con el plan de pagos al lado). */
+  ancho?: boolean;
   testid?: string;
 }
 
@@ -26,7 +26,7 @@ function fuera(evento: PointerEvent, dialogo: HTMLDialogElement): boolean {
  * de otro (p. ej. "Nuevo cliente" desde la reserva). Se dibuja en <body> (portal) para que el
  * formulario de un modal nunca quede dentro del formulario de otro.
  */
-export function Modal({ titulo, onCerrar, children, pie, ancho = 'normal', testid }: Props) {
+export function Modal({ titulo, onCerrar, children, ancho, testid }: Props) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const previo = useRef<HTMLElement | null>(null);
   const idTitulo = useId();
@@ -63,7 +63,7 @@ export function Modal({ titulo, onCerrar, children, pie, ancho = 'normal', testi
   return createPortal(
     <dialog
       ref={dialogo}
-      className={`modal modal-${ancho}`}
+      className={ancho ? 'modal modal-ancho' : 'modal'}
       aria-labelledby={idTitulo}
       data-testid={testid}
       // Escape o un clic en el fondo cierran el <dialog>; el estado de React lo sigue. React
@@ -79,7 +79,6 @@ export function Modal({ titulo, onCerrar, children, pie, ancho = 'normal', testi
         </button>
       </div>
       <div className="modal-cuerpo">{children}</div>
-      {pie && <div className="modal-pie">{pie}</div>}
     </dialog>,
     document.body,
   );

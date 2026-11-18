@@ -1,9 +1,9 @@
 import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import type { FechaISO } from '../../dominio/fechas';
-import { validarCambioEstado, validarLoteReservable } from '../../dominio/lote';
-import { estaVencida, validarFechaVencimiento, validarReservaCancelable } from '../../dominio/reserva';
+import { OPERACIONES_LOTE, validarLoteReservable } from '../../dominio/lote';
+import { estaVencida, OPERACIONES_RESERVA, validarFechaVencimiento, validarReservaCancelable } from '../../dominio/reserva';
 import type { FiltrosReservas, Reloj, ReservaVista, UnidadDeTrabajo, UsuarioActual } from '../puertos';
-import { expirarReservaSiVencida } from './expirarReserva';
+import { cerrarReservaYLiberarLote, vencerReserva, vencerReservaDelLote } from './expirarReserva';
 
 export interface EntradaReserva {
   loteId: number;
@@ -37,18 +37,11 @@ export class ReservaServicio {
    * instante antes, esta operación se rechaza con LOTE_NO_DISPONIBLE (409).
    */
   async crear(entrada: EntradaReserva, usuario: UsuarioActual): Promise<ReservaVista> {
-    const hoy = this.reloj.hoy();
-    validarFechaVencimiento(entrada.fechaVencimiento, hoy);
+    validarFechaVencimiento(entrada.fechaVencimiento, this.reloj.hoy());
+    await vencerReservaDelLote(this.uow, this.reloj, entrada.loteId);
 
     const reservaId = await this.uow.transaccion(async (repos) => {
-      const inicial = await repos.lotes.buscarPorId(entrada.loteId);
-      if (!inicial) throw new ErrorNoEncontrado('Lote no encontrado.');
-      if (inicial.estado === 'RESERVADO') {
-        const activa = await repos.reservas.buscarActivaPorLote(inicial.id);
-        if (activa) await expirarReservaSiVencida(repos, activa, hoy, this.reloj.ahora());
-      }
-      // Bloqueamos el lote después de procesar eventual vencimiento (orden reserva -> lote)
-      // para serializar contra actualizaciones de precio a Bs 0 o eliminación del lote.
+      // Bloquea el lote para serializar contra un cambio de precio a Bs 0 o su eliminación.
       await repos.lotes.bloquearPorId(entrada.loteId);
       const lote = await repos.lotes.buscarPorId(entrada.loteId);
       if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
@@ -59,7 +52,7 @@ export class ReservaServicio {
 
       validarLoteReservable(lote, proyecto.estado);
 
-      const reservado = await repos.lotes.cambiarEstadoSi(lote.id, 'DISPONIBLE', 'RESERVADO');
+      const reservado = await repos.lotes.cambiarEstadoSi(lote.id, OPERACIONES_LOTE.reservar);
       if (!reservado) {
         throw new ErrorConflicto(
           'LOTE_NO_DISPONIBLE',
@@ -81,57 +74,41 @@ export class ReservaServicio {
     return this.obtener(reservaId);
   }
 
-  /** Cancela una reserva activa y devuelve el lote a DISPONIBLE (si no venció ni existe venta). */
+  /** Cancela una reserva activa y devuelve el lote a DISPONIBLE. Una reserva que ya venció no se cancela. */
   async cancelar(id: number, motivo: string, usuario: UsuarioActual): Promise<ReservaVista> {
-    const { yaVencida } = await this.uow.transaccion(async (repos) => {
+    await vencerReserva(this.uow, this.reloj, id);
+    await this.uow.transaccion(async (repos) => {
       const reserva = await repos.reservas.buscarPorId(id);
       if (!reserva) throw new ErrorNoEncontrado('Reserva no encontrada.');
-      const hoy = this.reloj.hoy();
-      const ahora = this.reloj.ahora();
-      if (estaVencida(reserva, hoy)) {
-        await expirarReservaSiVencida(repos, reserva, hoy, ahora);
-        return { yaVencida: true };
-      }
-
       validarReservaCancelable(reserva);
-      validarCambioEstado('RESERVADO', 'DISPONIBLE');
 
-      // Primero la reserva y después el lote, el mismo orden que usan la venta y el vencimiento.
       const motivoFinal = motivo.trim() || `Cancelada por ${usuario.nombre}`;
-      const cancelada = await repos.reservas.finalizar(id, 'CANCELADA', ahora, motivoFinal);
+      const cancelada = await cerrarReservaYLiberarLote(
+        repos,
+        reserva,
+        OPERACIONES_RESERVA.cancelar,
+        this.reloj.ahora(),
+        motivoFinal,
+      );
       if (!cancelada) {
         throw new ErrorConflicto(
           'RESERVA_NO_ACTIVA',
           'La reserva acaba de cambiar de estado: otro usuario la canceló o vendió el lote, o venció.',
         );
       }
-      const liberado = await repos.lotes.cambiarEstadoSi(reserva.loteId, 'RESERVADO', 'DISPONIBLE');
-      if (!liberado) {
-        throw new ErrorConflicto('LOTE_MODIFICADO', 'El lote de la reserva ya no estaba en estado RESERVADO.');
-      }
-      return { yaVencida: false };
     });
-    if (yaVencida) {
-      throw new ErrorConflicto('RESERVA_NO_ACTIVA', 'La reserva ya venció y el lote fue liberado.');
-    }
     return this.obtener(id);
   }
 
-  /**
-   * Marca como VENCIDAS las reservas activas cuya fecha de vencimiento ya pasó
-   * y libera sus lotes en transacciones independientes y ordenadas para evitar deadlocks.
-   */
+  /** Marca como VENCIDAS las reservas activas cuyo plazo ya pasó, cada una en su propia transacción. */
   async procesarVencidas(): Promise<number> {
     const hoy = this.reloj.hoy();
-    const candidatas = await this.uow.repos.reservas.listarActivasVencidas(hoy);
+    const candidatas = (await this.uow.repos.reservas.listarCandidatasAVencer()).filter((reserva) =>
+      estaVencida(reserva, hoy),
+    );
     let vencidas = 0;
     for (const candidata of candidatas) {
-      const expiro = await this.uow.transaccion(async (repos) => {
-        const reserva = await repos.reservas.buscarPorId(candidata.id);
-        if (!reserva) return false;
-        return expirarReservaSiVencida(repos, reserva, hoy, this.reloj.ahora());
-      });
-      if (expiro) vencidas++;
+      if (await vencerReserva(this.uow, this.reloj, candidata.id)) vencidas++;
     }
     return vencidas;
   }

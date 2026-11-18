@@ -1,15 +1,8 @@
 import type { RepositorioLotes } from '../../../aplicacion/puertos';
 import type { EstadoLote } from '../../../dominio/tipos';
-import { construirUpdate, construirWhere, ejecutarConUnicidad, type Consultas } from './consultas';
+import { construirUpdate, construirWhere, transicionarSi, type Consultas } from './consultas';
 import { aLote } from './conversiones';
 import type { FilaLote } from './filas';
-
-const UNICIDAD_LOTES = {
-  lotes_proyecto_id_codigo_key: {
-    codigo: 'CODIGO_LOTE_DUPLICADO',
-    mensaje: 'Ya existe un lote con ese código en este proyecto.',
-  },
-} as const;
 
 export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
   return {
@@ -47,23 +40,19 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
     },
 
     async crear(proyectoId, d) {
-      const fila = await ejecutarConUnicidad(
-        () =>
-          bd.filaObligatoria<FilaLote>(
-            `INSERT INTO lotes (proyecto_id, codigo, manzano, etapa, superficie_m2, dimensiones, precio, geometria)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [
-              proyectoId,
-              d.codigo,
-              d.manzano,
-              d.etapa,
-              d.superficieM2,
-              d.dimensiones,
-              d.precio,
-              JSON.stringify(d.geometria),
-            ],
-          ),
-        UNICIDAD_LOTES,
+      const fila = await bd.filaObligatoria<FilaLote>(
+        `INSERT INTO lotes (proyecto_id, codigo, manzano, etapa, superficie_m2, dimensiones, precio, geometria)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [
+          proyectoId,
+          d.codigo,
+          d.manzano,
+          d.etapa,
+          d.superficieM2,
+          d.dimensiones,
+          d.precio,
+          JSON.stringify(d.geometria),
+        ],
       );
       return aLote(fila);
     },
@@ -81,20 +70,12 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
           precio: c.precio,
           geometria: c.geometria && JSON.stringify(c.geometria),
         },
-        true,
       );
-      return aLote(await ejecutarConUnicidad(() => bd.filaObligatoria<FilaLote>(sql, parametros), UNICIDAD_LOTES));
+      return aLote(await bd.filaObligatoria<FilaLote>(sql, parametros));
     },
 
-    async cambiarEstadoSi(id, estadoEsperado, nuevoEstado) {
-      // Un solo UPDATE condicional: si otro usuario cambió el estado antes, no se actualiza
-      // ninguna fila y la operación se rechaza (dos personas no reservan el mismo lote).
-      const actualizadas = await bd.filas(
-        `UPDATE lotes SET estado = $1, actualizado_en = now()
-         WHERE id = $2 AND estado = $3 RETURNING id`,
-        [nuevoEstado, id, estadoEsperado],
-      );
-      return actualizadas.length === 1;
+    async cambiarEstadoSi(id, transicion) {
+      return (await transicionarSi(bd, 'lotes', id, transicion)) !== null;
     },
 
     async contarPorEstado() {

@@ -1,44 +1,32 @@
 /** Componentes pequeños reutilizables. */
 import type { InputHTMLAttributes, ReactNode } from 'react';
+import { ASPECTO_ESTADO, estiloEstado, type Estado } from '../utilidades/estados';
 import { Icono } from './Icono';
-import type { EstadoCuota, EstadoLote, EstadoPago, EstadoProyecto, EstadoReserva, EstadoVenta } from '../api/tipos';
 
-type Estado = EstadoLote | EstadoProyecto | EstadoReserva | EstadoVenta | EstadoCuota | EstadoPago;
-
-/** Color de cada estado (clases definidas en estilos.css). */
-const TONO: Record<Estado, string> = {
-  DISPONIBLE: 'verde',
-  RESERVADO: 'ambar',
-  VENDIDO: 'rojo',
-  BLOQUEADO: 'gris',
-  BORRADOR: 'gris',
-  PUBLICADO: 'verde',
-  ACTIVA: 'ambar',
-  CANCELADA: 'gris',
-  VENCIDA: 'rojo',
-  CONVERTIDA: 'azul',
-  VIGENTE: 'verde',
-  ANULADA: 'gris',
-  PENDIENTE: 'ambar',
-  PAGADA: 'verde',
-  VALIDO: 'verde',
-  ANULADO: 'gris',
-};
-
+/**
+ * Estado con su color. El texto queda en el DOM tal cual el enum ('DISPONIBLE': las pruebas lo
+ * leen así) y estilos.css lo muestra como 'Disponible'.
+ */
 export function Insignia({ estado, testid }: { estado: Estado; testid?: string }) {
+  const { tono } = ASPECTO_ESTADO[estado];
   return (
-    <span className={`insignia insignia-${TONO[estado]}`} data-testid={testid} data-estado={estado}>
+    <span
+      className={`insignia insignia-${tono}`}
+      style={estiloEstado(estado)}
+      data-testid={testid}
+      data-estado={estado}
+    >
       {estado}
     </span>
   );
 }
 
 /** Indicador de carga: un <progress> sin valor es "indeterminado" para los lectores de pantalla. */
-export function Cargando({ texto = 'Cargando…' }: { texto?: string }) {
+export function Cargando() {
   return (
     <div className="cargando">
-      <progress className="spinner" aria-label={texto} />
-      <span aria-hidden="true">{texto}</span>
+      <progress className="spinner" aria-label="Cargando…" />
+      <span aria-hidden="true">Cargando…</span>
     </div>
   );
 }

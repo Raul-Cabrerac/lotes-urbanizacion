@@ -1,6 +1,7 @@
 import { sumar } from '../../dominio/dinero';
 import { resumirPlan } from '../../dominio/planPagos';
-import { resumirLotes } from '../../dominio/proyecto';
+import { conteoDelProyecto } from '../../dominio/proyecto';
+import { ESTADOS_PROYECTO } from '../../dominio/tipos';
 import type { Reloj, UnidadDeTrabajo } from '../puertos';
 
 /** Reporte general para el administrador: lotes, ventas, cobros y saldos por proyecto. */
@@ -12,31 +13,28 @@ export class ReporteServicio {
 
   async resumenGeneral() {
     const hoy = this.reloj.hoy();
-    const [proyectos, ventas, reservasActivas] = await Promise.all([
-      this.uow.repos.proyectos.listar(false),
+    const [proyectos, conteos, ventas, reservasActivas] = await Promise.all([
+      this.uow.repos.proyectos.listar(ESTADOS_PROYECTO),
+      this.uow.repos.lotes.contarPorEstado(),
       this.uow.repos.ventas.listar({ estado: 'VIGENTE' }),
       this.uow.repos.reservas.listar({ estado: 'ACTIVA' }),
     ]);
 
-    const filas = await Promise.all(
-      proyectos.map(async (proyecto) => {
-        const lotes = await this.uow.repos.lotes.listarPorProyecto(proyecto.id);
-        const resumenLotes = resumirLotes(lotes);
-        const ventasProyecto = ventas.filter((v) => v.lote.proyecto.id === proyecto.id);
-        const planes = ventasProyecto.map((v) => resumirPlan(v.precioPactado, v.cuotas, v.pagos, hoy));
-        return {
-          proyecto: { id: proyecto.id, nombre: proyecto.nombre, estado: proyecto.estado },
-          lotes: { total: resumenLotes.total, porEstado: resumenLotes.porEstado },
-          reservasActivas: reservasActivas.filter((r) => r.lote.proyecto.id === proyecto.id).length,
-          ventasVigentes: ventasProyecto.length,
-          montoVendido: sumar(...ventasProyecto.map((v) => v.precioPactado)),
-          totalCobrado: sumar(...planes.map((p) => p.totalPagado)),
-          saldoPorCobrar: sumar(...planes.map((p) => p.saldoPendiente)),
-          cuotasVencidas: planes.reduce((total, p) => total + p.cuotasVencidas, 0),
-          montoVencido: sumar(...planes.map((p) => p.montoVencido)),
-        };
-      }),
-    );
+    const filas = proyectos.map((proyecto) => {
+      const ventasProyecto = ventas.filter((v) => v.lote.proyecto.id === proyecto.id);
+      const planes = ventasProyecto.map((v) => resumirPlan(v.precioPactado, v.cuotas, v.pagos, hoy));
+      return {
+        proyecto: { id: proyecto.id, nombre: proyecto.nombre, estado: proyecto.estado },
+        lotes: conteoDelProyecto(conteos, proyecto.id),
+        reservasActivas: reservasActivas.filter((r) => r.lote.proyecto.id === proyecto.id).length,
+        ventasVigentes: ventasProyecto.length,
+        montoVendido: sumar(...ventasProyecto.map((v) => v.precioPactado)),
+        totalCobrado: sumar(...planes.map((p) => p.totalPagado)),
+        saldoPorCobrar: sumar(...planes.map((p) => p.saldoPendiente)),
+        cuotasVencidas: planes.reduce((total, p) => total + p.cuotasVencidas, 0),
+        montoVencido: sumar(...planes.map((p) => p.montoVencido)),
+      };
+    });
 
     return {
       generadoEn: this.reloj.ahora(),

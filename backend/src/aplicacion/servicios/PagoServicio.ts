@@ -1,5 +1,5 @@
-import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
-import { resumirPlan, validarPago, validarPagoAnulable } from '../../dominio/planPagos';
+import { ErrorNoEncontrado } from '../../dominio/errores';
+import { METODO_PAGO_POR_DEFECTO, pagoYaAnulado, resumirPlan, validarPago, validarPagoAnulable } from '../../dominio/planPagos';
 import type { MetodoPago } from '../../dominio/tipos';
 import type { Reloj, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 import type { VentaServicio } from './VentaServicio';
@@ -41,7 +41,7 @@ export class PagoServicio {
       await repos.pagos.crear({
         cuotaId: cuota.id,
         monto: entrada.monto,
-        metodo: entrada.metodo ?? 'EFECTIVO',
+        metodo: entrada.metodo ?? METODO_PAGO_POR_DEFECTO,
         referencia: entrada.referencia?.trim() ?? '',
         fecha: this.reloj.ahora(),
         registradoPorId: usuario.id,
@@ -55,7 +55,7 @@ export class PagoServicio {
     const ventaId = await this.uow.transaccion(async (repos) => {
       const pagoInicial = await repos.pagos.buscarPorId(pagoId);
       if (!pagoInicial) throw new ErrorNoEncontrado('Pago no encontrado.');
-      // Mismo orden de bloqueo que registrar pago y anular venta (primero ventas) para evitar carreras y deadlocks.
+      // Orden de bloqueo: venta -> pago (ver UnidadDeTrabajo en puertos.ts).
       await repos.ventas.bloquearPorId(pagoInicial.ventaId);
       const venta = await repos.ventas.buscarPorId(pagoInicial.ventaId);
       if (!venta) throw new ErrorNoEncontrado('Venta no encontrada.');
@@ -64,7 +64,7 @@ export class PagoServicio {
 
       validarPagoAnulable(pago, motivo, venta.estado);
       const anulado = await repos.pagos.anular(pagoId, { motivo: motivo.trim(), anuladoPorId: usuario.id, fecha: this.reloj.ahora() });
-      if (!anulado) throw new ErrorConflicto('PAGO_YA_ANULADO', 'El pago ya fue anulado.');
+      if (!anulado) throw pagoYaAnulado();
       return pago.ventaId;
     });
     return this.ventas.obtener(ventaId, usuario);

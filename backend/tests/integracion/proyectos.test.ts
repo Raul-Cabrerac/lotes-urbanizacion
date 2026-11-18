@@ -1,11 +1,11 @@
 // Consigna §13: Publicación de proyectos y consistencia bajo concurrencia (Incidencia #4).
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { rectanguloEnMetros } from '../../src/dominio/geometria';
-import { crearAppInterceptable, iniciarSesion, type AppInterceptable } from '../apoyo/app';
+import { iniciarSesionComo } from '../apoyo/app';
 import { buscarProyecto } from '../apoyo/buscadores';
-
-const geo = rectanguloEnMetros([-63.18, -17.78], 0, 0, 12, 30);
+import { CONSULTAS, crearAppInterceptable, intercalarUnaVez, otroUsuario, type AppInterceptable } from '../apoyo/carreras';
+import { PROYECTO_BORRADOR } from '../apoyo/datosDemo';
+import { GEOMETRIA_LOTE } from '../apoyo/dobles';
 
 describe('POST /api/proyectos/:id/publicar', () => {
   let app: AppInterceptable;
@@ -13,7 +13,7 @@ describe('POST /api/proyectos/:id/publicar', () => {
 
   beforeEach(async () => {
     app = await crearAppInterceptable();
-    adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
+    adminToken = await iniciarSesionComo(app, 'ADMIN');
   });
 
   afterEach(async () => {
@@ -22,13 +22,11 @@ describe('POST /api/proyectos/:id/publicar', () => {
 
   it('responde 409 PROYECTO_YA_PUBLICADO si otra operación publica el proyecto concurrentemente', async () => {
     // Arrange
-    const proyecto = await buscarProyecto(app, adminToken, 'Condominio Las Palmeras');
-    let intercalado = false;
-    app.alInterceptarAntes(async (texto, params, ejecutar) => {
-      if (!intercalado && texto.includes('FROM proyectos WHERE id = $1 FOR UPDATE') && params?.[0] === proyecto.id) {
-        intercalado = true;
-        await ejecutar("UPDATE proyectos SET estado = 'PUBLICADO' WHERE id = $1", [proyecto.id]);
-      }
+    const proyecto = await buscarProyecto(app, adminToken, PROYECTO_BORRADOR);
+    intercalarUnaVez(app, {
+      antesDe: CONSULTAS.bloquearProyecto,
+      parametros: [proyecto.id],
+      accion: (sql) => otroUsuario.publicaProyecto(sql, proyecto.id),
     });
     // Act
     const respuesta = await request(app.express)
@@ -50,15 +48,13 @@ describe('POST /api/proyectos/:id/publicar', () => {
     const lote = await request(app.express)
       .post(`/api/proyectos/${proyectoNuevoId}/lotes`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ codigo: 'U-01', precio: 30000, geometria: geo })
+      .send({ codigo: 'U-01', precio: 30000, geometria: GEOMETRIA_LOTE })
       .expect(201);
     const loteUnicoId = lote.body.id as number;
-    let intercalado = false;
-    app.alInterceptarAntes(async (texto, params, ejecutar) => {
-      if (!intercalado && texto.includes('FROM proyectos WHERE id = $1 FOR UPDATE') && params?.[0] === proyectoNuevoId) {
-        intercalado = true;
-        await ejecutar('DELETE FROM lotes WHERE id = $1', [loteUnicoId]);
-      }
+    intercalarUnaVez(app, {
+      antesDe: CONSULTAS.bloquearProyecto,
+      parametros: [proyectoNuevoId],
+      accion: (sql) => otroUsuario.eliminaLote(sql, loteUnicoId),
     });
     // Act
     const respuesta = await request(app.express)

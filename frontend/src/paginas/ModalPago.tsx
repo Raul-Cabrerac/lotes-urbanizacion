@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api/api';
-import { ApiError, mensajeDeError } from '../api/http';
-import { METODOS_PAGO, type MetodoPago } from '../api/tipos';
+import { METODO_PAGO_POR_DEFECTO, METODOS_PAGO, type MetodoPago } from '../dominio';
 import type { Cuota, Venta } from '../api/tiposOperaciones';
 import { Campo, MensajeError } from '../componentes/Basicos';
 import { Modal } from '../componentes/Modal';
 import { bs, fecha } from '../utilidades/formato';
+import { useEnvio } from '../utilidades/useEnvio';
 
 interface Props {
   venta: Venta;
@@ -20,23 +20,14 @@ interface Props {
 /** Registro de un pago de una cuota (consigna §9). El monto propuesto es lo pendiente de la cuota. */
 export function ModalPago({ venta, cuota, onCerrar, onPagado, onConflicto }: Props) {
   const [monto, setMonto] = useState(String(cuota.montoPendiente));
-  const [metodo, setMetodo] = useState<MetodoPago>('EFECTIVO');
+  const [metodo, setMetodo] = useState<MetodoPago>(METODO_PAGO_POR_DEFECTO);
   const [referencia, setReferencia] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const { enviar, enviando, error } = useEnvio({ alConflicto: onConflicto });
 
-  const registrar = async (e: FormEvent) => {
+  const registrar = (e: FormEvent) => {
     e.preventDefault();
-    setEnviando(true);
-    setError(null);
-    try {
-      const datos = { cuotaId: cuota.id, monto: Number(monto), metodo, referencia };
-      onPagado(await api.ventas.registrarPago(venta.id, datos));
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setEnviando(false);
-      if (err instanceof ApiError && err.estado === 409) onConflicto?.();
-    }
+    const datos = { cuotaId: cuota.id, monto: Number(monto), metodo, referencia };
+    void enviar(async () => onPagado(await api.ventas.registrarPago(venta.id, datos)));
   };
 
   return (

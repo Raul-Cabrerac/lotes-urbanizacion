@@ -1,8 +1,10 @@
 // Consigna §13: Anulación de pagos y consistencia con venta ANULADA (Incidencia #3).
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { crearAppInterceptable, iniciarSesion, type AppInterceptable } from '../apoyo/app';
+import { iniciarSesionComo } from '../apoyo/app';
 import { buscarVentaDeLote } from '../apoyo/buscadores';
+import { CONSULTAS, crearAppInterceptable, intercalarUnaVez, otroUsuario, type AppInterceptable } from '../apoyo/carreras';
+import { LOTE_VENDIDO_FINANCIADO } from '../apoyo/datosDemo';
 
 describe('POST /api/pagos/:id/anular', () => {
   let app: AppInterceptable;
@@ -10,7 +12,7 @@ describe('POST /api/pagos/:id/anular', () => {
 
   beforeEach(async () => {
     app = await crearAppInterceptable();
-    adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
+    adminToken = await iniciarSesionComo(app, 'ADMIN');
   });
 
   afterEach(async () => {
@@ -19,7 +21,7 @@ describe('POST /api/pagos/:id/anular', () => {
 
   it('responde 409 VENTA_NO_VIGENTE y conserva el pago VALIDO al intentar anular un pago de una venta ya ANULADA', async () => {
     // Arrange
-    const venta = await buscarVentaDeLote(app, adminToken, 'A-05');
+    const venta = await buscarVentaDeLote(app, adminToken, LOTE_VENDIDO_FINANCIADO);
     const pagoValido = venta.pagos.find((p) => p.estado === 'VALIDO');
     expect(pagoValido).toBeDefined();
     await request(app.express)
@@ -46,20 +48,12 @@ describe('POST /api/pagos/:id/anular', () => {
 
   it('responde 409 VENTA_NO_VIGENTE si la venta se anula concurrentemente antes de bloquearla al anular el pago', async () => {
     // Arrange
-    const venta = await buscarVentaDeLote(app, adminToken, 'A-05');
+    const venta = await buscarVentaDeLote(app, adminToken, LOTE_VENDIDO_FINANCIADO);
     const pagoValido = venta.pagos.find((p) => p.estado === 'VALIDO');
-    let intercalado = false;
-    app.alInterceptarDespues(async (texto, _params, ejecutar, filas) => {
-      if (!intercalado && texto.includes('FROM pagos pg JOIN cuotas cu') && texto.includes('WHERE pg.id = $1')) {
-        intercalado = true;
-        const fila = (filas?.[0] as { venta_id: number } | undefined);
-        if (fila) {
-          await ejecutar(
-            "UPDATE ventas SET estado = 'ANULADA', motivo_anulacion = 'Anulada en carrera' WHERE id = $1",
-            [fila.venta_id],
-          );
-        }
-      }
+    intercalarUnaVez(app, {
+      despuesDe: CONSULTAS.buscarPago,
+      parametros: [pagoValido?.id],
+      accion: (sql) => otroUsuario.anulaVenta(sql, venta.id),
     });
     // Act
     const respuesta = await request(app.express)

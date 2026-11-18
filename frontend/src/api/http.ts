@@ -3,8 +3,6 @@
  * Agrega el token de sesión y convierte las respuestas de error en ApiError.
  */
 
-const CLAVE_TOKEN = 'lotes.token';
-
 /** Error devuelto por la API: { error: { codigo, mensaje, detalles } }. */
 export class ApiError extends Error {
   constructor(
@@ -17,34 +15,22 @@ export class ApiError extends Error {
   }
 }
 
-// El token se guarda en sessionStorage: cada pestaña tiene su propia sesión,
-// así se puede probar con dos usuarios a la vez (p. ej. dos asesores).
-export function leerToken(): string | null {
-  try {
-    return sessionStorage.getItem(CLAVE_TOKEN);
-  } catch {
-    return null;
-  }
+interface ConfiguracionHttp {
+  /** Token de la sesión actual (null si no hay sesión). */
+  obtenerToken(): string | null;
+  /** La API rechazó el token de una petición (401): la sesión ya no vale. */
+  alNoAutenticado(): void;
 }
 
-export function guardarToken(token: string | null): void {
-  try {
-    if (token) sessionStorage.setItem(CLAVE_TOKEN, token);
-    else sessionStorage.removeItem(CLAVE_TOKEN);
-  } catch {
-    // almacenamiento no disponible: la sesión dura hasta recargar la página
-  }
-}
+let configuracion: ConfiguracionHttp = { obtenerToken: () => null, alNoAutenticado: () => {} };
 
-let alExpirarSesion: () => void = () => {};
-
-/** Lo llama el proveedor de sesión para cerrar la sesión si la API responde 401. */
-export function configurarAlExpirarSesion(funcion: () => void): void {
-  alExpirarSesion = funcion;
+/** Se llama una vez, al arrancar la aplicación (main.tsx). */
+export function configurarHttp(nueva: ConfiguracionHttp): void {
+  configuracion = nueva;
 }
 
 export async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
-  const token = leerToken();
+  const token = configuracion.obtenerToken();
   let respuesta: Response;
   try {
     respuesta = await fetch(`/api${ruta}`, {
@@ -63,7 +49,8 @@ export async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): 
   const datos = await respuesta.json().catch(() => null);
   if (!respuesta.ok) {
     const error = datos?.error;
-    if (respuesta.status === 401 && ruta !== '/auth/login') alExpirarSesion();
+    // Un 401 sin token (p. ej. una contraseña incorrecta en el login) no cierra ninguna sesión.
+    if (respuesta.status === 401 && token) configuracion.alNoAutenticado();
     throw new ApiError(
       respuesta.status,
       error?.codigo ?? 'ERROR',
@@ -80,12 +67,16 @@ export function consulta(parametros: Record<string, string | number | undefined 
   return pares.length ? `?${new URLSearchParams(pares.map(([k, v]) => [k, String(v)]))}` : '';
 }
 
+/** `detalles` es una lista de textos (p. ej. un error por línea del KML), no los objetos de zod. */
+function esListaDeTextos(detalles: unknown): detalles is string[] {
+  return Array.isArray(detalles) && detalles.length > 0 && detalles.every((d) => typeof d === 'string');
+}
+
 /** Mensaje legible de cualquier error (para mostrar en pantalla). */
 export function mensajeDeError(error: unknown): string {
   if (error instanceof ApiError) {
-    const detalles = Array.isArray(error.detalles) ? error.detalles : [];
-    // Errores de importación KML: lista de textos
-    if (detalles.length && typeof detalles[0] === 'string') return `${error.message}\n• ${detalles.join('\n• ')}`;
+    // Si `detalles` trae textos, cada uno va como viñeta debajo del mensaje.
+    if (esListaDeTextos(error.detalles)) return `${error.message}\n• ${error.detalles.join('\n• ')}`;
     return error.message;
   }
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado.';

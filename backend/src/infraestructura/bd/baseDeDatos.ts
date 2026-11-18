@@ -87,7 +87,7 @@ export async function recrearEsquema(bd: BaseDeDatos): Promise<void> {
  * Aplica, en orden, los archivos .sql de la carpeta migraciones que todavía no se aplicaron.
  * Cada migración corre en su propia transacción.
  */
-export async function aplicarMigraciones(bd: BaseDeDatos): Promise<string[]> {
+export async function aplicarMigraciones(bd: BaseDeDatos): Promise<void> {
   await bd.sql.ejecutarScript(`CREATE TABLE IF NOT EXISTS migraciones (
     nombre      TEXT PRIMARY KEY,
     aplicada_en TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -106,5 +106,23 @@ export async function aplicarMigraciones(bd: BaseDeDatos): Promise<string[]> {
       await sql.query('INSERT INTO migraciones (nombre) VALUES ($1)', [archivo]);
     });
   }
-  return pendientes;
+}
+
+/** true si todavía no hay ningún usuario: la base recién se creó. */
+export async function baseSinDatos(bd: BaseDeDatos): Promise<boolean> {
+  const { rows } = await bd.sql.query<{ cantidad: number }>('SELECT count(*) AS cantidad FROM usuarios');
+  return rows[0]?.cantidad === 0;
+}
+
+/** Borra todos los datos (no el esquema ni la tabla `migraciones`) y reinicia los id en 1. */
+export async function vaciarDatos(bd: BaseDeDatos): Promise<void> {
+  await bd.sql.ejecutarScript(`DO $$
+    DECLARE tablas TEXT;
+    BEGIN
+      SELECT string_agg(format('%I', tablename), ', ') INTO tablas
+        FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'migraciones';
+      IF tablas IS NOT NULL THEN
+        EXECUTE 'TRUNCATE ' || tablas || ' RESTART IDENTITY CASCADE';
+      END IF;
+    END $$`);
 }

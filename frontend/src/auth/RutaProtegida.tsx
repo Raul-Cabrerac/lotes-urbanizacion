@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import type { Permiso } from '../api/tipos';
-import { AccesoDenegado } from '../paginas/Errores';
+import type { Permiso } from '../dominio';
+import { AccesoDenegado } from './AccesoDenegado';
 import { useSesion } from './Sesion';
 
 /**

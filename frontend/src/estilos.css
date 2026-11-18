@@ -34,24 +34,21 @@
   --peligro: #b8392f;
   --peligro-hover: #9e2f26;
 
-  /* Estados (los mismos tonos que el mapa: componentes/mapa/colores.ts) */
-  --verde: #2f8a55;
+  /* Tonos: texto, fondo y línea. El color fuerte de cada estado está en utilidades/estados.ts
+     (lo usa también Google Maps) y llega como --color-estado. */
+  --verde: #2f8a55; /* barra de progreso del pago */
   --verde-texto: #1e5c38;
   --verde-fondo: #e7f2eb;
   --verde-linea: #c3dfcd;
-  --ambar: #e0a21b;
   --ambar-texto: #7f5500;
   --ambar-fondo: #fbf0d9;
   --ambar-linea: #efd49a;
-  --rojo: #cf4a47;
   --rojo-texto: #9b2c27;
   --rojo-fondo: #fae8e6;
   --rojo-linea: #f0c4c0;
-  --gris: #80867f;
   --gris-texto: #4b504a;
   --gris-fondo: #eceeea;
   --gris-linea: #d7d9d4;
-  --azul: #1d4ed8;
   --azul-texto: #1e40af;
   --azul-fondo: #e9effc;
   --azul-linea: #b9c9f2;
@@ -551,9 +548,9 @@ code {
 
 /* ---------- Insignias de estado ---------- */
 
-/* El texto queda en mayúsculas en el DOM (las pruebas lo leen así); se muestra como "Disponible". */
+/* El texto queda en mayúsculas en el DOM (las pruebas lo leen así); se muestra como "Disponible".
+   El punto toma el color del estado (--color-estado); la clase del tono, el texto y el fondo. */
 .insignia {
-  --tono: var(--gris);
   --tono-texto: var(--gris-texto);
   --tono-fondo: var(--gris-fondo);
   display: inline-block;
@@ -567,28 +564,25 @@ code {
   white-space: nowrap;
   text-transform: lowercase;
   color: var(--tono-texto);
-  background: radial-gradient(circle at 0.625rem 50%, var(--tono) 0.1875rem, transparent 0.21875rem) var(--tono-fondo);
+  background: radial-gradient(circle at 0.625rem 50%, var(--color-estado) 0.1875rem, transparent 0.21875rem)
+    var(--tono-fondo);
 }
 .insignia::first-letter {
   text-transform: uppercase;
 }
 .insignia-verde {
-  --tono: var(--verde);
   --tono-texto: var(--verde-texto);
   --tono-fondo: var(--verde-fondo);
 }
 .insignia-ambar {
-  --tono: var(--ambar);
   --tono-texto: var(--ambar-texto);
   --tono-fondo: var(--ambar-fondo);
 }
 .insignia-rojo {
-  --tono: var(--rojo);
   --tono-texto: var(--rojo-texto);
   --tono-fondo: var(--rojo-fondo);
 }
 .insignia-azul {
-  --tono: var(--azul);
   --tono-texto: var(--azul-texto);
   --tono-fondo: var(--azul-fondo);
 }
@@ -1236,6 +1230,9 @@ progress.spinner:indeterminate::-moz-progress-bar {
   overflow: hidden;
   background: var(--hundido-2);
 }
+.barra-estados span {
+  background: var(--color-estado);
+}
 .proyecto-cifras {
   display: flex;
   gap: 1.75rem;
@@ -1386,6 +1383,7 @@ progress.spinner:indeterminate::-moz-progress-bar {
   inline-size: 0.5rem;
   block-size: 0.5rem;
   border-radius: 50%;
+  background: var(--color-estado);
 }
 .item-lote-codigo {
   font-family: var(--fuente-mono);
@@ -1539,6 +1537,7 @@ progress.spinner:indeterminate::-moz-progress-bar {
   inline-size: 0.625rem;
   block-size: 0.625rem;
   border-radius: 3px;
+  background: var(--color-estado);
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
 }
 

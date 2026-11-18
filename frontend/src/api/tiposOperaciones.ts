@@ -1,19 +1,16 @@
 /** Tipos de las operaciones comerciales tal como los devuelve la API: reservas, ventas, plan de pagos, reportes y portal. */
 import type {
-  Cliente,
-  ClienteResumen,
   ConteoPorEstado,
   EstadoCuota,
   EstadoPago,
   EstadoProyecto,
   EstadoReserva,
   EstadoVenta,
-  LoteResumen,
   MetodoPago,
-  Modalidad,
-  Referencia,
+  ModalidadPago,
   Rol,
-} from './tipos';
+} from '../dominio';
+import type { Cliente, ClienteResumen, LoteResumen, Referencia } from './tipos';
 
 export interface Reserva {
   id: number;
@@ -59,7 +56,7 @@ export interface Pago {
   anuladoPor: Referencia | null;
 }
 
-export interface ResumenPlan {
+interface ResumenPlan {
   totalPagado: number;
   saldoPendiente: number;
   cuotasPagadas: number;
@@ -76,7 +73,7 @@ export interface Venta {
   reservaId: number | null;
   fecha: string;
   precioPactado: number;
-  modalidad: Modalidad;
+  modalidad: ModalidadPago;
   cuotaInicial: number;
   numeroCuotas: number;
   estado: EstadoVenta;
@@ -114,7 +111,7 @@ export interface UsuarioListado {
   cliente: Referencia | null;
 }
 
-export interface FilaReporte {
+interface FilaReporte {
   proyecto: { id: number; nombre: string; estado: EstadoProyecto };
   lotes: { total: number; porEstado: ConteoPorEstado };
   reservasActivas: number;

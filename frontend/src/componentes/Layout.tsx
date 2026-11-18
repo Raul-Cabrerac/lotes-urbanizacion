@@ -1,19 +1,12 @@
 import { useLayoutEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router';
-import type { Permiso } from '../api/tipos';
-import { inicioSegunRol, useSesion } from '../auth/Sesion';
-import { NOMBRE_ROL } from '../utilidades/formato';
+import { inicioSegunRol, useSesion, useUsuarioActual } from '../auth/Sesion';
+import { PANTALLAS } from '../rutas';
+import { NOMBRE_ROL } from '../utilidades/estados';
 import { Icono, Marca } from './Icono';
 
-const MENU: { ruta: string; texto: string; permiso: Permiso }[] = [
-  { ruta: '/proyectos', texto: 'Proyectos y mapa', permiso: 'proyectos:ver' },
-  { ruta: '/clientes', texto: 'Clientes', permiso: 'clientes:ver' },
-  { ruta: '/reservas', texto: 'Reservas', permiso: 'reservas:ver' },
-  { ruta: '/ventas', texto: 'Ventas y pagos', permiso: 'ventas:registrar' },
-  { ruta: '/reportes', texto: 'Reportes', permiso: 'reportes:ver' },
-  { ruta: '/usuarios', texto: 'Usuarios', permiso: 'usuarios:gestionar' },
-  { ruta: '/mi-portal', texto: 'Mis lotes', permiso: 'portal:ver' },
-];
+/** Enlaces del menú, en el orden de rutas.ts: cada uno se muestra solo si el usuario tiene el permiso. */
+const MENU = PANTALLAS.flatMap(({ ruta, permiso, menu }) => (menu ? [{ ruta, permiso, ...menu }] : []));
 
 function iniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/);
@@ -25,7 +18,7 @@ function iniciales(nombre: string): string {
  * se pliega en un popover detrás del botón "Menú". No hay un ancho fijo de corte: se mide la
  * fila, así que agregar un enlace o agrandar el texto mueve el punto solo.
  */
-function useMenuPlegable(activo: boolean) {
+function useMenuPlegable() {
   const cabecera = useRef<HTMLElement>(null);
   const fila = useRef<HTMLDivElement>(null);
   const lista = useRef<HTMLUListElement>(null);
@@ -60,7 +53,7 @@ function useMenuPlegable(activo: boolean) {
     observador.observe(header);
     observador.observe(menu);
     return () => observador.disconnect();
-  }, [activo]);
+  }, []);
 
   /** Al elegir un enlace del menú plegado, el popover se cierra (la navegación no recarga la página). */
   const cerrarSiPlegado = () => {
@@ -72,10 +65,10 @@ function useMenuPlegable(activo: boolean) {
 
 /** Estructura común: barra superior con el menú según el rol y el contenido de la página. */
 export function Layout() {
-  const { usuario, puede, cerrarSesion } = useSesion();
+  const { puede, cerrarSesion } = useSesion();
+  const usuario = useUsuarioActual();
   const navegar = useNavigate();
-  const { cabecera, fila, lista, cerrarSiPlegado } = useMenuPlegable(Boolean(usuario));
-  if (!usuario) return null;
+  const { cabecera, fila, lista, cerrarSiPlegado } = useMenuPlegable();
 
   const salir = () => {
     cerrarSesion();
@@ -106,7 +99,7 @@ export function Layout() {
             <ul className="menu-lista" id="menu-principal" ref={lista}>
               {MENU.filter((item) => puede(item.permiso)).map((item) => (
                 <li key={item.ruta}>
-                  <NavLink to={item.ruta} onClick={cerrarSiPlegado} data-testid={`menu-${item.ruta.slice(1)}`}>
+                  <NavLink to={item.ruta} onClick={cerrarSiPlegado} data-testid={item.testid}>
                     {item.texto}
                   </NavLink>
                 </li>

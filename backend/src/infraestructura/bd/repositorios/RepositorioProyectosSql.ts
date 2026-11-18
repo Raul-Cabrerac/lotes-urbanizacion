@@ -1,14 +1,15 @@
 import type { RepositorioProyectos } from '../../../aplicacion/puertos';
-import { construirUpdate, type Consultas } from './consultas';
+import { OPERACIONES_PROYECTO } from '../../../dominio/proyecto';
+import { construirUpdate, transicionarSi, type Consultas } from './consultas';
 import { aProyecto } from './conversiones';
 import type { FilaProyecto } from './filas';
 
 export function crearRepositorioProyectos(bd: Consultas): RepositorioProyectos {
   return {
-    async listar(soloPublicados) {
-      const filtro = soloPublicados ? "WHERE estado = 'PUBLICADO'" : '';
+    async listar(estados) {
       const filas = await bd.filas<FilaProyecto>(
-        `SELECT * FROM proyectos ${filtro} ORDER BY creado_en DESC, id DESC`,
+        'SELECT * FROM proyectos WHERE estado = ANY($1) ORDER BY creado_en DESC, id DESC',
+        [[...estados]],
       );
       return filas.map(aProyecto);
     },
@@ -41,20 +42,14 @@ export function crearRepositorioProyectos(bd: Consultas): RepositorioProyectos {
           nombre: cambios.nombre,
           descripcion: cambios.descripcion,
           ubicacion: cambios.ubicacion,
-          estado: cambios.estado,
           limite,
         },
-        true,
       );
       return aProyecto(await bd.filaObligatoria<FilaProyecto>(sql, parametros));
     },
 
     async publicarSiBorrador(id) {
-      const fila = await bd.fila<FilaProyecto>(
-        `UPDATE proyectos SET estado = 'PUBLICADO', actualizado_en = now()
-         WHERE id = $1 AND estado = 'BORRADOR' RETURNING *`,
-        [id],
-      );
+      const fila = await transicionarSi<FilaProyecto>(bd, 'proyectos', id, OPERACIONES_PROYECTO.publicar);
       return fila && aProyecto(fila);
     },
   };

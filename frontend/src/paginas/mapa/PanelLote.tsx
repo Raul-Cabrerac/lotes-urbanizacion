@@ -1,9 +1,20 @@
 import { Link } from 'react-router';
-import type { EstadoLote, LoteDetalle } from '../../api/tipos';
+import type { LoteDetalle } from '../../api/tipos';
+import { impedimentoComercial, operacionesDelLote, tienePrecio } from '../../dominio';
 import { useSesion } from '../../auth/Sesion';
 import { Cargando, Dato, Insignia, MensajeError } from '../../componentes/Basicos';
 import { Icono } from '../../componentes/Icono';
+import { ETIQUETA_MODALIDAD } from '../../utilidades/estados';
 import { bs, fecha, m2 } from '../../utilidades/formato';
+
+/** Cambios de estado que el administrador hace a mano (las transiciones de OPERACIONES_LOTE). */
+export type CambioEstadoLote = 'bloquear' | 'desbloquear';
+
+/** Por qué no se muestran los botones de reservar y vender, según impedimentoComercial. */
+const AVISO_IMPEDIMENTO: Record<NonNullable<ReturnType<typeof impedimentoComercial>>, string> = {
+  PROYECTO_NO_PUBLICADO: 'El proyecto está en BORRADOR: publíquelo para poder reservar o vender sus lotes.',
+  LOTE_SIN_PRECIO: 'Asigne un precio al lote para poder comercializarlo.',
+};
 
 export interface AccionesLote {
   reservar(): void;
@@ -11,7 +22,7 @@ export interface AccionesLote {
   cancelarReserva(): void;
   editarDatos(): void;
   editarForma(): void;
-  cambiarEstado(estado: EstadoLote): void;
+  cambiarEstado(operacion: CambioEstadoLote): void;
   eliminar(): void;
 }
 
@@ -44,8 +55,8 @@ export function PanelLote({
     );
   }
 
-  const publicado = lote.proyecto.estado === 'PUBLICADO';
-  const comercializable = publicado && lote.precio > 0;
+  const impedimento = impedimentoComercial(lote, lote.proyecto.estado);
+  const admite = operacionesDelLote(lote, lote.proyecto.estado);
   const { reservaActiva: reserva, ventaVigente: venta } = lote;
 
   return (
@@ -67,7 +78,7 @@ export function PanelLote({
         <Dato etiqueta="Superficie" testid="detalle-superficie">{m2(lote.superficieM2)}</Dato>
         <Dato etiqueta="Dimensiones" testid="detalle-dimensiones">{lote.dimensiones || '—'}</Dato>
         <Dato etiqueta="Precio de lista" testid="detalle-precio">
-          {lote.precio > 0 ? bs(lote.precio) : <span className="texto-alerta">Sin precio</span>}
+          {tienePrecio(lote.precio) ? bs(lote.precio) : <span className="texto-alerta">Sin precio</span>}
         </Dato>
       </div>
 
@@ -87,7 +98,7 @@ export function PanelLote({
         <div className="caja caja-roja" data-testid="detalle-venta">
           <strong>Vendido a {venta.cliente.nombreCompleto}</strong>
           <div>
-            {fecha(venta.fecha)} · {venta.modalidad === 'CONTADO' ? 'Al contado' : 'Financiado'} · Asesor: {venta.asesor.nombre}
+            {fecha(venta.fecha)} · {ETIQUETA_MODALIDAD[venta.modalidad]} · Asesor: {venta.asesor.nombre}
           </div>
           <div className="grilla-datos compacta">
             <Dato etiqueta="Precio pactado">{bs(venta.precioPactado)}</Dato>
@@ -101,20 +112,17 @@ export function PanelLote({
         </div>
       )}
 
-      {!publicado && (
-        <div className="caja caja-gris">El proyecto está en BORRADOR: publíquelo para poder reservar o vender sus lotes.</div>
-      )}
-      {publicado && lote.precio <= 0 && <div className="caja caja-gris">Asigne un precio al lote para poder comercializarlo.</div>}
+      {impedimento && <div className="caja caja-gris">{AVISO_IMPEDIMENTO[impedimento]}</div>}
 
       {/* Acciones comerciales (asesor y administrador), ocultas mientras se edita la forma */}
       {!editandoForma && (
         <div className="acciones-panel acciones-comerciales">
-          {lote.estado === 'DISPONIBLE' && comercializable && puede('reservas:gestionar') && (
+          {admite.reservar && puede('reservas:gestionar') && (
             <button type="button" className="boton" onClick={acciones.reservar} data-testid="accion-reservar">
               Reservar
             </button>
           )}
-          {(lote.estado === 'DISPONIBLE' || lote.estado === 'RESERVADO') && comercializable && puede('ventas:registrar') && (
+          {admite.vender && puede('ventas:registrar') && (
             <button type="button" className="boton boton-primario" onClick={acciones.vender} data-testid="accion-vender">
               {reserva ? `Vender a ${reserva.cliente.nombreCompleto.split(' ')[0]}` : 'Vender'}
             </button>
@@ -138,17 +146,17 @@ export function PanelLote({
             <button type="button" className="boton boton-chico" onClick={acciones.editarForma} data-testid="accion-editar-forma">
               Editar forma
             </button>
-            {lote.estado === 'DISPONIBLE' && (
-              <button type="button" className="boton boton-chico" onClick={() => acciones.cambiarEstado('BLOQUEADO')} data-testid="accion-bloquear">
+            {admite.bloquear && (
+              <button type="button" className="boton boton-chico" onClick={() => acciones.cambiarEstado('bloquear')} data-testid="accion-bloquear">
                 Bloquear
               </button>
             )}
-            {lote.estado === 'BLOQUEADO' && (
-              <button type="button" className="boton boton-chico" onClick={() => acciones.cambiarEstado('DISPONIBLE')} data-testid="accion-desbloquear">
+            {admite.desbloquear && (
+              <button type="button" className="boton boton-chico" onClick={() => acciones.cambiarEstado('desbloquear')} data-testid="accion-desbloquear">
                 Desbloquear
               </button>
             )}
-            {(lote.estado === 'DISPONIBLE' || lote.estado === 'BLOQUEADO') && (
+            {admite.eliminar && (
               <button className="boton boton-chico boton-texto-peligro" onClick={acciones.eliminar} data-testid="accion-eliminar">
                 Eliminar
               </button>

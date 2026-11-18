@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { api } from '../api/api';
-import type { EstadoVenta } from '../api/tipos';
+import { ESTADOS_VENTA, type EstadoVenta } from '../dominio';
 import { Campo, Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
+import { SelectCliente } from '../componentes/SelectorCliente';
 import { TablaVentas } from '../componentes/TablasOperaciones';
+import { ASPECTO_ESTADO } from '../utilidades/estados';
 import { useDatos } from '../utilidades/useDatos';
 
 /** Consulta de ventas por cliente, proyecto y estado (consigna, sección 10). */
@@ -32,19 +34,21 @@ export function Ventas() {
           </select>
         </Campo>
         <Campo etiqueta="Cliente">
-          <select value={clienteId} onChange={(e) => setClienteId(e.target.value ? Number(e.target.value) : '')} data-testid="ventas-filtro-cliente">
-            <option value="">Todos los clientes</option>
-            {clientes?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombreCompleto}
-              </option>
-            ))}
-          </select>
+          <SelectCliente
+            clientes={clientes ?? []}
+            valor={clienteId || null}
+            onCambiar={(id) => setClienteId(id ?? '')}
+            opcionVacia="Todos los clientes"
+            testid="ventas-filtro-cliente"
+          />
         </Campo>
         <Campo etiqueta="Estado">
           <select value={estado} onChange={(e) => setEstado(e.target.value as EstadoVenta | '')} data-testid="ventas-filtro-estado">
-            <option value="VIGENTE">Vigentes</option>
-            <option value="ANULADA">Anuladas</option>
+            {ESTADOS_VENTA.map((valor) => (
+              <option key={valor} value={valor}>
+                {ASPECTO_ESTADO[valor].plural}
+              </option>
+            ))}
             <option value="">Todas</option>
           </select>
         </Campo>

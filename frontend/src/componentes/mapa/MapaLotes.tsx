@@ -5,23 +5,32 @@
  * - Clic en un polígono (o en su etiqueta): onSeleccionar(id).
  * - `dibujando`: el usuario marca los vértices de un polígono nuevo (ver HerramientaDibujo).
  * - `editandoId`: los vértices de ese lote se pueden arrastrar; cada cambio llega a
- *   onGeometriaEditada.
+ *   onGeometriaEditada. Al terminar la edición el polígono vuelve a su forma original; si la forma
+ *   nueva se guardó, llega en `lotes` y el polígono se vuelve a dibujar con ella.
+ * - Encuadre: con la primera lista de lotes el mapa se acomoda para mostrarlos todos (y el
+ *   perímetro). Después solo se vuelve a encuadrar con `encuadrar()`, por la ref.
+ *
+ * `lotes` puede ser un arreglo nuevo en cada render: los polígonos se rehacen solo si cambia el
+ * id, el código, el estado o la forma de algún lote.
  *
  * Para los E2E, la etiqueta de cada lote lleva data-testid="poligono-<código>" y data-estado.
  */
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import type { Poligono } from '../../api/tipos';
 import { crearEtiqueta, estiloLote, type LoteEnMapa } from './aspectoLote';
 import { crearCapaHtml, type CapaHtml } from './capaHtml';
-import { cargarGoogleMaps, type GoogleMaps } from './cargarGoogleMaps';
-import { COLOR_PERIMETRO } from './colores';
+import { alRechazarClave, cargarGoogleMaps, type GoogleMaps } from './cargarGoogleMaps';
 import { aPoligono, aRuta, centroDe } from './geometriaMapa';
 import { HerramientaDibujo } from './HerramientaDibujo';
 
-export type { LoteEnMapa } from './aspectoLote';
+export interface ControlMapa {
+  /** Vuelve a encuadrar los lotes y el perímetro (los del próximo render: p. ej. tras importar un KML). */
+  encuadrar(): void;
+}
 
 interface Props {
-  lotes: LoteEnMapa[];
+  /** null mientras los lotes cargan: el primer encuadre espera a la primera lista. */
+  lotes: LoteEnMapa[] | null;
   limite?: Poligono | null;
   seleccionadoId?: number | null;
   onSeleccionar?: (id: number) => void;
@@ -29,12 +38,7 @@ interface Props {
   onPoligonoDibujado?: (geometria: Poligono) => void;
   editandoId?: number | null;
   onGeometriaEditada?: (geometria: Poligono) => void;
-  /**
-   * Cuando cambia este valor, el mapa se acomoda para mostrar todos los lotes. Mientras los lotes
-   * cargan debe ser undefined, para no encuadrar una lista que todavía está vacía.
-   */
-  claveVista?: string | number;
-  className?: string;
+  ref?: Ref<ControlMapa>;
 }
 
 /** Lo que existe recién cuando Google Maps terminó de cargar. */
@@ -45,8 +49,14 @@ interface Motor {
   vertices: CapaHtml;
 }
 
+/** Cada lote dibujado, con el polígono que lo representa. */
+type Dibujados = Map<number, { lote: LoteEnMapa; poligono: google.maps.Polygon }>;
+
 const CENTRO_SANTA_CRUZ = { lat: -17.7833, lng: -63.1821 };
 const ZOOM_MAXIMO_AL_ENCUADRAR = 19;
+
+/** Perímetro del proyecto: celeste, visible tanto en el mapa de calles como en el satelital. */
+const COLOR_PERIMETRO = '#0ea5e9';
 
 const OPCIONES_MAPA: google.maps.MapOptions = {
   center: CENTRO_SANTA_CRUZ,
@@ -64,25 +74,38 @@ const ERROR_DE_CLAVE =
 const ERROR_DE_CARGA =
   'No se pudo cargar Google Maps. Revise su conexión a internet. La lista de lotes sigue funcionando.';
 
+/** Lo que cambia el dibujo de cada lote: id, código, estado y forma. */
+function firmaDe(lotes: LoteEnMapa[] | null): string | null {
+  return lotes && lotes.map((l) => `${l.id}|${l.codigo}|${l.estado}|${JSON.stringify(l.geometria.coordinates)}`).join(';');
+}
+
 export function MapaLotes(props: Props) {
-  const { lotes, limite, seleccionadoId, dibujando, editandoId, claveVista } = props;
+  const { limite, seleccionadoId, dibujando, editandoId, ref } = props;
+  // La misma lista mientras la firma no cambie: los efectos dependen de ella y no de la referencia.
+  const firma = firmaDe(props.lotes);
+  const lotes = useMemo(() => props.lotes, [firma]);
+
   const contenedor = useRef<HTMLDivElement>(null);
   const [motor, setMotor] = useState<Motor | null>(null);
+  const [dibujados, setDibujados] = useState<Dibujados>(() => new Map());
   const [error, setError] = useState('');
-  const poligonos = useRef(new Map<number, google.maps.Polygon>());
-  const claveEncuadrada = useRef<string | number | undefined>(undefined);
+  const [pedidoEncuadre, setPedidoEncuadre] = useState(1); // 1: el encuadre con la primera lista
+  const encuadreAtendido = useRef(0);
   const loteEnfocado = useRef<number | null>(null);
+
+  useImperativeHandle(ref, () => ({ encuadrar: () => setPedidoEncuadre((n) => n + 1) }), []);
 
   // Eventos que leen siempre las props actuales sin volver a crear los polígonos.
   const seleccionar = useEffectEvent((id: number) => props.onSeleccionar?.(id));
   const avisarEdicion = useEffectEvent((geometria: Poligono) => props.onGeometriaEditada?.(geometria));
 
-  // 1) Cargar Google Maps y crear el mapa (una sola vez).
+  useEffect(() => alRechazarClave(() => setError(ERROR_DE_CLAVE)), []);
+
+  // Cargar Google Maps y crear el mapa (una sola vez).
   useEffect(() => {
     const div = contenedor.current;
     if (!div) return;
     let cancelado = false;
-    window.gm_authFailure = () => setError(ERROR_DE_CLAVE);
     const iniciar = async () => {
       try {
         const api = await cargarGoogleMaps();
@@ -101,10 +124,10 @@ export function MapaLotes(props: Props) {
     };
   }, []);
 
-  // 2) Polígonos y etiquetas de los lotes.
+  // Polígonos y etiquetas de los lotes.
   useEffect(() => {
-    if (!motor) return;
-    const creados = new Map<number, google.maps.Polygon>();
+    if (!motor || !lotes) return;
+    const creados: Dibujados = new Map();
     const etiquetas = lotes.map((lote) => {
       const ruta = aRuta(lote.geometria);
       const poligono = new motor.api.maps.Polygon({
@@ -113,7 +136,7 @@ export function MapaLotes(props: Props) {
         ...estiloLote(lote.estado, false),
       });
       poligono.addListener('click', () => seleccionar(lote.id));
-      creados.set(lote.id, poligono);
+      creados.set(lote.id, { lote, poligono });
       const limites = new motor.api.core.LatLngBounds();
       ruta.forEach((punto) => limites.extend(punto));
       return {
@@ -123,14 +146,14 @@ export function MapaLotes(props: Props) {
       };
     });
     motor.etiquetas.mostrar(etiquetas);
-    poligonos.current = creados;
+    setDibujados(creados);
     return () => {
-      creados.forEach((poligono) => poligono.setMap(null));
+      creados.forEach(({ poligono }) => poligono.setMap(null));
       motor.etiquetas.mostrar([]);
     };
   }, [motor, lotes]);
 
-  // 3) Perímetro del proyecto (línea discontinua).
+  // Perímetro del proyecto (línea discontinua).
   useEffect(() => {
     const ruta = limite ? aRuta(limite) : [];
     if (!motor || ruta.length < 3) return;
@@ -145,11 +168,11 @@ export function MapaLotes(props: Props) {
     return () => perimetro.setMap(null);
   }, [motor, limite]);
 
-  // 4) Encuadrar todos los lotes al abrir el proyecto o cuando cambia claveVista. Solo una vez por
-  //    clave: si el proyecto estaba vacío, el mapa no salta cuando se dibuja el primer lote.
+  // Encuadrar los lotes y el perímetro, una vez por pedido. El primero se atiende con la primera
+  // lista, aunque esté vacía: si el proyecto no tenía lotes, el mapa no salta al dibujar el primero.
   useEffect(() => {
-    if (!motor || claveVista === undefined || claveEncuadrada.current === claveVista) return;
-    claveEncuadrada.current = claveVista;
+    if (!motor || !lotes || encuadreAtendido.current === pedidoEncuadre) return;
+    encuadreAtendido.current = pedidoEncuadre;
     const limites = new motor.api.core.LatLngBounds();
     for (const lote of lotes) aRuta(lote.geometria).forEach((punto) => limites.extend(punto));
     if (limite) aRuta(limite).forEach((punto) => limites.extend(punto));
@@ -161,55 +184,54 @@ export function MapaLotes(props: Props) {
         motor.mapa.setZoom(ZOOM_MAXIMO_AL_ENCUADRAR);
       }
     });
-  }, [motor, claveVista, lotes, limite]);
+  }, [motor, lotes, limite, pedidoEncuadre]);
 
-  // 5) Resaltar el lote seleccionado y llevarlo a la vista si quedó fuera de la pantalla.
+  // Resaltar el lote seleccionado y llevarlo a la vista si quedó fuera de la pantalla.
   useEffect(() => {
     if (!motor) return;
-    for (const lote of lotes) {
-      poligonos.current.get(lote.id)?.setOptions(estiloLote(lote.estado, lote.id === seleccionadoId));
-    }
-    const lote = lotes.find((l) => l.id === seleccionadoId);
+    dibujados.forEach(({ lote, poligono }) => poligono.setOptions(estiloLote(lote.estado, lote.id === seleccionadoId)));
+    const lote = seleccionadoId ? dibujados.get(seleccionadoId)?.lote : undefined;
     if (!lote || loteEnfocado.current === lote.id) return;
     loteEnfocado.current = lote.id;
     const centro = centroDe(aRuta(lote.geometria));
     if (!motor.mapa.getBounds()?.contains(centro)) motor.mapa.panTo(centro);
-  }, [motor, lotes, seleccionadoId]);
+  }, [motor, dibujados, seleccionadoId]);
 
-  // 6) Mientras se dibuja o se edita una forma, los demás lotes no se pueden seleccionar.
+  // Mientras se dibuja o se edita una forma, los demás lotes no se pueden seleccionar.
   useEffect(() => {
     if (!motor) return;
     const libre = !dibujando && !editandoId;
-    poligonos.current.forEach((poligono, id) => {
+    dibujados.forEach(({ poligono }, id) => {
       poligono.setOptions({ clickable: libre || id === editandoId });
     });
     motor.etiquetas.interactiva(libre);
-  }, [motor, lotes, dibujando, editandoId]);
+  }, [motor, dibujados, dibujando, editandoId]);
 
-  // 7) Edición de la forma: los vértices del lote se pueden arrastrar.
+  // Edición de la forma: los vértices del lote se pueden arrastrar. Al terminar (guardar,
+  // cancelar o elegir otro lote) el polígono recupera la forma con que empezó.
   useEffect(() => {
-    const poligono = editandoId ? poligonos.current.get(editandoId) : undefined;
-    if (!motor || !poligono) return;
-    poligono.setEditable(true);
+    const poligono = editandoId ? dibujados.get(editandoId)?.poligono : undefined;
+    if (!poligono) return;
     const ruta = poligono.getPath();
+    const original = ruta.getArray().map((punto) => punto.toJSON());
+    poligono.setEditable(true);
     const avisar = () => avisarEdicion(aPoligono(ruta.getArray().map((punto) => punto.toJSON())));
-    const escuchas = ['set_at', 'insert_at', 'remove_at'].map((evento) =>
-      ruta.addListener(evento, avisar),
-    );
+    const escuchas = ['set_at', 'insert_at', 'remove_at'].map((evento) => ruta.addListener(evento, avisar));
     return () => {
       escuchas.forEach((escucha) => escucha.remove());
       poligono.setEditable(false);
+      poligono.setPath(original);
     };
-  }, [motor, lotes, editandoId]);
+  }, [dibujados, editandoId]);
 
   // Vértices de todos los lotes y del perímetro: el dibujo se "pega" a ellos.
   const verticesExistentes = useMemo(
-    () => [...lotes.flatMap((lote) => aRuta(lote.geometria)), ...(limite ? aRuta(limite) : [])],
+    () => [...(lotes ?? []).flatMap((lote) => aRuta(lote.geometria)), ...(limite ? aRuta(limite) : [])],
     [lotes, limite],
   );
 
   return (
-    <div className={`mapa-contenedor ${props.className ?? ''}`}>
+    <div className="mapa-contenedor">
       <div ref={contenedor} className="mapa" data-testid="mapa" />
       {!motor && !error && <div className="mapa-mensaje">Cargando Google Maps…</div>}
       {error && (

@@ -1,11 +1,12 @@
 import { Link } from 'react-router';
 import type { FiltrosLotes } from '../../api/api';
-import { ESTADOS_LOTE, type EstadoLote, type Lote, type ProyectoDetalle } from '../../api/tipos';
+import type { Lote, ProyectoDetalle } from '../../api/tipos';
+import { admite, ESTADOS_LOTE, OPERACIONES_PROYECTO, tienePrecio, type EstadoLote } from '../../dominio';
 import { useSesion } from '../../auth/Sesion';
 import { CampoBusqueda, Cargando, Insignia } from '../../componentes/Basicos';
 import { Icono } from '../../componentes/Icono';
-import { COLOR_ESTADO } from '../../componentes/mapa/colores';
-import { bs, capitalizar, m2 } from '../../utilidades/formato';
+import { ASPECTO_ESTADO, estiloEstado } from '../../utilidades/estados';
+import { bs, m2 } from '../../utilidades/formato';
 
 interface Props {
   proyecto: ProyectoDetalle;
@@ -47,7 +48,7 @@ export function PanelProyecto(props: Props) {
           <button className="boton boton-chico" onClick={props.onEditarProyecto} data-testid="editar-proyecto">
             Editar proyecto
           </button>
-          {proyecto.estado === 'BORRADOR' && (
+          {admite(OPERACIONES_PROYECTO.publicar, proyecto.estado) && (
             <button
               className="boton boton-chico boton-primario"
               onClick={props.onPublicar}
@@ -65,12 +66,12 @@ export function PanelProyecto(props: Props) {
             key={estado}
             type="button"
             className="contador"
-            style={{ ['--color-estado' as string]: COLOR_ESTADO[estado] }}
+            style={estiloEstado(estado)}
             aria-pressed={filtros.estado === estado}
             onClick={() => onFiltros((f) => ({ ...f, estado: f.estado === estado ? '' : estado }))}
             data-testid={`contador-${estado}`}
           >
-            <span>{capitalizar(estado)}</span>
+            <span>{ASPECTO_ESTADO[estado].etiqueta}</span>
             <strong>{resumen.porEstado[estado]}</strong>
           </button>
         ))}
@@ -86,7 +87,7 @@ export function PanelProyecto(props: Props) {
           <option value="">Estado: todos</option>
           {ESTADOS_LOTE.map((estado) => (
             <option key={estado} value={estado}>
-              {capitalizar(estado)}
+              {ASPECTO_ESTADO[estado].etiqueta}
             </option>
           ))}
         </select>
@@ -136,13 +137,13 @@ export function PanelProyecto(props: Props) {
             data-testid={`item-lote-${l.codigo}`}
             data-estado={l.estado}
           >
-            <span className="punto" style={{ background: COLOR_ESTADO[l.estado] }} />
+            <span className="punto" style={estiloEstado(l.estado)} />
             <span className="item-lote-codigo">{l.codigo}</span>
             <span className="item-lote-info">
               {l.manzano && `Mz ${l.manzano} · `}
               {m2(l.superficieM2)}
             </span>
-            <span className="item-lote-precio">{l.precio > 0 ? bs(l.precio) : 'Sin precio'}</span>
+            <span className="item-lote-precio">{tienePrecio(l.precio) ? bs(l.precio) : 'Sin precio'}</span>
           </button>
         ))}
       </div>
@@ -151,6 +152,12 @@ export function PanelProyecto(props: Props) {
     </aside>
   );
 }
+
+/**
+ * Columnas por estado del resumen por manzano: la inicial, con el nombre completo al pasar el
+ * puntero. No incluye BLOQUEADO (está preguntado al grupo si es intencional).
+ */
+const ESTADOS_RESUMEN: EstadoLote[] = ['DISPONIBLE', 'RESERVADO', 'VENDIDO'];
 
 /** Tabla plegable con la cantidad de lotes por etapa y manzano (consigna §3 y §10). */
 function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
@@ -166,9 +173,11 @@ function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
             <th>Etapa</th>
             <th>Mz</th>
             <th className="numero">Total</th>
-            <th className="numero" title="Disponibles">D</th>
-            <th className="numero" title="Reservados">R</th>
-            <th className="numero" title="Vendidos">V</th>
+            {ESTADOS_RESUMEN.map((estado) => (
+              <th key={estado} className="numero" title={ASPECTO_ESTADO[estado].plural}>
+                {ASPECTO_ESTADO[estado].etiqueta[0]}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -177,9 +186,11 @@ function ResumenManzanos({ resumen }: { resumen: ProyectoDetalle['resumen'] }) {
               <td>{g.etapa || '—'}</td>
               <td>{g.manzano || '—'}</td>
               <td className="numero">{g.total}</td>
-              <td className="numero">{g.porEstado.DISPONIBLE}</td>
-              <td className="numero">{g.porEstado.RESERVADO}</td>
-              <td className="numero">{g.porEstado.VENDIDO}</td>
+              {ESTADOS_RESUMEN.map((estado) => (
+                <td key={estado} className="numero">
+                  {g.porEstado[estado]}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

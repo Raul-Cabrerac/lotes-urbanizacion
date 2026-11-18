@@ -5,7 +5,7 @@
  */
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { Servicios } from './contenedor';
-import { manejadorErrores } from './http/middlewares/manejadorErrores';
+import { manejadorErrores, responderError } from './http/middlewares/manejadorErrores';
 import { autenticar, usuarioDe } from './http/middlewares/seguridad';
 import {
   rutasAuth,
@@ -71,7 +71,7 @@ export function crearApp(servicios: Servicios, opciones: OpcionesApp = {}): Expr
   app.use('/api', api);
 
   app.use('/api', (_req, res) => {
-    res.status(404).json({ error: { codigo: 'RUTA_NO_ENCONTRADA', mensaje: 'La ruta solicitada no existe.' } });
+    responderError(res, 404, 'RUTA_NO_ENCONTRADA', 'La ruta solicitada no existe.');
   });
   app.use(manejadorErrores);
   return app;

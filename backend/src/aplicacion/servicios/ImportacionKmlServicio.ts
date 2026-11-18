@@ -1,4 +1,4 @@
-import { ErrorAplicacion, ErrorReglaNegocio } from '../../dominio/errores';
+import { ErrorAplicacion, ErrorConflicto, ErrorReglaNegocio } from '../../dominio/errores';
 import { normalizarPoligono, type PoligonoGeoJSON } from '../../dominio/geometria';
 import type { Lote } from '../../dominio/tipos';
 import type { DatosLote, LectorKml, PlacemarkKml, UnidadDeTrabajo } from '../puertos';
@@ -94,7 +94,7 @@ function leerPlacemarks(placemarks: PlacemarkKml[], opciones: OpcionesImportacio
       }
       const datos = aDatosLote(placemark, indice, opciones);
       if (codigos.has(datos.codigo)) {
-        throw new ErrorReglaNegocio('CODIGO_LOTE_DUPLICADO', `el código ${datos.codigo} está repetido en el archivo.`);
+        throw new ErrorConflicto('CODIGO_LOTE_DUPLICADO', `el código ${datos.codigo} está repetido en el archivo.`);
       }
       codigos.add(datos.codigo);
       lectura.lotes.push(datos);

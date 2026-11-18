@@ -3,12 +3,11 @@
  * Los permisos vienen del backend (dominio/permisos.ts), así la interfaz y la
  * API usan exactamente la misma matriz de roles.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { api } from '../api/api';
-import { ApiError, configurarAlExpirarSesion, guardarToken, leerToken } from '../api/http';
-import type { Permiso, Usuario } from '../api/tipos';
-
-const CLAVE_USUARIO = 'lotes.usuario';
+import type { Usuario } from '../api/tipos';
+import type { Permiso } from '../dominio';
+import { guardarSesion, seguirSesion, sesionGuardada } from './sesionGuardada';
 
 interface ContextoSesion {
   usuario: Usuario | null;
@@ -19,65 +18,41 @@ interface ContextoSesion {
 
 const Contexto = createContext<ContextoSesion | null>(null);
 
-function leerUsuarioGuardado(): Usuario | null {
-  try {
-    const texto = sessionStorage.getItem(CLAVE_USUARIO);
-    return texto && leerToken() ? (JSON.parse(texto) as Usuario) : null;
-  } catch {
-    return null;
-  }
-}
-
-function guardarUsuario(usuario: Usuario | null): void {
-  try {
-    if (usuario) sessionStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuario));
-    else sessionStorage.removeItem(CLAVE_USUARIO);
-  } catch {
-    // almacenamiento no disponible
-  }
-}
+const cerrarSesion = () => guardarSesion(null);
 
 export function ProveedorSesion({ children }: { children: ReactNode }) {
-  // Al recargar la página se usa el usuario guardado y luego se confirma con la API.
-  const [usuario, setUsuario] = useState<Usuario | null>(leerUsuarioGuardado);
+  const sesion = useSyncExternalStore(seguirSesion, sesionGuardada);
+  const usuario = sesion?.usuario ?? null;
 
-  const cerrarSesion = useCallback(() => {
-    guardarToken(null);
-    guardarUsuario(null);
-    setUsuario(null);
-  }, []);
-
+  // Al recargar la página se usa el usuario guardado y luego se confirma con la API. Si el token
+  // ya no vale (401), el cliente HTTP cierra la sesión; si el backend se está reiniciando, se
+  // conserva.
   useEffect(() => {
-    configurarAlExpirarSesion(cerrarSesion);
-    if (!leerToken()) return;
+    const guardada = sesionGuardada();
+    if (!guardada) return;
     const confirmarSesion = async () => {
       try {
         const actual = await api.auth.yo();
-        guardarUsuario(actual);
-        setUsuario(actual);
-      } catch (error) {
-        // Solo se cierra la sesión si el token ya no vale (401); si el backend
-        // se está reiniciando, se conserva la sesión.
-        if (error instanceof ApiError && error.estado === 401) cerrarSesion();
+        if (sesionGuardada()?.token === guardada.token) guardarSesion({ token: guardada.token, usuario: actual });
+      } catch {
+        // sin conexión: se conserva la sesión guardada
       }
     };
     void confirmarSesion();
-  }, [cerrarSesion]);
+  }, []);
 
   const valor = useMemo<ContextoSesion>(
     () => ({
       usuario,
       async iniciarSesion(email, password) {
         const { token, usuario: usuarioActual } = await api.auth.login(email, password);
-        guardarToken(token);
-        guardarUsuario(usuarioActual);
-        setUsuario(usuarioActual);
+        guardarSesion({ token, usuario: usuarioActual });
         return usuarioActual;
       },
       cerrarSesion,
       puede: (permiso) => usuario?.permisos.includes(permiso) ?? false,
     }),
-    [usuario, cerrarSesion],
+    [usuario],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
@@ -89,7 +64,14 @@ export function useSesion(): ContextoSesion {
   return contexto;
 }
 
-/** Página de inicio según el rol. */
+/** El usuario de la sesión, en las pantallas que solo se muestran con sesión (dentro de RutaProtegida). */
+export function useUsuarioActual(): Usuario {
+  const { usuario } = useSesion();
+  if (!usuario) throw new Error('useUsuarioActual debe usarse dentro de <RutaProtegida>');
+  return usuario;
+}
+
+/** Página de inicio según los permisos: el portal para quien lo ve, los proyectos para los demás. */
 export function inicioSegunRol(usuario: Usuario): string {
-  return usuario.rol === 'CLIENTE' ? '/mi-portal' : '/proyectos';
+  return usuario.permisos.includes('portal:ver') ? '/mi-portal' : '/proyectos';
 }

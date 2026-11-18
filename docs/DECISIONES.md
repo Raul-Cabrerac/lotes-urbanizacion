@@ -189,3 +189,38 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
     momento se congela.
   - Para que todos puedan explicar los tres niveles en la defensa, cada pull request lo revisa
     alguien de otro nivel.
+
+## 14. Una sola fuente para las reglas que cruzan capas
+
+- **Estado:** propuesta en la rama `dev`, pendiente del acuerdo del grupo (`AGENTS.md` §7.8).
+  `main` no cambia hasta que se apruebe.
+- **Elegido:**
+  - Cada entidad declara su máquina de estados como una tabla de operaciones en su módulo del
+    dominio (`OPERACIONES_LOTE`, `OPERACIONES_RESERVA`, `OPERACIONES_VENTA`, `OPERACIONES_PAGO`,
+    `OPERACIONES_PROYECTO`, con `admite` de `dominio/transiciones.ts`). La leen las validaciones,
+    el único UPDATE condicional de los repositorios (`transicionarSi` en `consultas.ts`) y los
+    botones de la interfaz.
+  - El frontend importa de `backend/src/dominio` (es código puro) los tipos, las listas de
+    estados, los límites y las reglas de qué operación admite cada registro, en vez de copiarlos.
+  - Una reserva vencida se cierra en su propia transacción antes de reservar, vender o cancelar
+    (`vencerReserva` y `vencerReservaDelLote`), además de en cada petición. Las operaciones ya no
+    tienen casos especiales para el vencimiento.
+  - Los códigos de error forman un catálogo tipado (`CODIGOS_ERROR` en `dominio/errores.ts`):
+    cada código tiene un solo tipo y el tipo decide el estado HTTP.
+  - Lo que ve cada rol (los estados de proyecto visibles, las operaciones de un cliente) se decide en
+    `dominio/permisos.ts`.
+  - Los errores de PostgreSQL se traducen en un solo lugar, `crearConsultas` en
+    `infraestructura/bd/repositorios/consultas.ts`: cada restricción única tiene su código del
+    catálogo, y `http/` ya no conoce los códigos de PostgreSQL.
+  - Los datos demo se cargan por los servicios, así que pasan a `backend/src/datosDemo.ts`, junto
+    a la raíz de composición; el vaciado SQL queda en `infraestructura/bd/baseDeDatos.ts`.
+- **Alternativas:** dejar las reglas repetidas en cada capa; que la API devuelva las acciones
+  permitidas de cada recurso; un paquete compartido de tipos entre backend y frontend.
+- **Por qué:**
+  - Un cambio de regla tocaba hasta cinco lugares (dominio, servicio, SQL, interfaz y
+    documentación) sin que nada avisara si uno quedaba atrás. Ahora toca uno.
+  - Importar el dominio no agrega dependencias ni configuración: no hay `rootDir` y Vite sirve
+    archivos del workspace. Que la API devolviera las acciones habría cambiado todas las
+    respuestas y la documentación de `docs/API.md`.
+  - Con el vencimiento en su propia transacción, el lote ya liberado es un hecho guardado antes
+    de que empiece la operación, en vez de un caso que cada operación debía recordar.

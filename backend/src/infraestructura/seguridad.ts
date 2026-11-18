@@ -4,11 +4,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { ErrorNoAutenticado } from '../dominio/errores';
-import { ROLES, type Rol } from '../dominio/tipos';
 import type { DatosToken, Hasher, ServicioTokens } from '../aplicacion/puertos';
 
 export class HasherBcrypt implements Hasher {
-  constructor(private readonly rondas = 10) {}
+  constructor(private readonly rondas: number) {}
 
   hashear(texto: string): Promise<string> {
     return bcrypt.hash(texto, this.rondas);
@@ -25,8 +24,8 @@ export class ServicioTokensJwt implements ServicioTokens {
     private readonly expiraEn: string,
   ) {}
 
-  generar({ usuarioId, rol }: DatosToken): string {
-    return jwt.sign({ rol }, this.secreto, {
+  generar({ usuarioId }: DatosToken): string {
+    return jwt.sign({}, this.secreto, {
       subject: String(usuarioId),
       expiresIn: this.expiraEn as jwt.SignOptions['expiresIn'],
     });
@@ -36,9 +35,8 @@ export class ServicioTokensJwt implements ServicioTokens {
     try {
       const datos = jwt.verify(token, this.secreto) as jwt.JwtPayload;
       const usuarioId = Number(datos.sub);
-      const rol = datos.rol as Rol;
-      if (!Number.isInteger(usuarioId) || !ROLES.includes(rol)) throw new Error('Token sin datos válidos');
-      return { usuarioId, rol };
+      if (!Number.isInteger(usuarioId)) throw new Error('Token sin datos válidos');
+      return { usuarioId };
     } catch {
       throw new ErrorNoAutenticado('Su sesión expiró o no es válida. Inicie sesión nuevamente.', 'TOKEN_INVALIDO');
     }

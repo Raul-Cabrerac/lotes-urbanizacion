@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ApiError, mensajeDeError } from '../api/http';
+import { useEnvio } from '../utilidades/useEnvio';
 import { Campo, MensajeError } from './Basicos';
 import { Modal } from './Modal';
 
@@ -11,6 +11,7 @@ interface Props {
   /** Si se indica, se pide un motivo (texto) antes de confirmar. */
   motivo?: { etiqueta: string; obligatorio: boolean };
   onConfirmar: (motivo: string) => Promise<void>;
+  /** Otro usuario cambió los datos mientras tanto (409): hay que volver a pedirlos. */
   onConflicto?: () => void;
   onCerrar: () => void;
   testid?: string;
@@ -29,20 +30,11 @@ export function ModalConfirmar({
   testid,
 }: Props) {
   const [texto, setTexto] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const { enviar, enviando, error } = useEnvio({ alConflicto: onConflicto });
 
-  const confirmar = async (e: FormEvent) => {
+  const confirmar = (e: FormEvent) => {
     e.preventDefault();
-    setEnviando(true);
-    setError(null);
-    try {
-      await onConfirmar(texto);
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setEnviando(false);
-      if (err instanceof ApiError && err.estado === 409) onConflicto?.();
-    }
+    void enviar(() => onConfirmar(texto));
   };
 
   return (

@@ -1,20 +1,54 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api/api';
 import type { Cliente } from '../api/tipos';
+import { useDatos } from '../utilidades/useDatos';
 import { CampoBusqueda } from './Basicos';
 import { Icono } from './Icono';
-import { ModalCliente } from '../paginas/ModalCliente';
-import { useDatos } from '../utilidades/useDatos';
+import { ModalCliente } from './ModalCliente';
+
+/** Lista desplegable de clientes, cada uno como "nombre (documento)". */
+export function SelectCliente({
+  clientes,
+  valor,
+  onCambiar,
+  opcionVacia,
+  required,
+  testid,
+}: {
+  clientes: Cliente[];
+  valor: number | null;
+  onCambiar: (clienteId: number | null) => void;
+  /** Texto de la opción sin cliente. */
+  opcionVacia: string;
+  required?: boolean;
+  testid: string;
+}) {
+  return (
+    <select
+      value={valor ?? ''}
+      onChange={(e) => onCambiar(e.target.value ? Number(e.target.value) : null)}
+      required={required}
+      data-testid={testid}
+    >
+      <option value="">{opcionVacia}</option>
+      {clientes.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.nombreCompleto} ({c.documento})
+        </option>
+      ))}
+    </select>
+  );
+}
 
 /** Selección de cliente con búsqueda y opción de registrar uno nuevo sin salir del formulario. */
 export function SelectorCliente({
   valor,
   onCambiar,
-  testid = 'selector-cliente',
+  testid,
 }: {
   valor: number | null;
   onCambiar: (clienteId: number | null) => void;
-  testid?: string;
+  testid: string;
 }) {
   const { datos: clientes, recargar } = useDatos(() => api.clientes.listar(), []);
   const [busqueda, setBusqueda] = useState('');
@@ -23,7 +57,7 @@ export function SelectorCliente({
   const visibles = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
     return (clientes ?? []).filter(
-      (c: Cliente) => !texto || c.id === valor || `${c.nombreCompleto} ${c.documento}`.toLowerCase().includes(texto),
+      (c) => !texto || c.id === valor || `${c.nombreCompleto} ${c.documento}`.toLowerCase().includes(texto),
     );
   }, [clientes, busqueda, valor]);
 
@@ -42,19 +76,14 @@ export function SelectorCliente({
           Nuevo cliente
         </button>
       </div>
-      <select
-        value={valor ?? ''}
-        onChange={(e) => onCambiar(e.target.value ? Number(e.target.value) : null)}
+      <SelectCliente
+        clientes={visibles}
+        valor={valor}
+        onCambiar={onCambiar}
+        opcionVacia="— Seleccione un cliente —"
         required
-        data-testid={testid}
-      >
-        <option value="">— Seleccione un cliente —</option>
-        {visibles.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.nombreCompleto} ({c.documento})
-          </option>
-        ))}
-      </select>
+        testid={testid}
+      />
       {registrando && (
         <ModalCliente
           onCerrar={() => setRegistrando(false)}

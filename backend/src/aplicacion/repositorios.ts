@@ -7,6 +7,7 @@
 import type { FechaISO } from '../dominio/fechas';
 import type { PoligonoGeoJSON } from '../dominio/geometria';
 import type { CuotaNueva } from '../dominio/planPagos';
+import type { Transicion } from '../dominio/transiciones';
 import type {
   Cliente, Cuota, EstadoLote, EstadoProyecto, EstadoReserva, EstadoVenta, Lote,
   MetodoPago, ModalidadPago, Pago, Proyecto, Reserva, Rol, Usuario, UsuarioConCredenciales, Venta,
@@ -61,8 +62,10 @@ export interface VentaVista extends Venta {
 }
 
 // --- Repositorios -----------------------------------------------------------------------------
-// `finalizar` y `anular` solo cambian una fila que sigue en el estado esperado (ACTIVA, VIGENTE,
-// VALIDO) y devuelven false si otra operación la cambió antes: el servicio responde 409.
+// Los cambios de estado (`cambiarEstadoSi`, `finalizar`, `anular`, `publicarSiBorrador`) siguen la
+// tabla de operaciones de cada entidad en el dominio: solo cambian una fila que sigue en un estado
+// de origen de la transición, y devuelven false (o null) si otra operación la cambió antes; el
+// servicio responde 409.
 
 export interface DatosProyecto {
   nombre: string;
@@ -71,16 +74,14 @@ export interface DatosProyecto {
 }
 
 export interface RepositorioProyectos {
-  listar(soloPublicados: boolean): Promise<Proyecto[]>;
+  /** Proyectos en alguno de esos estados, del más nuevo al más viejo. */
+  listar(estados: readonly EstadoProyecto[]): Promise<Proyecto[]>;
   buscarPorId(id: number): Promise<Proyecto | null>;
   /** SELECT ... FOR UPDATE: bloquea la fila del proyecto hasta finalizar la transacción. */
   bloquearPorId(id: number): Promise<void>;
   crear(datos: DatosProyecto): Promise<Proyecto>;
-  actualizar(
-    id: number,
-    cambios: Partial<DatosProyecto> & { estado?: EstadoProyecto; limite?: PoligonoGeoJSON | null },
-  ): Promise<Proyecto>;
-  /** Cambia el estado a PUBLICADO solo si sigue en BORRADOR; devuelve null si ya estaba publicado. */
+  actualizar(id: number, cambios: Partial<DatosProyecto> & { limite?: PoligonoGeoJSON | null }): Promise<Proyecto>;
+  /** Publica el proyecto (OPERACIONES_PROYECTO.publicar); devuelve null si ya estaba publicado. */
   publicarSiBorrador(id: number): Promise<Proyecto | null>;
 }
 
@@ -116,11 +117,11 @@ export interface RepositorioLotes {
   crear(proyectoId: number, datos: DatosLote): Promise<Lote>;
   actualizar(id: number, cambios: Partial<DatosLote>): Promise<Lote>;
   /**
-   * Cambia el estado SOLO si el lote sigue en `estadoEsperado` (un único UPDATE
-   * condicional). Devuelve false si otro usuario lo cambió antes: así se evita
-   * que dos personas reserven o vendan el mismo lote al mismo tiempo.
+   * Cambia el estado SOLO si el lote sigue en un estado de origen de la transición (un único
+   * UPDATE condicional). Devuelve false si otro usuario lo cambió antes: así se evita que dos
+   * personas reserven o vendan el mismo lote al mismo tiempo.
    */
-  cambiarEstadoSi(id: number, estadoEsperado: EstadoLote, nuevoEstado: EstadoLote): Promise<boolean>;
+  cambiarEstadoSi(id: number, transicion: Transicion<EstadoLote>): Promise<boolean>;
   contarPorEstado(): Promise<ConteoLotes[]>;
   tieneOperaciones(id: number): Promise<boolean>;
   eliminar(id: number): Promise<void>;
@@ -158,16 +159,14 @@ export interface NuevaReserva {
   observacion: string;
 }
 
-export type EstadoFinalReserva = Exclude<EstadoReserva, 'ACTIVA'>;
-
 export interface RepositorioReservas {
   listar(filtros?: FiltrosReservas): Promise<ReservaVista[]>;
   buscarPorId(id: number): Promise<ReservaVista | null>;
   buscarActivaPorLote(loteId: number): Promise<ReservaVista | null>;
-  /** Reservas ACTIVAS cuya fecha de vencimiento es anterior a `hoy`. */
-  listarActivasVencidas(hoy: FechaISO): Promise<Reserva[]>;
+  /** Reservas que todavía pueden vencer (activas y con fecha de vencimiento), ordenadas por id. */
+  listarCandidatasAVencer(): Promise<Reserva[]>;
   crear(datos: NuevaReserva): Promise<Reserva>;
-  finalizar(id: number, estado: EstadoFinalReserva, fecha: Date, motivo?: string): Promise<boolean>;
+  finalizar(id: number, transicion: Transicion<EstadoReserva>, fecha: Date, motivo?: string): Promise<boolean>;
 }
 
 export interface FiltrosVentas {

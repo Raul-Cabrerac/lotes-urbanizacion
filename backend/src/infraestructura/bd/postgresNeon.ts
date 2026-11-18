@@ -6,17 +6,19 @@
  */
 import pg from 'pg';
 import type { BaseDeDatos, Ejecutor } from './baseDeDatos';
+import { CONVERSIONES_TIPOS } from './tiposPostgres';
 
 const MAXIMO_CONEXIONES = 10;
 
-// node-postgres entrega DATE como Date (con zona horaria) y NUMERIC o BIGINT como texto. El dominio
-// usa fechas 'AAAA-MM-DD' y montos number, así que se fijan esas conversiones una sola vez.
-pg.types.setTypeParser(pg.types.builtins.DATE, (valor: string) => valor);
-pg.types.setTypeParser(pg.types.builtins.NUMERIC, (valor: string) => Number(valor));
-pg.types.setTypeParser(pg.types.builtins.INT8, (valor: string) => Number(valor));
+// node-postgres entrega DATE como Date (con zona horaria) y NUMERIC o BIGINT como texto. Las
+// conversiones se aplican solo a este pool, sin cambiar la configuración global de `pg`.
+const TIPOS = {
+  getTypeParser: ((oid: number, formato?: 'text' | 'binary') =>
+    CONVERSIONES_TIPOS[oid] ?? pg.types.getTypeParser(oid, formato)) as typeof pg.types.getTypeParser,
+};
 
 export function abrirPostgresNeon(url: string): BaseDeDatos {
-  const pool = new pg.Pool({ connectionString: conSslVerificado(url), max: MAXIMO_CONEXIONES });
+  const pool = new pg.Pool({ connectionString: conSslVerificado(url), max: MAXIMO_CONEXIONES, types: TIPOS });
   // Neon suspende la base cuando nadie la usa y cierra las conexiones inactivas. El pool las
   // descarta y abre otras; sin este manejador, ese aviso detendría el servidor.
   pool.on('error', (error) => {
