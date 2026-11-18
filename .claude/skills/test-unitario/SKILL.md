@@ -25,8 +25,12 @@ argument-hint: "[archivo, función o regla a probar]"
 
 ## 3. Dónde va y cómo se llama
 
-- Junto al módulo: `dominio/lote.ts` → `dominio/lote.test.ts`;
-  `servicios/ReservaServicio.ts` → `servicios/ReservaServicio.test.ts`.
+- En `backend/tests/unitarias/`, con la misma estructura que `src/` (nunca dentro de `src/`):
+  `src/dominio/lote.ts` → `tests/unitarias/dominio/lote.test.ts`;
+  `src/aplicacion/servicios/ReservaServicio.ts` → `tests/unitarias/servicios/ReservaServicio.test.ts`.
+  Por qué: `docs/DECISIONES.md` §12. Dueña de la carpeta: Laura (`AGENTS.md` §6).
+- Desde `tests/unitarias/dominio/` o `tests/unitarias/servicios/`, el código se importa con
+  `../../../src/...`.
 - Primera línea: `// Consigna §12: <ítem que cubre>`.
 - Datos repetidos en `backend/tests/apoyo/constructores.ts` (`crearLote`, `crearCuota`...).
   Crearlos si no existen; devuelven objetos válidos por defecto y aceptan sobrescribir campos.
@@ -36,7 +40,7 @@ argument-hint: "[archivo, función o regla a probar]"
 ```ts
 // Consigna §12: Impedir reservar un lote que no esté DISPONIBLE.
 import { describe, expect, it } from 'vitest';
-import { validarLoteReservable } from './lote';
+import { validarLoteReservable } from '../../../src/dominio/lote';
 
 const lote = (estado: 'DISPONIBLE' | 'RESERVADO' | 'VENDIDO' | 'BLOQUEADO') => ({
   codigo: 'A-01',
@@ -114,9 +118,9 @@ await expect(servicio.crear(entrada, asesor)).rejects.toMatchObject({ codigo: 'L
 ```ts
 // Consigna §7: no se crea la reserva si otro usuario tomó el lote un instante antes.
 import { describe, expect, it, vi } from 'vitest';
-import { RelojFijo } from '../../infraestructura/reloj';
-import type { UnidadDeTrabajo, UsuarioActual } from '../puertos';
-import { ReservaServicio } from './ReservaServicio';
+import { RelojFijo } from '../../../src/infraestructura/reloj';
+import type { UnidadDeTrabajo, UsuarioActual } from '../../../src/aplicacion/puertos';
+import { ReservaServicio } from '../../../src/aplicacion/servicios/ReservaServicio';
 
 const asesor = { id: 2, rol: 'ASESOR' } as UsuarioActual;
 
@@ -150,6 +154,11 @@ describe('ReservaServicio', () => {
   servicio también ejercita la regla.
 - `as unknown as UnidadDeTrabajo` es la única conversión de tipo permitida en pruebas, solo para
   dobles parciales. Si se repite, mover a `tests/apoyo/dobles.ts`.
+- `reservas.finalizar`, `ventas.anular` y `pagos.anular` devuelven `true` si cambiaron la fila:
+  en el doble, `mockResolvedValue(true)` para el caso normal y `false` para simular que otro
+  usuario la cerró antes (el servicio responde 409). `PagoServicio.registrar` llama primero a
+  `ventas.bloquearPorId`, así que el doble necesita ese método. Detalle en
+  `docs/GUIA_TESTING.md` §2.
 
 ## 8. Fechas
 
@@ -167,7 +176,7 @@ superficies en m², nunca para dinero (el dinero tiene 2 decimales exactos).
 
 ```
 npm run test:unit                                  # todas las unitarias
-npx vitest run src/dominio/lote.test.ts            # un archivo (desde backend/)
+npx vitest run tests/unitarias/dominio/lote.test.ts   # un archivo (desde backend/)
 npx vitest -t "LOTE_NO_DISPONIBLE"                 # por nombre
 npm run test:cobertura                             # objetivo ≥ 90 % en dominio y aplicación
 ```

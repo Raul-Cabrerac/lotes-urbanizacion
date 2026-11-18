@@ -25,11 +25,13 @@ export function crearRepositorioPagos(bd: Consultas): RepositorioPagos {
 
     async anular(id, { motivo, anuladoPorId, fecha }) {
       // Un pago nunca se borra: se marca ANULADO con motivo, usuario y fecha (trazabilidad).
-      await bd.filas(
+      // Solo si sigue VALIDO: en dos anulaciones simultáneas, la segunda no pisa a la primera.
+      const actualizadas = await bd.filas(
         `UPDATE pagos SET estado = 'ANULADO', motivo_anulacion = $1, anulado_por_id = $2, anulado_en = $3
-         WHERE id = $4`,
+         WHERE id = $4 AND estado = 'VALIDO' RETURNING id`,
         [motivo, anuladoPorId, fecha, id],
       );
+      return actualizadas.length === 1;
     },
   };
 }

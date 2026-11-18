@@ -76,6 +76,11 @@ export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
       return (await completarVentas(filas))[0] ?? null;
     },
 
+    async bloquearPorId(id) {
+      // Otra transacción que pida la misma venta espera aquí hasta que esta termine.
+      await bd.filas('SELECT id FROM ventas WHERE id = $1 FOR UPDATE', [id]);
+    },
+
     async crear(d, cuotasNuevas) {
       const venta = await bd.filaObligatoria<FilaVenta>(
         `INSERT INTO ventas (lote_id, cliente_id, asesor_id, reserva_id, fecha, precio_pactado,
@@ -106,11 +111,13 @@ export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
     },
 
     async anular(id, { motivo, anuladaPorId, fecha }) {
-      await bd.filas(
+      // Solo anula una venta que sigue VIGENTE (dos anulaciones simultáneas: gana una).
+      const actualizadas = await bd.filas(
         `UPDATE ventas SET estado = 'ANULADA', motivo_anulacion = $1, anulada_por_id = $2, anulada_en = $3
-         WHERE id = $4`,
+         WHERE id = $4 AND estado = 'VIGENTE' RETURNING id`,
         [motivo, anuladaPorId, fecha, id],
       );
+      return actualizadas.length === 1;
     },
   };
 }

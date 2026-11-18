@@ -69,7 +69,8 @@ sustituirlo en pruebas.
 | Ruta de la API | `/api/recurso-en-plural/:id/accion` | `/api/reservas/:id/cancelar` |
 | Campo JSON | `camelCase` | `precioPactado`, `saldoPendiente` |
 | `data-testid` | `kebab-case` (ver §7) | `accion-reservar`, `item-lote-A-01` |
-| Prueba unitaria o de integración | `modulo.test.ts` | `planPagos.test.ts`, `reservas.test.ts` |
+| Prueba unitaria | `modulo.test.ts`, con el nombre del módulo que prueba, en `backend/tests/unitarias/` | `dominio/planPagos.test.ts`, `servicios/ReservaServicio.test.ts` |
+| Prueba de integración | `recurso.test.ts`, con el recurso de la API, en `backend/tests/integracion/` | `reservas.test.ts`, `pagos.test.ts` |
 | Prueba E2E | `e2e-0N-nombre.spec.ts` | `e2e-03-reserva-duplicada.spec.ts` |
 | Rama git y commit | `tipo/descripcion-corta` · `tipo: descripción en imperativo` | `test/unitarios-lote` · `test: cubre vencimiento de reservas` |
 
@@ -124,7 +125,7 @@ sustituirlo en pruebas.
 
 | Nivel | Qué prueba | Dónde | Qué NO hace |
 |---|---|---|---|
-| Unitario | Reglas de `dominio/`; servicios con puertos simulados | `backend/src/**/modulo.test.ts` | Tocar base de datos, HTTP o la fecha real |
+| Unitario | Reglas de `dominio/`; servicios con puertos simulados | `backend/tests/unitarias/` (misma estructura que `src/`) | Tocar base de datos, HTTP o la fecha real |
 | Integración | Servicios y API con repositorios reales sobre PostgreSQL en memoria | `backend/tests/integracion/` | Usar mocks o la base de Neon |
 | E2E | Los 8 flujos de la consigna en el navegador | `e2e/tests/` | Simular nada |
 
@@ -174,9 +175,11 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 9. Git y revisión
 
-- `main` protegida: todo entra por pull request, revisado por otro integrante con la skill
-  `revisar-codigo`.
-- Ramas `feat/`, `fix/`, `test/`, `docs/`, `refactor/`. Commits pequeños en imperativo.
+- `main` protegida: todo entra por pull request, con el CI en verde
+  (`.github/workflows/ci.yml`) y revisado por otro integrante con la skill `revisar-codigo`.
+  Nadie aprueba ni integra su propio pull request.
+- Ramas `feat/`, `fix/`, `test/`, `docs/`, `refactor/`, `chore/` (CI, configuración,
+  dependencias). Commits pequeños en imperativo.
 - Antes del pull request: `npm run typecheck` y las pruebas del nivel afectado en verde.
 
 ## 10. Trabajo con agentes de IA
@@ -197,12 +200,9 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 12. Organización del equipo
 
-Cada integrante **escribe los tres tipos de prueba**. Para repartir el trabajo se rota la
-responsabilidad por área cada semana:
-
-| Área | Responsable de la semana | Incluye |
-|---|---|---|
-| Dominio y pruebas unitarias | Integrante A | `backend/src/dominio`, servicios con mocks |
-| API y pruebas de integración | Integrante B | rutas, repositorios, Supertest, permisos |
-| Interfaz y pruebas E2E | Integrante C | páginas, mapa, `data-testid`, Playwright |
-| Documentación y revisión | Integrante D | `docs/`, revisión de pull requests, checklist de la consigna |
+Cada integrante es **dueño de un nivel de prueba**, sin rotación: Laura las unitarias, Raul y
+Luciana la integración (cada archivo con un solo dueño) y Mario los E2E y la interfaz. Así nadie
+edita las pruebas de otro. Para que todos puedan explicar los tres niveles en la defensa, cada
+pull request lo revisa alguien de otro nivel. El reparto, los archivos de cada uno, las etapas y
+las reglas para no pisarse están en `AGENTS.md` §1, §6 y §7; el porqué, en `docs/DECISIONES.md`
+§12 y §13.

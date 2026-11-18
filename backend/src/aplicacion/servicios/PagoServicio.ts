@@ -1,4 +1,4 @@
-import { ErrorNoEncontrado } from '../../dominio/errores';
+import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import { resumirPlan, validarPago, validarPagoAnulable } from '../../dominio/planPagos';
 import type { MetodoPago } from '../../dominio/tipos';
 import type { Reloj, UnidadDeTrabajo, UsuarioActual } from '../puertos';
@@ -26,6 +26,9 @@ export class PagoServicio {
    */
   async registrar(ventaId: number, entrada: EntradaPago, usuario: UsuarioActual) {
     await this.uow.transaccion(async (repos) => {
+      // Consigna §9, el saldo nunca es negativo: con la venta bloqueada, dos pagos simultáneos se
+      // atienden uno tras otro y el segundo se valida contra el saldo que dejó el primero.
+      await repos.ventas.bloquearPorId(ventaId);
       const venta = await repos.ventas.buscarPorId(ventaId);
       if (!venta) throw new ErrorNoEncontrado('Venta no encontrada.');
 
@@ -53,7 +56,8 @@ export class PagoServicio {
       const pago = await repos.pagos.buscarPorId(pagoId);
       if (!pago) throw new ErrorNoEncontrado('Pago no encontrado.');
       validarPagoAnulable(pago, motivo);
-      await repos.pagos.anular(pagoId, { motivo: motivo.trim(), anuladoPorId: usuario.id, fecha: this.reloj.ahora() });
+      const anulado = await repos.pagos.anular(pagoId, { motivo: motivo.trim(), anuladoPorId: usuario.id, fecha: this.reloj.ahora() });
+      if (!anulado) throw new ErrorConflicto('PAGO_YA_ANULADO', 'El pago ya fue anulado.');
       return pago.ventaId;
     });
     return this.ventas.obtener(ventaId, usuario);

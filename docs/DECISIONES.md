@@ -53,6 +53,15 @@ pull request que la introduce.
 Se comprobó contra Neon con reservas y ventas simultáneas sobre el mismo lote: una recibe 201 y la
 otra 409.
 
+**Cierres condicionados y orden de bloqueo.** Lo mismo vale para cerrar una operación: cancelar,
+vencer o convertir una reserva y anular una venta o un pago son `UPDATE` condicionales
+(`... WHERE id = $1 AND estado = 'ACTIVA'`). Si otra operación cerró la fila un instante antes, se
+responde 409 (`RESERVA_NO_ACTIVA`, `LOTE_NO_DISPONIBLE`, `VENTA_NO_VIGENTE`, `PAGO_YA_ANULADO`) en
+vez de pisar su resultado; por ejemplo, una reserva convertida en venta no puede quedar luego como
+CANCELADA. Además, toda operación que cambia una reserva y su lote lo hace en el mismo orden
+(primero la reserva, después el lote), para que dos transacciones no se esperen mutuamente
+(deadlock).
+
 ## 4. Arquitectura en capas con puertos
 
 - **Elegido:** dominio, aplicación (servicios), infraestructura y HTTP, con las dependencias
@@ -75,6 +84,13 @@ otra 409.
   total pagado) y el estado de cada cuota (PENDIENTE, PAGADA o VENCIDA) cada vez que se consulta.
 - **Por qué:** no hay dos fuentes de verdad que puedan desincronizarse. Anular un pago lo excluye
   de la suma y el saldo se corrige solo, conservando la trazabilidad (consigna §9).
+- **Pagos simultáneos:** `PagoServicio.registrar` bloquea la fila de la venta
+  (`RepositorioVentas.bloquearPorId`, `SELECT ... FOR UPDATE`) antes de leer el saldo. Si dos
+  personas pagan la misma venta a la vez, la segunda espera, lee el saldo ya descontado y
+  `validarPago` la rechaza si se pasa (`MONTO_EXCEDE_SALDO` o `CUOTA_YA_PAGADA`). Sin el bloqueo
+  las dos leían el mismo saldo, el total pagado podía superar el precio pactado y la venta quedaba
+  respondiendo error 500. PGlite atiende una transacción a la vez, así que esta carrera solo se
+  reproduce sobre PostgreSQL real (Neon).
 
 ## 7. Express 5, zod y errores con código
 
@@ -111,3 +127,62 @@ otra 409.
 La base funcional (dominio, servicios, rutas y pantallas) viene de una primera versión hecha con
 otro asistente. Se adaptó a Neon, se cambió el mapa a Google Maps y se reorganizó para cumplir las
 convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por archivo).
+
+## 12. Ubicación de las pruebas: cada nivel junto a lo que prueba
+
+- **Elegido:**
+
+  ```
+  backend/tests/unitarias/     unitarias (§12): reglas del dominio y servicios con mocks
+  backend/tests/integracion/   integración (§13): API + PostgreSQL en memoria
+  backend/tests/apoyo/         ayudantes compartidos de las pruebas del backend
+  e2e/tests/                   E2E (§14): el sistema completo en el navegador
+  e2e/apoyo/                   inicio de sesión por rol y reinicio de los datos de prueba
+  ```
+
+  Cada nivel tiene su carpeta y su comando: `npm run test:unit`, `npm run test:integracion` y
+  `npm run test:e2e`.
+- **Alternativas:**
+  1. Cada prueba unitaria junto a su archivo de código (`src/dominio/lote.test.ts`), como estaba
+     configurado al principio.
+  2. Una carpeta `tests/` en la raíz del repositorio, con subcarpetas por nivel y por parte
+     (`tests/unitarias/backend/`, `tests/integracion/frontend/`...).
+- **Por qué:**
+  - **Una prueba vive junto a lo que prueba.** Las unitarias y las de integración prueban una sola
+    parte del sistema, el backend, así que van dentro de `backend/`. El E2E prueba el sistema
+    completo (navegador, interfaz, API y base de datos), no pertenece a ninguna parte y por eso
+    tiene su propia carpeta en la raíz.
+  - `backend/`, `frontend/` y `e2e/` son paquetes independientes (npm workspaces), cada uno con
+    sus dependencias, su configuración de TypeScript (Node o navegador) y su Vitest. Dentro de su
+    paquete, las pruebas funcionan con la configuración que ya existe, con imports cortos y con la
+    cobertura midiendo `src/` sin pasos extra. La carpeta en la raíz (alternativa 2) exigía un
+    cuarto paquete, dos configuraciones de TypeScript, forzar la cobertura sobre código de otro
+    paquete e imports como `../../../backend/src/...`: más configuración y más riesgo de errores
+    entre cuatro personas, sin aportar nada a lo que evalúa la consigna.
+  - Frente a la alternativa 1, separar `tests/unitarias/` de `src/` deja una carpeta por nivel y
+    por responsable, no mezcla pruebas con código de producción y se muestra con claridad en la
+    defensa.
+- **Sin pruebas de integración del frontend.** Las pruebas de integración de la consigna (§13)
+  son de API y base de datos: persistir, recuperar, rechazar, permisos. Las reglas de negocio
+  están en el backend y el frontend no las repite (`docs/CONVENCIONES.md` §4). La interfaz se
+  prueba con los E2E (§14), que la usan como una persona. Las unitarias del frontend (funciones
+  puras, como el color de cada estado del lote) son opcionales y solo se escriben si §12 ya está
+  completo.
+
+## 13. Organización del equipo: un nivel de prueba por persona
+
+- **Elegido:** cada integrante es dueño de un nivel de prueba, sin rotación: Laura las unitarias,
+  Raul y Luciana la integración (repartida por recurso: cada archivo tiene un solo dueño) y Mario
+  los E2E junto con las mejoras de la interfaz. El detalle está en `AGENTS.md` §6.
+- **Alternativas:** cada integrante con un módulo de negocio y sus tres niveles de prueba; rotar
+  las responsabilidades cada semana.
+- **Por qué:**
+  - Cada carpeta, o cada archivo en el caso de integración, tiene un solo dueño: nadie edita las
+    pruebas de otro y no hay conflictos al integrar los cambios.
+  - Cada uno aprende a fondo una herramienta: Vitest con mocks, Supertest con base de datos o
+    Playwright.
+  - La interfaz y los E2E quedan en las mismas manos: quien cambia la vista es quien mantiene las
+    pruebas que dependen de ella. La interfaz se termina antes de escribir los E2E y desde ese
+    momento se congela.
+  - Para que todos puedan explicar los tres niveles en la defensa, cada pull request lo revisa
+    alguien de otro nivel.

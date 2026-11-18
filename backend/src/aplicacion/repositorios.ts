@@ -26,9 +26,7 @@ import type {
   Venta,
 } from '../dominio/tipos';
 
-// ----------------------------------------------------------------------------
-// Vistas de lectura (entidad + datos relacionados para mostrar)
-// ----------------------------------------------------------------------------
+// --- Vistas de lectura (entidad + datos relacionados para mostrar) ----------------------------
 
 export interface Referencia {
   id: number;
@@ -76,9 +74,9 @@ export interface VentaVista extends Venta {
   pagos: PagoVista[];
 }
 
-// ----------------------------------------------------------------------------
-// Repositorios
-// ----------------------------------------------------------------------------
+// --- Repositorios -----------------------------------------------------------------------------
+// `finalizar` y `anular` solo cambian una fila que sigue en el estado esperado (ACTIVA, VIGENTE,
+// VALIDO) y devuelven false si otra operación la cambió antes: el servicio responde 409.
 
 export interface DatosProyecto {
   nombre: string;
@@ -177,7 +175,7 @@ export interface RepositorioReservas {
   /** Reservas ACTIVAS cuya fecha de vencimiento es anterior a `hoy`. */
   listarActivasVencidas(hoy: FechaISO): Promise<Reserva[]>;
   crear(datos: NuevaReserva): Promise<Reserva>;
-  finalizar(id: number, estado: EstadoFinalReserva, fecha: Date, motivo?: string): Promise<void>;
+  finalizar(id: number, estado: EstadoFinalReserva, fecha: Date, motivo?: string): Promise<boolean>;
 }
 
 export interface FiltrosVentas {
@@ -202,9 +200,11 @@ export interface NuevaVenta {
 export interface RepositorioVentas {
   listar(filtros?: FiltrosVentas): Promise<VentaVista[]>;
   buscarPorId(id: number): Promise<VentaVista | null>;
+  /** SELECT ... FOR UPDATE: bloquea la venta (si existe) hasta que termine la transacción. */
+  bloquearPorId(id: number): Promise<void>;
   /** Crea la venta junto con sus cuotas. */
   crear(datos: NuevaVenta, cuotas: CuotaNueva[]): Promise<Venta & { cuotas: Cuota[] }>;
-  anular(id: number, datos: { motivo: string; anuladaPorId: number; fecha: Date }): Promise<void>;
+  anular(id: number, datos: { motivo: string; anuladaPorId: number; fecha: Date }): Promise<boolean>;
 }
 
 export interface NuevoPago {
@@ -219,7 +219,7 @@ export interface NuevoPago {
 export interface RepositorioPagos {
   buscarPorId(id: number): Promise<(Pago & { ventaId: number }) | null>;
   crear(datos: NuevoPago): Promise<Pago>;
-  anular(id: number, datos: { motivo: string; anuladoPorId: number; fecha: Date }): Promise<void>;
+  anular(id: number, datos: { motivo: string; anuladoPorId: number; fecha: Date }): Promise<boolean>;
 }
 
 export interface NuevoUsuario {

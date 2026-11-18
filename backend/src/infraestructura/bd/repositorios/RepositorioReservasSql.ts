@@ -61,11 +61,14 @@ export function crearRepositorioReservas(bd: Consultas): RepositorioReservas {
     },
 
     async finalizar(id, estado, fecha, motivo) {
-      await bd.filas(
+      // Solo cierra una reserva que sigue ACTIVA: si otra operación la canceló, la venció o la
+      // convirtió en venta un instante antes, no se pisa su resultado.
+      const actualizadas = await bd.filas(
         `UPDATE reservas SET estado = $1, finalizada_en = $2, motivo_finalizacion = $3
-         WHERE id = $4`,
+         WHERE id = $4 AND estado = 'ACTIVA' RETURNING id`,
         [estado, fecha, motivo ?? null, id],
       );
+      return actualizadas.length === 1;
     },
   };
 }

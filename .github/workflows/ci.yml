@@ -1,0 +1,66 @@
+# Integración continua: corre en cada pull request hacia main y en cada push a main.
+# Es la barrera contra regresiones del equipo: con la protección de la rama main activada, nada se
+# integra si alguno de estos trabajos falla (ver AGENTS.md §8).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Si llega un push nuevo a la misma rama, se cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  calidad:
+    name: Tipos y pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dependencias
+        run: npm ci
+      - name: Tipos (backend, frontend y e2e)
+        run: npm run typecheck
+      - name: Build del frontend
+        run: npm run build
+      # --passWithNoTests: mientras no existan pruebas (etapas 0 y 1) una carpeta vacía no es un error.
+      - name: Pruebas unitarias
+        run: npm run test:unit -w backend -- --passWithNoTests
+      - name: Pruebas de integración
+        run: npm run test:integracion -w backend -- --passWithNoTests
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dependencias
+        run: npm ci
+      - name: Navegador de Playwright
+        run: npx playwright install --with-deps chromium
+      # Playwright levanta la app con `npm run dev:pruebas` (PostgreSQL en memoria, sin Neon).
+      - name: Pruebas E2E
+        run: npm run test:e2e -w e2e -- --pass-with-no-tests
+      - name: Reporte de Playwright (si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-playwright
+          path: e2e/playwright-report/
+          retention-days: 7
