@@ -72,10 +72,10 @@ export function BarraMapa(props: Props) {
         </div>
       )}
 
-      {modo === 'editar-forma' && props.codigoEditando && (
+      {modo === 'editar-forma' && (
         <div className="aviso-modo" data-testid="aviso-edicion">
           <span>
-            <strong>Editando la forma de {props.codigoEditando}:</strong> arrastre los vértices, o los
+            <strong>Editando la forma de {props.codigoEditando ?? 'lote'}:</strong> arrastre los vértices, o los
             puntos intermedios para agregar uno nuevo.
           </span>
           <button

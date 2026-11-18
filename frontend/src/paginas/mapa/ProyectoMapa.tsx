@@ -64,24 +64,25 @@ export function ProyectoMapa() {
     [resumen],
   );
 
-  const refrescar = async () => {
-    await Promise.all([proyecto.recargar(), lotes.recargar(), detalle.recargar()]);
-  };
-  const cerrarDialogo = () => {
-    setDialogo(null);
-    setDialogoLote(null);
-  };
+  const refrescar = async () => { await Promise.all([proyecto.recargar(), lotes.recargar(), detalle.recargar()]); };
+  const cerrarDialogo = () => { setDialogo(null); setDialogoLote(null); };
+  const limpiarModo = () => { setModo('normal'); setFormaEditada(null); };
 
   const cancelarModo = async () => {
     const estabaEditando = modo === 'editar-forma';
-    setModo('normal');
+    limpiarModo();
     if (estabaEditando) await lotes.recargar(); // descarta los vértices movidos
   };
 
   const seleccionar = (id: number | null) => {
     if (id === seleccionadoId) return;
-    if (modo === 'editar-forma') void cancelarModo();
+    if (modo !== 'normal') void cancelarModo();
     setParametros(id ? { lote: String(id) } : {}, { replace: true });
+  };
+
+  const abrirDialogoProyecto = (nuevo: DialogoProyecto) => {
+    if (modo !== 'normal') void cancelarModo();
+    setDialogo(nuevo);
   };
 
   /** Ejecuta una operación sin diálogo: si sale bien avisa y refresca; si falla muestra el error. */
@@ -100,6 +101,7 @@ export function ProyectoMapa() {
   /** Después de una operación exitosa: cierra el diálogo, avisa y vuelve a pedir los datos. */
   const terminarOperacion = async (mensaje: string, deseleccionar = false) => {
     cerrarDialogo();
+    if (modo !== 'normal') limpiarModo();
     avisos.exito(mensaje);
     if (deseleccionar) {
       seleccionar(null);
@@ -127,9 +129,9 @@ export function ProyectoMapa() {
   };
 
   const guardarForma = async () => {
-    if (!lote || !formaEditada) return setModo('normal');
+    if (!lote || !formaEditada) return limpiarModo();
     const guardar = () => api.lotes.actualizar(lote.id, { geometria: formaEditada });
-    if (await ejecutar(guardar, `Se actualizó la forma del lote ${lote.codigo}.`)) setModo('normal');
+    if (await ejecutar(guardar, `Se actualizó la forma del lote ${lote.codigo}.`)) limpiarModo();
   };
 
   const alTerminarDibujo = async (geometria: Poligono) => {
@@ -158,8 +160,8 @@ export function ProyectoMapa() {
         onBusqueda={setBusqueda}
         seleccionadoId={seleccionadoId}
         onSeleccionar={seleccionar}
-        onEditarProyecto={() => setDialogo('editar-proyecto')}
-        onPublicar={() => setDialogo('publicar')}
+        onEditarProyecto={() => abrirDialogoProyecto('editar-proyecto')}
+        onPublicar={() => abrirDialogoProyecto('publicar')}
       />
 
       <section className="zona-mapa">
@@ -169,7 +171,7 @@ export function ProyectoMapa() {
           codigoEditando={lote?.codigo ?? null}
           puedeGuardarForma={formaEditada !== null}
           onModo={setModo}
-          onImportarKml={() => setDialogo('importar-kml')}
+          onImportarKml={() => abrirDialogoProyecto('importar-kml')}
           onActualizar={refrescar}
           onGuardarForma={guardarForma}
           onCancelar={cancelarModo}

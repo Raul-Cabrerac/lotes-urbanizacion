@@ -45,18 +45,33 @@ export function ModalVenta({
       : {}),
   });
 
+  // Mantener sincronizado el cliente si el lote recibió una reserva al refrescar tras 409.
+  useEffect(() => {
+    if (reserva) setClienteId(reserva.cliente.id);
+  }, [reserva?.id, reserva?.cliente.id]);
+
   // Vista previa del cronograma (la calcula el backend con las mismas reglas que al vender).
   useEffect(() => {
+    let cancelado = false;
+    setPlan(null);
     const temporizador = setTimeout(async () => {
       try {
-        setPlan(await api.ventas.simularPlan(condiciones()));
-        setErrorPlan(null);
+        const simulado = await api.ventas.simularPlan(condiciones());
+        if (!cancelado) {
+          setPlan(simulado);
+          setErrorPlan(null);
+        }
       } catch (err) {
-        setPlan(null);
-        setErrorPlan(mensajeDeError(err));
+        if (!cancelado) {
+          setPlan(null);
+          setErrorPlan(mensajeDeError(err));
+        }
       }
     }, 300);
-    return () => clearTimeout(temporizador);
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+    };
   }, [precio, modalidad, cuotaInicial, numeroCuotas, fechaPrimeraCuota]);
 
   const vender = async (e: FormEvent) => {
@@ -181,7 +196,12 @@ export function ModalVenta({
           <button type="button" className="boton" onClick={onCerrar} data-testid="venta-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-rojo" disabled={enviando || !plan} data-testid="venta-confirmar">
+          <button
+            type="submit"
+            className="boton boton-rojo"
+            disabled={enviando || !plan || lote.estado === 'VENDIDO' || lote.estado === 'BLOQUEADO'}
+            data-testid="venta-confirmar"
+          >
             {enviando ? 'Registrando...' : 'Confirmar venta'}
           </button>
         </div>

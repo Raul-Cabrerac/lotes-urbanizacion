@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api/api';
-import { mensajeDeError } from '../api/http';
+import { ApiError, mensajeDeError } from '../api/http';
 import { METODOS_PAGO, type MetodoPago } from '../api/tipos';
 import type { Cuota, Venta } from '../api/tiposOperaciones';
 import { Campo, MensajeError } from '../componentes/Basicos';
@@ -13,10 +13,12 @@ interface Props {
   onCerrar: () => void;
   /** Recibe la venta actualizada (cuotas, pagos y saldo recalculados por el servidor). */
   onPagado: (venta: Venta) => void;
+  /** Otra operación cerró/pagó la venta o cuota mientras tanto: refresca la vista padre. */
+  onConflicto?: () => void;
 }
 
 /** Registro de un pago de una cuota (consigna §9). El monto propuesto es lo pendiente de la cuota. */
-export function ModalPago({ venta, cuota, onCerrar, onPagado }: Props) {
+export function ModalPago({ venta, cuota, onCerrar, onPagado, onConflicto }: Props) {
   const [monto, setMonto] = useState(String(cuota.montoPendiente));
   const [metodo, setMetodo] = useState<MetodoPago>('EFECTIVO');
   const [referencia, setReferencia] = useState('');
@@ -33,6 +35,7 @@ export function ModalPago({ venta, cuota, onCerrar, onPagado }: Props) {
     } catch (err) {
       setError(mensajeDeError(err));
       setEnviando(false);
+      if (err instanceof ApiError && err.estado === 409) onConflicto?.();
     }
   };
 

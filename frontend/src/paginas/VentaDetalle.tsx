@@ -17,7 +17,7 @@ export function VentaDetalle() {
   const id = Number(useParams().id);
   const { puede, usuario } = useSesion();
   const avisos = useAvisos();
-  const { datos: venta, error, estadoError, setDatos } = useDatos(() => api.ventas.obtener(id), [id]);
+  const { datos: venta, error, estadoError, setDatos, recargar } = useDatos(() => api.ventas.obtener(id), [id]);
   const [pagando, setPagando] = useState<Cuota | null>(null);
   const [anulandoPago, setAnulandoPago] = useState<Pago | null>(null);
   const [anulandoVenta, setAnulandoVenta] = useState(false);
@@ -203,6 +203,7 @@ export function VentaDetalle() {
           venta={venta}
           cuota={pagando}
           onCerrar={() => setPagando(null)}
+          onConflicto={() => void recargar()}
           onPagado={(actualizada) => {
             setPagando(null);
             setDatos(actualizada);
@@ -218,6 +219,7 @@ export function VentaDetalle() {
           textoConfirmar="Anular pago"
           peligro
           onCerrar={() => setAnulandoPago(null)}
+          onConflicto={() => void recargar()}
           onConfirmar={async (motivo) => {
             setDatos(await api.pagos.anular(anulandoPago.id, motivo));
             setAnulandoPago(null);
@@ -233,6 +235,7 @@ export function VentaDetalle() {
           textoConfirmar="Anular venta"
           peligro
           onCerrar={() => setAnulandoVenta(false)}
+          onConflicto={() => void recargar()}
           onConfirmar={async (motivo) => {
             setDatos(await api.ventas.anular(venta.id, motivo));
             setAnulandoVenta(false);
