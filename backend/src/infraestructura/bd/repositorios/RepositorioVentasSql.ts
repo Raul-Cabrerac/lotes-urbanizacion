@@ -1,6 +1,6 @@
 import type { RepositorioVentas, VentaVista } from '../../../aplicacion/puertos';
 import type { Cuota } from '../../../dominio/tipos';
-import { construirWhere, type Consultas } from './consultas';
+import { construirWhere, ejecutarConUnicidad, type Consultas } from './consultas';
 import { aClienteResumen, aCuota, aLoteResumen, aPagoVista, aVenta } from './conversiones';
 import {
   COLUMNAS_LOTE,
@@ -9,6 +9,13 @@ import {
   type FilaVenta,
   type FilaVentaVista,
 } from './filas';
+
+const UNICIDAD_VENTAS = {
+  ventas_una_vigente_por_lote: {
+    codigo: 'LOTE_NO_DISPONIBLE',
+    mensaje: 'El lote ya tiene una venta vigente.',
+  },
+} as const;
 
 /** Venta con su lote, proyecto, cliente, asesor y quién la anuló. */
 const SQL_VENTA_VISTA = `
@@ -82,21 +89,25 @@ export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
     },
 
     async crear(d, cuotasNuevas) {
-      const venta = await bd.filaObligatoria<FilaVenta>(
-        `INSERT INTO ventas (lote_id, cliente_id, asesor_id, reserva_id, fecha, precio_pactado,
-                             modalidad, cuota_inicial, numero_cuotas)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [
-          d.loteId,
-          d.clienteId,
-          d.asesorId,
-          d.reservaId,
-          d.fecha,
-          d.precioPactado,
-          d.modalidad,
-          d.cuotaInicial,
-          d.numeroCuotas,
-        ],
+      const venta = await ejecutarConUnicidad(
+        () =>
+          bd.filaObligatoria<FilaVenta>(
+            `INSERT INTO ventas (lote_id, cliente_id, asesor_id, reserva_id, fecha, precio_pactado,
+                                 modalidad, cuota_inicial, numero_cuotas)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [
+              d.loteId,
+              d.clienteId,
+              d.asesorId,
+              d.reservaId,
+              d.fecha,
+              d.precioPactado,
+              d.modalidad,
+              d.cuotaInicial,
+              d.numeroCuotas,
+            ],
+          ),
+        UNICIDAD_VENTAS,
       );
       const cuotas: Cuota[] = [];
       for (const c of cuotasNuevas) {
