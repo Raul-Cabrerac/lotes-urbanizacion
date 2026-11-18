@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { mensajeDeError } from '../api/http';
+import { ApiError, mensajeDeError } from '../api/http';
 import { Campo, MensajeError } from './Basicos';
 import { Modal } from './Modal';
 
@@ -11,12 +11,23 @@ interface Props {
   /** Si se indica, se pide un motivo (texto) antes de confirmar. */
   motivo?: { etiqueta: string; obligatorio: boolean };
   onConfirmar: (motivo: string) => Promise<void>;
+  onConflicto?: () => void;
   onCerrar: () => void;
   testid?: string;
 }
 
 /** Confirmación de una acción (opcionalmente pidiendo un motivo). Muestra el error si la API lo rechaza. */
-export function ModalConfirmar({ titulo, mensaje, textoConfirmar, peligro, motivo, onConfirmar, onCerrar, testid }: Props) {
+export function ModalConfirmar({
+  titulo,
+  mensaje,
+  textoConfirmar,
+  peligro,
+  motivo,
+  onConfirmar,
+  onConflicto,
+  onCerrar,
+  testid,
+}: Props) {
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -30,6 +41,7 @@ export function ModalConfirmar({ titulo, mensaje, textoConfirmar, peligro, motiv
     } catch (err) {
       setError(mensajeDeError(err));
       setEnviando(false);
+      if (err instanceof ApiError && err.estado === 409) onConflicto?.();
     }
   };
 

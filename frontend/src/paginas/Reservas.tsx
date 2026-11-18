@@ -75,6 +75,7 @@ export function Reservas() {
           textoConfirmar="Cancelar reserva"
           peligro
           onCerrar={() => setCancelando(null)}
+          onConflicto={() => void recargar()}
           onConfirmar={async (motivo) => {
             await api.reservas.cancelar(cancelando.id, motivo);
             setCancelando(null);

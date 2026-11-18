@@ -104,24 +104,26 @@ export function PanelLote({
       )}
       {publicado && lote.precio <= 0 && <div className="caja caja-gris">Asigne un precio al lote para poder comercializarlo.</div>}
 
-      {/* Acciones comerciales (asesor y administrador) */}
-      <div className="acciones-panel">
-        {lote.estado === 'DISPONIBLE' && comercializable && puede('reservas:gestionar') && (
-          <button className="boton boton-ambar" onClick={acciones.reservar} data-testid="accion-reservar">
-            Reservar
-          </button>
-        )}
-        {(lote.estado === 'DISPONIBLE' || lote.estado === 'RESERVADO') && comercializable && puede('ventas:registrar') && (
-          <button className="boton boton-rojo" onClick={acciones.vender} data-testid="accion-vender">
-            {reserva ? `Vender a ${reserva.cliente.nombreCompleto.split(' ')[0]}` : 'Vender'}
-          </button>
-        )}
-        {reserva && puede('reservas:gestionar') && (
-          <button className="boton" onClick={acciones.cancelarReserva} data-testid="accion-cancelar-reserva">
-            Cancelar reserva
-          </button>
-        )}
-      </div>
+      {/* Acciones comerciales (asesor y administrador), ocultas mientras se edita la forma */}
+      {!editandoForma && (
+        <div className="acciones-panel">
+          {lote.estado === 'DISPONIBLE' && comercializable && puede('reservas:gestionar') && (
+            <button className="boton boton-ambar" onClick={acciones.reservar} data-testid="accion-reservar">
+              Reservar
+            </button>
+          )}
+          {(lote.estado === 'DISPONIBLE' || lote.estado === 'RESERVADO') && comercializable && puede('ventas:registrar') && (
+            <button className="boton boton-rojo" onClick={acciones.vender} data-testid="accion-vender">
+              {reserva ? `Vender a ${reserva.cliente.nombreCompleto.split(' ')[0]}` : 'Vender'}
+            </button>
+          )}
+          {reserva && puede('reservas:gestionar') && (
+            <button className="boton" onClick={acciones.cancelarReserva} data-testid="accion-cancelar-reserva">
+              Cancelar reserva
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Acciones del administrador */}
       {puede('lotes:gestionar') && !editandoForma && (
