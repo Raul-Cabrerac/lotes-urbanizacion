@@ -24,3 +24,4 @@ e2e/test-results/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+test-results/
