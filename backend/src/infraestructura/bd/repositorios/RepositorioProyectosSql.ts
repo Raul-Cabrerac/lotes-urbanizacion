@@ -18,6 +18,10 @@ export function crearRepositorioProyectos(bd: Consultas): RepositorioProyectos {
       return fila && aProyecto(fila);
     },
 
+    async bloquearPorId(id) {
+      await bd.filas('SELECT id FROM proyectos WHERE id = $1 FOR UPDATE', [id]);
+    },
+
     async crear({ nombre, descripcion, ubicacion }) {
       const fila = await bd.filaObligatoria<FilaProyecto>(
         'INSERT INTO proyectos (nombre, descripcion, ubicacion) VALUES ($1, $2, $3) RETURNING *',
@@ -43,6 +47,15 @@ export function crearRepositorioProyectos(bd: Consultas): RepositorioProyectos {
         true,
       );
       return aProyecto(await bd.filaObligatoria<FilaProyecto>(sql, parametros));
+    },
+
+    async publicarSiBorrador(id) {
+      const fila = await bd.fila<FilaProyecto>(
+        `UPDATE proyectos SET estado = 'PUBLICADO', actualizado_en = now()
+         WHERE id = $1 AND estado = 'BORRADOR' RETURNING *`,
+        [id],
+      );
+      return fila && aProyecto(fila);
     },
   };
 }

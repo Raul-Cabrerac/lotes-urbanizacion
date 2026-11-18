@@ -127,12 +127,33 @@ export function validarDatosComerciales(datos: {
   }
 }
 
-/** Un lote solo se puede eliminar si nunca tuvo reservas ni ventas. */
-export function validarLoteEliminable(lote: LoteComercial, tieneOperaciones: boolean): void {
+/** Un lote solo se puede eliminar si nunca tuvo reservas ni ventas ni deja vacío un proyecto publicado. */
+export function validarLoteEliminable(
+  lote: LoteComercial,
+  tieneOperaciones: boolean,
+  estadoProyecto: EstadoProyecto = 'BORRADOR',
+  cantidadLotesProyecto = 2,
+): void {
   if (tieneOperaciones || lote.estado === 'RESERVADO' || lote.estado === 'VENDIDO') {
     throw new ErrorConflicto(
       'LOTE_CON_OPERACIONES',
       `El lote ${lote.codigo} tiene reservas o ventas registradas y no se puede eliminar. Puede bloquearlo.`,
+    );
+  }
+  if (estadoProyecto === 'PUBLICADO' && cantidadLotesProyecto <= 1) {
+    throw new ErrorConflicto(
+      'PROYECTO_PUBLICADO_SIN_LOTES',
+      'No se puede eliminar el último lote de un proyecto publicado.',
+    );
+  }
+}
+
+/** Un lote RESERVADO ya tiene precio asignado y no puede quedar en Bs 0 mientras siga reservado. */
+export function validarPrecioLoteReservado(estadoActual: EstadoLote, nuevoPrecio: number): void {
+  if (estadoActual === 'RESERVADO' && comparar(nuevoPrecio, 0) <= 0) {
+    throw new ErrorReglaNegocio(
+      'LOTE_SIN_PRECIO',
+      'Un lote reservado no puede quedar sin precio (Bs 0).',
     );
   }
 }

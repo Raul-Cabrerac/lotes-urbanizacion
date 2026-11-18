@@ -1,10 +1,15 @@
 import { redondear } from '../../dominio/dinero';
 import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import { calcularAreaM2, normalizarPoligono, sugerirDimensiones } from '../../dominio/geometria';
-import { validarCambioEstadoManual, validarDatosComerciales, validarLoteEliminable } from '../../dominio/lote';
+import {
+  validarCambioEstadoManual,
+  validarDatosComerciales,
+  validarLoteEliminable,
+  validarPrecioLoteReservado,
+} from '../../dominio/lote';
 import { resumirPlan } from '../../dominio/planPagos';
 import type { EstadoLote, Lote } from '../../dominio/tipos';
-import type { DatosLote, FiltrosLotes, Reloj, UnidadDeTrabajo, UsuarioActual } from '../puertos';
+import type { DatosLote, FiltrosLotes, Reloj, Repositorios, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 import { normalizarCodigo, prepararDatosLote, type EntradaLote } from './datosLote';
 import type { ProyectoServicio } from './ProyectoServicio';
 
@@ -70,48 +75,57 @@ export class LoteServicio {
 
   /** Edita datos y/o geometría. El estado NO se cambia aquí (ver cambiarEstado, reservas y ventas). */
   async actualizar(id: number, cambios: Partial<EntradaLote>): Promise<Lote> {
-    const actual = await this.buscar(id);
-    const cambiaGeometria = cambios.geometria !== undefined;
-    const geometria = cambiaGeometria ? normalizarPoligono(cambios.geometria) : actual.geometria;
-    // superficieM2 = null significa "recalcular desde el polígono".
-    const superficieM2 =
-      cambios.superficieM2 === null
-        ? calcularAreaM2(geometria)
-        : (cambios.superficieM2 ?? (cambiaGeometria ? calcularAreaM2(geometria) : actual.superficieM2));
+    return this.uow.transaccion(async (repos) => {
+      await repos.lotes.bloquearPorId(id);
+      const actual = await repos.lotes.buscarPorId(id);
+      if (!actual) throw new ErrorNoEncontrado('Lote no encontrado.');
 
-    const datos: DatosLote = {
-      codigo: cambios.codigo !== undefined ? normalizarCodigo(cambios.codigo) : actual.codigo,
-      manzano: cambios.manzano?.trim() ?? actual.manzano,
-      etapa: cambios.etapa?.trim() ?? actual.etapa,
-      precio: cambios.precio !== undefined ? redondear(cambios.precio) : actual.precio,
-      superficieM2: redondear(superficieM2),
-      dimensiones:
-        cambios.dimensiones?.trim() || (cambiaGeometria ? sugerirDimensiones(geometria) : actual.dimensiones),
-      geometria,
-    };
-    validarDatosComerciales(datos);
-    if (datos.codigo !== actual.codigo) await this.validarCodigoUnico(actual.proyectoId, datos.codigo);
-    return this.uow.repos.lotes.actualizar(id, datos);
+      const datos = construirCambiosLote(actual, cambios);
+      validarDatosComerciales(datos);
+      validarPrecioLoteReservado(actual.estado, datos.precio);
+      if (datos.codigo !== actual.codigo) await this.validarCodigoUnico(actual.proyectoId, datos.codigo, repos);
+      return repos.lotes.actualizar(id, datos);
+    });
   }
 
   /** El administrador solo puede bloquear y desbloquear a mano (consigna §5, BLOQUEADO). */
   async cambiarEstado(id: number, nuevoEstado: EstadoLote): Promise<Lote> {
-    const lote = await this.buscar(id);
-    validarCambioEstadoManual(lote.estado, nuevoEstado);
-    const cambiado = await this.uow.repos.lotes.cambiarEstadoSi(id, lote.estado, nuevoEstado);
-    if (!cambiado) {
-      throw new ErrorConflicto(
-        'LOTE_MODIFICADO',
-        'Otro usuario modificó el lote. Actualice la página e intente de nuevo.',
-      );
-    }
-    return this.buscar(id);
+    return this.uow.transaccion(async (repos) => {
+      await repos.lotes.bloquearPorId(id);
+      const lote = await repos.lotes.buscarPorId(id);
+      if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
+      validarCambioEstadoManual(lote.estado, nuevoEstado);
+      const cambiado = await repos.lotes.cambiarEstadoSi(id, lote.estado, nuevoEstado);
+      if (!cambiado) {
+        throw new ErrorConflicto(
+          'LOTE_MODIFICADO',
+          'Otro usuario modificó el lote. Actualice la página e intente de nuevo.',
+        );
+      }
+      const actualizado = await repos.lotes.buscarPorId(id);
+      if (!actualizado) throw new ErrorNoEncontrado('Lote no encontrado.');
+      return actualizado;
+    });
   }
 
   async eliminar(id: number): Promise<void> {
-    const lote = await this.buscar(id);
-    validarLoteEliminable(lote, await this.uow.repos.lotes.tieneOperaciones(id));
-    await this.uow.repos.lotes.eliminar(id);
+    await this.uow.transaccion(async (repos) => {
+      const inicial = await repos.lotes.buscarPorId(id);
+      if (!inicial) throw new ErrorNoEncontrado('Lote no encontrado.');
+      // Mismo orden global de bloqueo que publicar proyecto: proyectos -> lotes.
+      await repos.proyectos.bloquearPorId(inicial.proyectoId);
+      await repos.lotes.bloquearPorId(id);
+      const lote = await repos.lotes.buscarPorId(id);
+      if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
+      const proyecto = await repos.proyectos.buscarPorId(lote.proyectoId);
+      if (!proyecto) throw new ErrorNoEncontrado('Proyecto no encontrado.');
+      const [tieneOperaciones, lotesProyecto] = await Promise.all([
+        repos.lotes.tieneOperaciones(id),
+        repos.lotes.listarPorProyecto(lote.proyectoId),
+      ]);
+      validarLoteEliminable(lote, tieneOperaciones, proyecto.estado, lotesProyecto.length);
+      await repos.lotes.eliminar(id);
+    });
   }
 
   /** Valida un polígono dibujado y devuelve la superficie y dimensiones sugeridas (vista previa). */
@@ -130,12 +144,37 @@ export class LoteServicio {
     return lote;
   }
 
-  private async validarCodigoUnico(proyectoId: number, codigo: string): Promise<void> {
-    if (await this.uow.repos.lotes.buscarPorCodigo(proyectoId, codigo)) {
+  private async validarCodigoUnico(
+    proyectoId: number,
+    codigo: string,
+    repos: Repositorios = this.uow.repos,
+  ): Promise<void> {
+    if (await repos.lotes.buscarPorCodigo(proyectoId, codigo)) {
       throw new ErrorConflicto(
         'CODIGO_LOTE_DUPLICADO',
         `Ya existe un lote con el código ${codigo} en este proyecto.`,
       );
     }
   }
+}
+
+function construirCambiosLote(actual: Lote, cambios: Partial<EntradaLote>): DatosLote {
+  const cambiaGeometria = cambios.geometria !== undefined;
+  const geometria = cambiaGeometria ? normalizarPoligono(cambios.geometria) : actual.geometria;
+  // superficieM2 = null significa "recalcular desde el polígono".
+  const superficieM2 =
+    cambios.superficieM2 === null
+      ? calcularAreaM2(geometria)
+      : (cambios.superficieM2 ?? (cambiaGeometria ? calcularAreaM2(geometria) : actual.superficieM2));
+
+  return {
+    codigo: cambios.codigo !== undefined ? normalizarCodigo(cambios.codigo) : actual.codigo,
+    manzano: cambios.manzano?.trim() ?? actual.manzano,
+    etapa: cambios.etapa?.trim() ?? actual.etapa,
+    precio: cambios.precio !== undefined ? redondear(cambios.precio) : actual.precio,
+    superficieM2: redondear(superficieM2),
+    dimensiones:
+      cambios.dimensiones?.trim() || (cambiaGeometria ? sugerirDimensiones(geometria) : actual.dimensiones),
+    geometria,
+  };
 }
