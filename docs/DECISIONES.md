@@ -58,9 +58,10 @@ vencer o convertir una reserva y anular una venta o un pago son `UPDATE` condici
 (`... WHERE id = $1 AND estado = 'ACTIVA'`). Si otra operación cerró la fila un instante antes, se
 responde 409 (`RESERVA_NO_ACTIVA`, `LOTE_NO_DISPONIBLE`, `VENTA_NO_VIGENTE`, `PAGO_YA_ANULADO`) en
 vez de pisar su resultado; por ejemplo, una reserva convertida en venta no puede quedar luego como
-CANCELADA. Además, toda operación que cambia una reserva y su lote lo hace en el mismo orden
-(primero la reserva, después el lote), para que dos transacciones no se esperen mutuamente
-(deadlock).
+CANCELADA. Además, toda operación que cambia varias tablas respeta un orden global acíclico de
+bloqueos (`proyectos -> lotes`, `reservas -> lotes`, `ventas -> lotes / pagos`) para que dos
+transacciones no se esperen mutuamente (deadlock), y `procesarVencidas` procesa cada reserva
+expirada en orden determinista (`ORDER BY id`) y transacciones cortas independientes.
 
 ## 4. Arquitectura en capas con puertos
 

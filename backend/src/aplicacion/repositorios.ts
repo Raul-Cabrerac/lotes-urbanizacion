@@ -8,22 +8,8 @@ import type { FechaISO } from '../dominio/fechas';
 import type { PoligonoGeoJSON } from '../dominio/geometria';
 import type { CuotaNueva } from '../dominio/planPagos';
 import type {
-  Cliente,
-  Cuota,
-  EstadoLote,
-  EstadoProyecto,
-  EstadoReserva,
-  EstadoVenta,
-  Lote,
-  MetodoPago,
-  ModalidadPago,
-  Pago,
-  Proyecto,
-  Reserva,
-  Rol,
-  Usuario,
-  UsuarioConCredenciales,
-  Venta,
+  Cliente, Cuota, EstadoLote, EstadoProyecto, EstadoReserva, EstadoVenta, Lote,
+  MetodoPago, ModalidadPago, Pago, Proyecto, Reserva, Rol, Usuario, UsuarioConCredenciales, Venta,
 } from '../dominio/tipos';
 
 // --- Vistas de lectura (entidad + datos relacionados para mostrar) ----------------------------

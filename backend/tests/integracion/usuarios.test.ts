@@ -1,42 +1,37 @@
 // Consigna §13: Mapeo de códigos 409 en usuarios y lotes bajo concurrencia (Incidencia #7).
 import request from 'supertest';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { rectanguloEnMetros } from '../../src/dominio/geometria';
-import { crearAppDePrueba, iniciarSesion, type AppDePrueba } from '../apoyo/app';
+import { crearAppInterceptable, iniciarSesion, type AppInterceptable } from '../apoyo/app';
 import { buscarCliente } from '../apoyo/buscadores';
 
 const geo = rectanguloEnMetros([-63.18, -17.78], 0, 0, 12, 30);
 
 describe('Unicidad concurrente en usuarios y lotes', () => {
-  let app: AppDePrueba | null = null;
+  let app: AppInterceptable;
+  let adminToken: string;
+
+  beforeEach(async () => {
+    app = await crearAppInterceptable();
+    adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
+  });
 
   afterEach(async () => {
-    if (app) await app.cerrar();
+    await app.cerrar();
   });
 
   it('responde 409 EMAIL_DUPLICADO cuando otro usuario registra el mismo correo antes del INSERT', async () => {
     // Arrange
     let intercalado = false;
-    app = await crearAppDePrueba({
-      envolverBd: (bd) => ({
-        ...bd,
-        sql: {
-          ...bd.sql,
-          async query<T>(texto: string, params?: unknown[]) {
-            const res = await bd.sql.query<T>(texto, params);
-            if (!intercalado && texto.includes('SELECT * FROM usuarios WHERE email = $1') && params?.[0] === 'nuevo@lotes.bo') {
-              intercalado = true;
-              await bd.sql.query(
-                "INSERT INTO usuarios (nombre, email, password_hash, rol, cliente_id) VALUES ('Otro', $1, 'hash', 'ASESOR', NULL)",
-                [params[0]],
-              );
-            }
-            return res;
-          },
-        },
-      }),
+    app.alInterceptarDespues(async (texto, params, ejecutar) => {
+      if (!intercalado && texto.includes('SELECT * FROM usuarios WHERE email = $1') && params?.[0] === 'nuevo@lotes.bo') {
+        intercalado = true;
+        await ejecutar(
+          "INSERT INTO usuarios (nombre, email, password_hash, rol, cliente_id) VALUES ('Otro', $1, 'hash', 'ASESOR', NULL)",
+          [params[0]],
+        );
+      }
     });
-    const adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
     // Act
     const respuesta = await request(app.express)
       .post('/api/usuarios')
@@ -49,28 +44,17 @@ describe('Unicidad concurrente en usuarios y lotes', () => {
 
   it('responde 409 CLIENTE_YA_TIENE_USUARIO cuando otro proceso vincula al mismo cliente antes del INSERT', async () => {
     // Arrange
-    let intercalado = false;
-    app = await crearAppDePrueba({
-      envolverBd: (bd) => ({
-        ...bd,
-        sql: {
-          ...bd.sql,
-          async query<T>(texto: string, params?: unknown[]) {
-            const res = await bd.sql.query<T>(texto, params);
-            if (!intercalado && texto.includes('SELECT * FROM usuarios WHERE cliente_id = $1')) {
-              intercalado = true;
-              await bd.sql.query(
-                "INSERT INTO usuarios (nombre, email, password_hash, rol, cliente_id) VALUES ('Otro', 'otro.portal@lotes.bo', 'hash', 'CLIENTE', $1)",
-                [params?.[0]],
-              );
-            }
-            return res;
-          },
-        },
-      }),
-    });
-    const adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
     const ana = await buscarCliente(app, adminToken, '5512893');
+    let intercalado = false;
+    app.alInterceptarDespues(async (texto, params, ejecutar) => {
+      if (!intercalado && texto.includes('SELECT * FROM usuarios WHERE cliente_id = $1')) {
+        intercalado = true;
+        await ejecutar(
+          "INSERT INTO usuarios (nombre, email, password_hash, rol, cliente_id) VALUES ('Otro', 'otro.portal@lotes.bo', 'hash', 'CLIENTE', $1)",
+          [params?.[0]],
+        );
+      }
+    });
     // Act
     const respuesta = await request(app.express)
       .post('/api/usuarios')
@@ -84,27 +68,16 @@ describe('Unicidad concurrente en usuarios y lotes', () => {
   it('responde 409 CODIGO_LOTE_DUPLICADO cuando otro proceso crea el mismo código de lote antes del INSERT', async () => {
     // Arrange
     let intercalado = false;
-    app = await crearAppDePrueba({
-      envolverBd: (bd) => ({
-        ...bd,
-        sql: {
-          ...bd.sql,
-          async query<T>(texto: string, params?: unknown[]) {
-            const res = await bd.sql.query<T>(texto, params);
-            if (!intercalado && texto.includes('SELECT * FROM lotes WHERE proyecto_id = $1 AND codigo = $2')) {
-              intercalado = true;
-              await bd.sql.query(
-                `INSERT INTO lotes (proyecto_id, codigo, manzano, etapa, superficie_m2, dimensiones, precio, geometria)
-                 VALUES ($1, $2, 'A', 'Etapa 1', 360, '12 x 30 m', 50000, $3)`,
-                [params?.[0], params?.[1], JSON.stringify(geo)],
-              );
-            }
-            return res;
-          },
-        },
-      }),
+    app.alInterceptarDespues(async (texto, params, ejecutar) => {
+      if (!intercalado && texto.includes('SELECT * FROM lotes WHERE proyecto_id = $1 AND codigo = $2')) {
+        intercalado = true;
+        await ejecutar(
+          `INSERT INTO lotes (proyecto_id, codigo, manzano, etapa, superficie_m2, dimensiones, precio, geometria)
+           VALUES ($1, $2, 'A', 'Etapa 1', 360, '12 x 30 m', 50000, $3)`,
+          [params?.[0], params?.[1], JSON.stringify(geo)],
+        );
+      }
     });
-    const adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
     // Act
     const respuesta = await request(app.express)
       .post('/api/proyectos/1/lotes')

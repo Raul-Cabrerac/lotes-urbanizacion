@@ -41,14 +41,17 @@ export class ReservaServicio {
     validarFechaVencimiento(entrada.fechaVencimiento, hoy);
 
     const reservaId = await this.uow.transaccion(async (repos) => {
-      let lote = await repos.lotes.buscarPorId(entrada.loteId);
-      if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
-      if (lote.estado === 'RESERVADO') {
-        const activa = await repos.reservas.buscarActivaPorLote(lote.id);
-        if (activa && (await expirarReservaSiVencida(repos, activa, hoy, this.reloj.ahora()))) {
-          lote = { ...lote, estado: 'DISPONIBLE' };
-        }
+      const inicial = await repos.lotes.buscarPorId(entrada.loteId);
+      if (!inicial) throw new ErrorNoEncontrado('Lote no encontrado.');
+      if (inicial.estado === 'RESERVADO') {
+        const activa = await repos.reservas.buscarActivaPorLote(inicial.id);
+        if (activa) await expirarReservaSiVencida(repos, activa, hoy, this.reloj.ahora());
       }
+      // Bloqueamos el lote después de procesar eventual vencimiento (orden reserva -> lote)
+      // para serializar contra actualizaciones de precio a Bs 0 o eliminación del lote.
+      await repos.lotes.bloquearPorId(entrada.loteId);
+      const lote = await repos.lotes.buscarPorId(entrada.loteId);
+      if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
       const cliente = await repos.clientes.buscarPorId(entrada.clienteId);
       if (!cliente) throw new ErrorNoEncontrado('Cliente no encontrado.');
       const proyecto = await repos.proyectos.buscarPorId(lote.proyectoId);

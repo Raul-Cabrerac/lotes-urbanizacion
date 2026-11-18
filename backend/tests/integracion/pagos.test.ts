@@ -1,15 +1,15 @@
 // Consigna §13: Anulación de pagos y consistencia con venta ANULADA (Incidencia #3).
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { crearAppDePrueba, iniciarSesion, type AppDePrueba } from '../apoyo/app';
+import { crearAppInterceptable, iniciarSesion, type AppInterceptable } from '../apoyo/app';
 import { buscarVentaDeLote } from '../apoyo/buscadores';
 
 describe('POST /api/pagos/:id/anular', () => {
-  let app: AppDePrueba;
+  let app: AppInterceptable;
   let adminToken: string;
 
   beforeEach(async () => {
-    app = await crearAppDePrueba();
+    app = await crearAppInterceptable();
     adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
   });
 
@@ -46,34 +46,21 @@ describe('POST /api/pagos/:id/anular', () => {
 
   it('responde 409 VENTA_NO_VIGENTE si la venta se anula concurrentemente antes de bloquearla al anular el pago', async () => {
     // Arrange
-    await app.cerrar();
-    let intercalado = false;
-    app = await crearAppDePrueba({
-      envolverBd: (bd) => ({
-        ...bd,
-        transaccion: (trabajo) =>
-          bd.transaccion(async (sql) => {
-            const sqlEnvuelto = {
-              ...sql,
-              async query<T>(texto: string, params?: unknown[]) {
-                const res = await sql.query<T>(texto, params);
-                if (!intercalado && texto.includes('FROM pagos pg JOIN cuotas cu') && texto.includes('WHERE pg.id = $1')) {
-                  intercalado = true;
-                  await sql.query(
-                    "UPDATE ventas SET estado = 'ANULADA', motivo_anulacion = 'Anulada en carrera' WHERE id = $1",
-                    [(res.rows[0] as { venta_id: number }).venta_id],
-                  );
-                }
-                return res;
-              },
-            };
-            return trabajo(sqlEnvuelto);
-          }),
-      }),
-    });
-    adminToken = await iniciarSesion(app, 'admin@lotes.bo', 'admin123');
     const venta = await buscarVentaDeLote(app, adminToken, 'A-05');
     const pagoValido = venta.pagos.find((p) => p.estado === 'VALIDO');
+    let intercalado = false;
+    app.alInterceptarDespues(async (texto, _params, ejecutar, filas) => {
+      if (!intercalado && texto.includes('FROM pagos pg JOIN cuotas cu') && texto.includes('WHERE pg.id = $1')) {
+        intercalado = true;
+        const fila = (filas?.[0] as { venta_id: number } | undefined);
+        if (fila) {
+          await ejecutar(
+            "UPDATE ventas SET estado = 'ANULADA', motivo_anulacion = 'Anulada en carrera' WHERE id = $1",
+            [fila.venta_id],
+          );
+        }
+      }
+    });
     // Act
     const respuesta = await request(app.express)
       .post(`/api/pagos/${pagoValido?.id}/anular`)

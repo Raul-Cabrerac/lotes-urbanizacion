@@ -99,6 +99,7 @@ export class VentaServicio {
         : true;
       const vendido = reservaConvertida && (await repos.lotes.cambiarEstadoSi(lote.id, lote.estado, 'VENDIDO'));
       if (!vendido) {
+        if (!(await repos.lotes.buscarPorId(lote.id))) throw new ErrorNoEncontrado('Lote no encontrado.');
         // El error deshace la transacción: si la reserva ya se había convertido, vuelve a ACTIVA.
         throw new ErrorConflicto('LOTE_NO_DISPONIBLE', `El lote ${lote.codigo} acaba de ser modificado por otro usuario.`);
       }

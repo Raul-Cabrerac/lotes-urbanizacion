@@ -8,6 +8,30 @@ const asesor = { id: 2, nombre: 'Laura Vargas', rol: 'ASESOR' } as UsuarioActual
 const fechaHoy = new Date('2026-03-15T12:00:00');
 
 describe('ReservaServicio', () => {
+  describe('crear', () => {
+    it('bloquea el lote y lanza LOTE_NO_DISPONIBLE sin crear reserva cuando cambiarEstadoSi falla', async () => {
+      // Arrange
+      const repos = {
+        lotes: {
+          bloquearPorId: vi.fn().mockResolvedValue(undefined),
+          buscarPorId: vi.fn().mockResolvedValue({ id: 1, proyectoId: 1, codigo: 'A-01', estado: 'DISPONIBLE', precio: 45000 }),
+          cambiarEstadoSi: vi.fn().mockResolvedValue(false),
+        },
+        clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
+        proyectos: { buscarPorId: vi.fn().mockResolvedValue({ id: 1, estado: 'PUBLICADO' }) },
+        reservas: { crear: vi.fn() },
+      };
+      const uow = { repos, transaccion: (trabajo: (r: typeof repos) => unknown) => trabajo(repos) };
+      const servicio = new ReservaServicio(uow as unknown as UnidadDeTrabajo, new RelojFijo(fechaHoy));
+      // Act + Assert
+      await expect(servicio.crear({ loteId: 1, clienteId: 7 }, asesor)).rejects.toMatchObject({
+        codigo: 'LOTE_NO_DISPONIBLE',
+      });
+      expect(repos.lotes.bloquearPorId).toHaveBeenCalledWith(1);
+      expect(repos.reservas.crear).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cancelar', () => {
     it('vence la reserva, libera el lote y lanza RESERVA_NO_ACTIVA cuando ya pasó fechaVencimiento', async () => {
       // Arrange
