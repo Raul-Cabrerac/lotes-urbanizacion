@@ -45,7 +45,7 @@ export function crearRepositorioReservas(bd: Consultas): RepositorioReservas {
 
     async listarActivasVencidas(hoy) {
       const filas = await bd.filas<FilaReserva>(
-        "SELECT * FROM reservas WHERE estado = 'ACTIVA' AND fecha_vencimiento < $1::date",
+        "SELECT * FROM reservas WHERE estado = 'ACTIVA' AND fecha_vencimiento < $1::date ORDER BY id",
         [hoy],
       );
       return filas.map(aReserva);
