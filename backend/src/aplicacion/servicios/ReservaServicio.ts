@@ -3,6 +3,7 @@ import type { FechaISO } from '../../dominio/fechas';
 import { validarCambioEstado, validarLoteReservable } from '../../dominio/lote';
 import { estaVencida, validarFechaVencimiento, validarReservaCancelable } from '../../dominio/reserva';
 import type { FiltrosReservas, Reloj, ReservaVista, UnidadDeTrabajo, UsuarioActual } from '../puertos';
+import { expirarReservaSiVencida } from './expirarReserva';
 
 export interface EntradaReserva {
   loteId: number;
@@ -36,11 +37,18 @@ export class ReservaServicio {
    * instante antes, esta operación se rechaza con LOTE_NO_DISPONIBLE (409).
    */
   async crear(entrada: EntradaReserva, usuario: UsuarioActual): Promise<ReservaVista> {
-    validarFechaVencimiento(entrada.fechaVencimiento, this.reloj.hoy());
+    const hoy = this.reloj.hoy();
+    validarFechaVencimiento(entrada.fechaVencimiento, hoy);
 
     const reservaId = await this.uow.transaccion(async (repos) => {
-      const lote = await repos.lotes.buscarPorId(entrada.loteId);
+      let lote = await repos.lotes.buscarPorId(entrada.loteId);
       if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
+      if (lote.estado === 'RESERVADO') {
+        const activa = await repos.reservas.buscarActivaPorLote(lote.id);
+        if (activa && (await expirarReservaSiVencida(repos, activa, hoy, this.reloj.ahora()))) {
+          lote = { ...lote, estado: 'DISPONIBLE' };
+        }
+      }
       const cliente = await repos.clientes.buscarPorId(entrada.clienteId);
       if (!cliente) throw new ErrorNoEncontrado('Cliente no encontrado.');
       const proyecto = await repos.proyectos.buscarPorId(lote.proyectoId);
@@ -70,49 +78,58 @@ export class ReservaServicio {
     return this.obtener(reservaId);
   }
 
-  /** Cancela una reserva activa y devuelve el lote a DISPONIBLE (si no existe una venta). */
+  /** Cancela una reserva activa y devuelve el lote a DISPONIBLE (si no venció ni existe venta). */
   async cancelar(id: number, motivo: string, usuario: UsuarioActual): Promise<ReservaVista> {
-    await this.uow.transaccion(async (repos) => {
+    const { yaVencida } = await this.uow.transaccion(async (repos) => {
       const reserva = await repos.reservas.buscarPorId(id);
       if (!reserva) throw new ErrorNoEncontrado('Reserva no encontrada.');
+      const hoy = this.reloj.hoy();
+      const ahora = this.reloj.ahora();
+      if (estaVencida(reserva, hoy)) {
+        await expirarReservaSiVencida(repos, reserva, hoy, ahora);
+        return { yaVencida: true };
+      }
+
       validarReservaCancelable(reserva);
       validarCambioEstado('RESERVADO', 'DISPONIBLE');
 
       // Primero la reserva y después el lote, el mismo orden que usan la venta y el vencimiento.
       const motivoFinal = motivo.trim() || `Cancelada por ${usuario.nombre}`;
-      const cancelada = await repos.reservas.finalizar(id, 'CANCELADA', this.reloj.ahora(), motivoFinal);
+      const cancelada = await repos.reservas.finalizar(id, 'CANCELADA', ahora, motivoFinal);
       if (!cancelada) {
         throw new ErrorConflicto(
           'RESERVA_NO_ACTIVA',
           'La reserva acaba de cambiar de estado: otro usuario la canceló o vendió el lote, o venció.',
         );
       }
-      await repos.lotes.cambiarEstadoSi(reserva.loteId, 'RESERVADO', 'DISPONIBLE');
+      const liberado = await repos.lotes.cambiarEstadoSi(reserva.loteId, 'RESERVADO', 'DISPONIBLE');
+      if (!liberado) {
+        throw new ErrorConflicto('LOTE_MODIFICADO', 'El lote de la reserva ya no estaba en estado RESERVADO.');
+      }
+      return { yaVencida: false };
     });
+    if (yaVencida) {
+      throw new ErrorConflicto('RESERVA_NO_ACTIVA', 'La reserva ya venció y el lote fue liberado.');
+    }
     return this.obtener(id);
   }
 
   /**
    * Marca como VENCIDAS las reservas activas cuya fecha de vencimiento ya pasó
-   * y libera sus lotes. Se ejecuta antes de atender cada petición a la API
-   * (ver app.ts). Devuelve cuántas venció.
+   * y libera sus lotes en transacciones independientes y ordenadas para evitar deadlocks.
    */
   async procesarVencidas(): Promise<number> {
     const hoy = this.reloj.hoy();
     const candidatas = await this.uow.repos.reservas.listarActivasVencidas(hoy);
-    if (candidatas.length === 0) return 0;
-
-    return this.uow.transaccion(async (repos) => {
-      let vencidas = 0;
-      for (const candidata of candidatas) {
+    let vencidas = 0;
+    for (const candidata of candidatas) {
+      const expiro = await this.uow.transaccion(async (repos) => {
         const reserva = await repos.reservas.buscarPorId(candidata.id);
-        if (!reserva || !estaVencida(reserva, hoy)) continue; // otra petición ya la procesó
-        const vencida = await repos.reservas.finalizar(reserva.id, 'VENCIDA', this.reloj.ahora(), 'Venció el plazo de la reserva');
-        if (!vencida) continue; // otra operación la cerró en este mismo instante
-        await repos.lotes.cambiarEstadoSi(reserva.loteId, 'RESERVADO', 'DISPONIBLE');
-        vencidas++;
-      }
-      return vencidas;
-    });
+        if (!reserva) return false;
+        return expirarReservaSiVencida(repos, reserva, hoy, this.reloj.ahora());
+      });
+      if (expiro) vencidas++;
+    }
+    return vencidas;
   }
 }

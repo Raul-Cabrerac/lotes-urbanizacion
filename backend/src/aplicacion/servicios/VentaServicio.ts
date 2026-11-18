@@ -2,9 +2,11 @@ import { ErrorConflicto, ErrorNoEncontrado, ErrorSinPermiso } from '../../domini
 import type { FechaISO } from '../../dominio/fechas';
 import { validarCambioEstado, validarLoteVendible } from '../../dominio/lote';
 import { generarPlanDePagos, resumirPlan } from '../../dominio/planPagos';
+import { estaVencida } from '../../dominio/reserva';
 import type { MetodoPago, ModalidadPago } from '../../dominio/tipos';
 import { validarVentaAnulable } from '../../dominio/venta';
 import type { FiltrosVentas, Reloj, UnidadDeTrabajo, UsuarioActual, VentaVista } from '../puertos';
+import { expirarReservaSiVencida } from './expirarReserva';
 
 export interface EntradaVenta {
   loteId: number;
@@ -57,17 +59,27 @@ export class VentaServicio {
    */
   async registrar(entrada: EntradaVenta, usuario: UsuarioActual) {
     const ventaId = await this.uow.transaccion(async (repos) => {
-      const lote = await repos.lotes.buscarPorId(entrada.loteId);
+      let lote = await repos.lotes.buscarPorId(entrada.loteId);
       if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
       const cliente = await repos.clientes.buscarPorId(entrada.clienteId);
       if (!cliente) throw new ErrorNoEncontrado('Cliente no encontrado.');
       const proyecto = await repos.proyectos.buscarPorId(lote.proyectoId);
       if (!proyecto) throw new ErrorNoEncontrado('Proyecto no encontrado.');
-      const reservaActiva = await repos.reservas.buscarActivaPorLote(lote.id);
+      let reservaActiva = await repos.reservas.buscarActivaPorLote(lote.id);
+
+      const hoy = this.reloj.hoy();
+      const ahora = this.reloj.ahora();
+      if (reservaActiva && estaVencida(reservaActiva, hoy)) {
+        const expiro = await expirarReservaSiVencida(repos, reservaActiva, hoy, ahora);
+        if (!expiro) {
+          throw new ErrorConflicto('LOTE_NO_DISPONIBLE', `El lote ${lote.codigo} acaba de ser modificado por otro usuario.`);
+        }
+        lote = { ...lote, estado: 'DISPONIBLE' };
+        reservaActiva = null;
+      }
 
       validarLoteVendible(lote, proyecto.estado, cliente.id, reservaActiva);
 
-      const ahora = this.reloj.ahora();
       const precioPactado = entrada.precioPactado ?? lote.precio;
       const esFinanciada = entrada.modalidad === 'FINANCIADO';
       const cuotas = generarPlanDePagos({
@@ -75,7 +87,7 @@ export class VentaServicio {
         modalidad: entrada.modalidad,
         cuotaInicial: entrada.cuotaInicial,
         numeroCuotas: entrada.numeroCuotas,
-        fechaVenta: this.reloj.hoy(),
+        fechaVenta: hoy,
         fechaPrimeraCuota: entrada.fechaPrimeraCuota,
       });
 
@@ -134,7 +146,10 @@ export class VentaServicio {
 
       const anulada = await repos.ventas.anular(id, { motivo: motivo.trim(), anuladaPorId: usuario.id, fecha: this.reloj.ahora() });
       if (!anulada) throw new ErrorConflicto('VENTA_NO_VIGENTE', 'La venta ya fue anulada.');
-      await repos.lotes.cambiarEstadoSi(venta.loteId, 'VENDIDO', 'DISPONIBLE');
+      const liberado = await repos.lotes.cambiarEstadoSi(venta.loteId, 'VENDIDO', 'DISPONIBLE');
+      if (!liberado) {
+        throw new ErrorConflicto('LOTE_MODIFICADO', 'El lote de la venta ya no estaba en estado VENDIDO.');
+      }
     });
     return this.obtener(id, usuario);
   }
