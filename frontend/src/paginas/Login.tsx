@@ -3,6 +3,8 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import { mensajeDeError } from '../api/http';
 import { inicioSegunRol, useSesion } from '../auth/Sesion';
 import { MensajeError } from '../componentes/Basicos';
+import { Marca } from '../componentes/Icono';
+import { PlanoLotes } from '../componentes/PlanoLotes';
 
 /** Usuarios de los datos de demostración (solo se muestran en modo desarrollo). */
 const USUARIOS_DEMO = [
@@ -40,66 +42,69 @@ export function Login() {
 
   return (
     <div className="pantalla-login">
-      <form className="tarjeta login" onSubmit={enviar} data-testid="formulario-login">
-        <div className="login-cabecera">
-          <span className="marca-logo grande" aria-hidden>
-            ▦
-          </span>
-          <h1>Urbanizaciones y Lotes</h1>
-          <p className="texto-suave">Proyectos, mapa de lotes, reservas, ventas y planes de pago</p>
-        </div>
-
-        <label className="campo">
-          <span className="campo-etiqueta">Correo electrónico</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="username"
-            required
-            data-testid="login-email"
-          />
-        </label>
-        <label className="campo">
-          <span className="campo-etiqueta">Contraseña</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            data-testid="login-password"
-          />
-        </label>
-
-        <MensajeError mensaje={error} testid="login-error" />
-
-        <button type="submit" className="boton boton-primario boton-bloque" disabled={enviando} data-testid="login-ingresar">
-          {enviando ? 'Ingresando...' : 'Ingresar'}
-        </button>
-
-        {import.meta.env.DEV && (
-          <div className="login-demo">
-            <div className="texto-suave">Usuarios de demostración (clic para completar):</div>
-            <div className="login-demo-botones">
-              {USUARIOS_DEMO.map((u) => (
-                <button
-                  key={u.email}
-                  type="button"
-                  className="boton boton-chico"
-                  onClick={() => {
-                    setEmail(u.email);
-                    setPassword(u.password);
-                  }}
-                  data-testid={`login-demo-${u.email}`}
-                >
-                  {u.rol}
-                </button>
-              ))}
-            </div>
+      <main className="login-columna">
+        <form className="login" onSubmit={enviar} data-testid="formulario-login">
+          <div className="login-cabecera">
+            <Marca tamano={40} />
+            <h1>Urbanizaciones y Lotes</h1>
+            <p>Ingrese con su cuenta para ver los proyectos, el mapa de lotes y las operaciones de venta.</p>
           </div>
-        )}
-      </form>
+
+          <label className="campo">
+            <span className="campo-etiqueta">Correo electrónico</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              required
+              data-testid="login-email"
+            />
+          </label>
+          <label className="campo">
+            <span className="campo-etiqueta">Contraseña</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              data-testid="login-password"
+            />
+          </label>
+
+          <MensajeError mensaje={error} testid="login-error" />
+
+          <button type="submit" className="boton boton-primario boton-bloque" disabled={enviando} data-testid="login-ingresar">
+            {enviando ? 'Ingresando…' : 'Ingresar'}
+          </button>
+
+          {import.meta.env.DEV && (
+            <div className="login-demo">
+              <span className="texto-suave">Usuarios de demostración: elija uno para completar el formulario.</span>
+              <div className="login-demo-botones">
+                {USUARIOS_DEMO.map((u) => (
+                  <button
+                    key={u.email}
+                    type="button"
+                    className="boton boton-chico"
+                    onClick={() => {
+                      setEmail(u.email);
+                      setPassword(u.password);
+                    }}
+                    data-testid={`login-demo-${u.email}`}
+                  >
+                    {u.rol}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
+      </main>
+      <div className="login-plano" aria-hidden="true">
+        <PlanoLotes />
+      </div>
     </div>
   );
 }

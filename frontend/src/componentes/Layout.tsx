@@ -1,7 +1,9 @@
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { useLayoutEffect, useRef } from 'react';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router';
 import type { Permiso } from '../api/tipos';
-import { useSesion } from '../auth/Sesion';
+import { inicioSegunRol, useSesion } from '../auth/Sesion';
 import { NOMBRE_ROL } from '../utilidades/formato';
+import { Icono, Marca } from './Icono';
 
 const MENU: { ruta: string; texto: string; permiso: Permiso }[] = [
   { ruta: '/proyectos', texto: 'Proyectos y mapa', permiso: 'proyectos:ver' },
@@ -13,10 +15,66 @@ const MENU: { ruta: string; texto: string; permiso: Permiso }[] = [
   { ruta: '/mi-portal', texto: 'Mis lotes', permiso: 'portal:ver' },
 ];
 
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/);
+  return ((partes[0]?.[0] ?? '') + (partes[1]?.[0] ?? '')).toUpperCase();
+}
+
+/**
+ * El menú va en línea si la fila completa (marca, enlaces y usuario) entra en la barra; si no,
+ * se pliega en un popover detrás del botón "Menú". No hay un ancho fijo de corte: se mide la
+ * fila, así que agregar un enlace o agrandar el texto mueve el punto solo.
+ */
+function useMenuPlegable(activo: boolean) {
+  const cabecera = useRef<HTMLElement>(null);
+  const fila = useRef<HTMLDivElement>(null);
+  const lista = useRef<HTMLUListElement>(null);
+
+  useLayoutEffect(() => {
+    const header = cabecera.current;
+    const interior = fila.current;
+    const menu = lista.current;
+    if (!header || !interior || !menu) return;
+    let anchoMedido = 0;
+
+    const medir = () => {
+      const ancho = header.clientWidth;
+      const enLinea = header.hasAttribute('data-ancha');
+      // Plegado, solo vale la pena volver a medir si la barra creció.
+      if (!enLinea && ancho <= anchoMedido) return;
+      anchoMedido = ancho;
+      const estabaAbierto = menu.matches(':popover-open');
+      header.setAttribute('data-midiendo', '');
+      header.setAttribute('data-ancha', '');
+      menu.removeAttribute('popover');
+      const entra = interior.scrollWidth <= interior.clientWidth;
+      if (!entra) {
+        header.removeAttribute('data-ancha');
+        menu.setAttribute('popover', 'auto');
+        if (estabaAbierto) menu.showPopover();
+      }
+      requestAnimationFrame(() => header.removeAttribute('data-midiendo'));
+    };
+
+    const observador = new ResizeObserver(medir);
+    observador.observe(header);
+    observador.observe(menu);
+    return () => observador.disconnect();
+  }, [activo]);
+
+  /** Al elegir un enlace del menú plegado, el popover se cierra (la navegación no recarga la página). */
+  const cerrarSiPlegado = () => {
+    if (lista.current?.matches(':popover-open')) lista.current.hidePopover();
+  };
+
+  return { cabecera, fila, lista, cerrarSiPlegado };
+}
+
 /** Estructura común: barra superior con el menú según el rol y el contenido de la página. */
 export function Layout() {
   const { usuario, puede, cerrarSesion } = useSesion();
   const navegar = useNavigate();
+  const { cabecera, fila, lista, cerrarSiPlegado } = useMenuPlegable(Boolean(usuario));
   if (!usuario) return null;
 
   const salir = () => {
@@ -26,31 +84,51 @@ export function Layout() {
 
   return (
     <div className="aplicacion">
-      <header className="barra-superior">
-        <div className="marca">
-          <span className="marca-logo" aria-hidden>
-            ▦
-          </span>
-          <span>Urbanizaciones</span>
-        </div>
-        <nav className="menu" data-testid="menu">
-          {MENU.filter((item) => puede(item.permiso)).map((item) => (
-            <NavLink key={item.ruta} to={item.ruta} data-testid={`menu-${item.ruta.slice(1)}`}>
-              {item.texto}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="usuario-actual">
-          <div className="usuario-datos">
-            <strong data-testid="usuario-nombre">{usuario.nombre}</strong>
-            <span data-testid="usuario-rol">{NOMBRE_ROL[usuario.rol]}</span>
+      <a className="saltar" href="#contenido">
+        Saltar al contenido
+      </a>
+      <header className="barra-superior" ref={cabecera}>
+        <div className="barra-interior" ref={fila}>
+          <Link to={inicioSegunRol(usuario)} className="marca">
+            <Marca />
+            <span>Urbanizaciones</span>
+          </Link>
+          <nav className="navegacion" aria-label="Principal" data-testid="menu">
+            <button
+              type="button"
+              className="boton boton-fantasma menu-boton"
+              popoverTarget="menu-principal"
+              aria-controls="menu-principal"
+            >
+              <Icono nombre="menu" />
+              <span>Menú</span>
+            </button>
+            <ul className="menu-lista" id="menu-principal" ref={lista}>
+              {MENU.filter((item) => puede(item.permiso)).map((item) => (
+                <li key={item.ruta}>
+                  <NavLink to={item.ruta} onClick={cerrarSiPlegado} data-testid={`menu-${item.ruta.slice(1)}`}>
+                    {item.texto}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="usuario-actual">
+            <div className="usuario-datos">
+              <strong data-testid="usuario-nombre">{usuario.nombre}</strong>
+              <span data-testid="usuario-rol">{NOMBRE_ROL[usuario.rol]}</span>
+            </div>
+            <span className="avatar" aria-hidden="true">
+              {iniciales(usuario.nombre)}
+            </span>
+            <button type="button" className="boton boton-chico boton-fantasma" onClick={salir} data-testid="boton-salir">
+              <Icono nombre="salir" />
+              Salir
+            </button>
           </div>
-          <button type="button" className="boton boton-claro" onClick={salir} data-testid="boton-salir">
-            Salir
-          </button>
         </div>
       </header>
-      <main className="contenido">
+      <main className="contenido" id="contenido" tabIndex={-1}>
         <Outlet />
       </main>
     </div>
