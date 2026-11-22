@@ -99,17 +99,24 @@ Al simular repositorios, tener en cuenta lo que devuelven desde las correcciones
    `npm run dev:pruebas` abierto sí se reutiliza, y así las pruebas arrancan más rápido mientras las
    escribes.
 
-Notas sobre el mapa (Google Maps):
+Notas sobre el mapa (Google Maps). Los ayudantes están en `e2e/apoyo/mapa.ts`:
 
 - Cada lote tiene una etiqueta HTML sobre su polígono con `data-testid="poligono-<código>"` y
-  `data-estado`. Un clic en ella selecciona el lote, igual que un clic en el polígono.
-- Sin clave de Google el mapa muestra un aviso de Google; no tapa las etiquetas ni la barra.
-- **Dibujar un lote:** `dibujar-lote`, luego `page.mouse.click(x, y)` sobre `mapa` en cada
-  esquina, con `waitForTimeout(500)` entre clics (dos clics muy seguidos cuentan como doble clic).
-  Para cerrar: clic sobre el primer punto o `terminar-dibujo`. Se abre `modal-lote`.
+  `data-estado`. Un clic en ella selecciona el lote, igual que un clic en el polígono:
+  `seleccionarLote(page, 'C-02')` hace el clic y espera el panel de ese lote.
+- Sin clave de Google, el mapa muestra arriba el diálogo «Esta página no puede cargar Google Maps
+  correctamente», que **tapa la fila superior de lotes del proyecto 1 (C-04, C-05 y C-06)**. Los
+  E2E usan lotes libres: C-02, C-03, A-01, A-02, A-03 y A-05.
+- **Dibujar un lote:** con el mapa ya cargado (por ejemplo, con `poligono-P-01` visible en Las
+  Palmeras), `dibujar-lote` y luego `dibujarRectangulo(page)`. Google Maps descarta un clic que
+  llega a menos de ~0,3 s del anterior (lo toma como doble clic), así que el ayudante espera 0,5 s
+  antes de cada esquina. Es la única espera fija de los E2E. En un proyecto recién creado, sin
+  lotes, los primeros clics se pierden porque el mapa todavía no terminó de cargar.
 - Al seleccionar un lote se abre el panel de la derecha y el mapa se angosta. Si después hay que
   hacer clic en coordenadas del mapa, cierra antes el panel con `detalle-cerrar`.
 - Los avisos se apilan: usa `getByTestId('aviso-exito').filter({ hasText: '...' })`.
+- Para comprobar que un rechazo lo decidió el servidor, `esperarRespuestaApi` de
+  `e2e/apoyo/api.ts` devuelve el estado HTTP y el `codigo` del error.
 
 ## 5. Datos demo de referencia
 
@@ -204,14 +211,14 @@ Laura (`servicios/`), según el archivo de la prueba (reparto en `AGENTS.md` §6
 | §13 | Consultar lotes filtrados por estado o proyecto | Integración | Raul | pendiente |
 | §13 | Comprobar permisos de administrador, asesor y cliente | Integración | Luciana | pendiente |
 | §13 | Comprobar que un cliente no acceda a operaciones de otro | Integración | Luciana | pendiente |
-| §14 | E2E 01 Crear proyecto, dibujar lotes y verlos en el mapa | E2E | Mario | pendiente |
-| §14 | E2E 02 Reservar lote | E2E | Mario | pendiente |
-| §14 | E2E 03 Evitar reserva duplicada | E2E | Mario | pendiente |
-| §14 | E2E 04 Venta | E2E | Mario | pendiente |
-| §14 | E2E 05 Plan de pagos | E2E | Mario | pendiente |
-| §14 | E2E 06 Liberar reserva | E2E | Mario | pendiente |
-| §14 | E2E 07 Portal del cliente | E2E | Mario | pendiente |
-| §14 | E2E 08 Control de acceso | E2E | Mario | pendiente |
+| §14 | E2E 01 Crear proyecto, dibujar lotes y verlos en el mapa | E2E | Raul | `e2e-01-crear-proyecto.spec.ts`: proyecto nuevo con KML, precio y publicación; lote dibujado con código y precio |
+| §14 | E2E 02 Reservar lote | E2E | Raul | `e2e-02-reservar-lote.spec.ts`: reserva con cliente nuevo; un lote RESERVADO no ofrece reservar |
+| §14 | E2E 03 Evitar reserva duplicada | E2E | Raul | `e2e-03-reserva-duplicada.spec.ts`: dos asesores en dos navegadores; el segundo recibe 409 `LOTE_NO_DISPONIBLE` |
+| §14 | E2E 04 Venta | E2E | Raul | `e2e-04-venta.spec.ts`: venta al contado con precio pactado; un lote VENDIDO no ofrece vender |
+| §14 | E2E 05 Plan de pagos | E2E | Raul | `e2e-05-plan-de-pagos.spec.ts`: venta financiada, cronograma, pago y nuevo saldo; pago mayor al saldo → 422 `MONTO_EXCEDE_SALDO` |
+| §14 | E2E 06 Liberar reserva | E2E | Raul | `e2e-06-liberar-reserva.spec.ts`: cancelar libera el lote; una reserva vencida ya lo liberó |
+| §14 | E2E 07 Portal del cliente | E2E | Raul | `e2e-07-portal-cliente.spec.ts`: su lote en el mapa, pagado y saldo; su plan de pagos; no ve compras ajenas |
+| §14 | E2E 08 Control de acceso | E2E | Raul | `e2e-08-control-de-acceso.spec.ts`: sin sesión va al login; cliente sin acceso a usuarios; venta ajena → 403 `SIN_PERMISO` |
 | §15 | Test de venta duplicada | Unitario e Integración | Laura y Luciana | pendiente |
 | §15 | Mocks/stubs cuando corresponde (servicios con repositorios simulados) | Unitario | Laura | pendiente |
 | §7 | Dos reservas simultáneas del mismo lote: una se acepta y la otra recibe 409 | Integración | Raul | pendiente |
