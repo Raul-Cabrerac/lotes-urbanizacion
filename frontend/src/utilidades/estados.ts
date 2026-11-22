@@ -73,7 +73,7 @@ export const COLOR_SELECCION = COLOR_TONO.azul;
 
 export const ETIQUETA_MODALIDAD: Record<ModalidadPago, string> = {
   CONTADO: 'Al contado',
-  FINANCIADO: 'Financiado',
+  FINANCIADO: 'Crédito financiado',
 };
 
 export const NOMBRE_ROL: Record<Rol, string> = {

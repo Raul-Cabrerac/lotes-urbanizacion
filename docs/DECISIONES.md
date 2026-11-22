@@ -266,3 +266,17 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
     `ModalVenta.tsx`.
 - **Por qué:** son reglas del negocio. Escritas aquí y junto al código, nadie tiene que adivinar
   si un valor es una regla o un descuido, ni volver a preguntarlo.
+
+## 16. «Crédito financiado»: el nombre visible de la venta financiada
+
+- **Contexto:** al revisar el proyecto, el docente pidió (2026-11-21) que las modalidades de pago
+  incluyan el «crédito financiado».
+- **Elegido:** la modalidad `FINANCIADO` se muestra como «Crédito financiado» en todas las
+  pantallas. Es una sola línea, `ETIQUETA_MODALIDAD` en `frontend/src/utilidades/estados.ts`. No
+  cambian el valor `FINANCIADO`, la base de datos, la API ni los `data-testid`.
+- **Alternativas:** agregar una tercera modalidad distinta (por ejemplo, un crédito bancario).
+  Habría que definir una regla que la consigna no tiene y tocar más de 20 archivos, con una
+  migración nueva.
+- **Por qué:** la consigna (§9) define dos modalidades, al contado o financiada, y la financiada ya
+  es un crédito directo de la empresa: cuota inicial, cuotas mensuales, cronograma, pagos y saldo.
+  Cambiar el nombre cumple el pedido sin riesgo, y los E2E no dependen de ese texto.
