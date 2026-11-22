@@ -19,8 +19,8 @@ corregir el otro documento.
 
 | Etapa | Qué se hace | Quién toca código |
 |---|---|---|
-| **0 · Producto y repo** ✔ | Correcciones del producto, CI y documentación (terminada el 2026-11-08) | Raul |
-| **1 · Base de pruebas e interfaz** ✔ | Raul: ayudantes compartidos (`backend/tests/apoyo/`, `e2e/apoyo/`) y una prueba de ejemplo por nivel. Mario: mejoras de la interfaz aprobadas en un issue (§6). Laura y Luciana: instalan, recorren la app y diseñan la tabla de casos de sus ítems, sin código (terminada el 2026-11-21) | Raul (pruebas y configuración) y Mario (solo `frontend/src/`) |
+| **0 · Producto y repo** | Correcciones del producto, CI y documentación (terminada el 2026-11-08) | Raul |
+| **1 · Base de pruebas e interfaz** | Raul: ayudantes compartidos (`backend/tests/apoyo/`, `e2e/apoyo/`) y una prueba de ejemplo por nivel. Mario: mejoras de la interfaz aprobadas en un issue (§6). Laura y Luciana: instalan, recorren la app y diseñan la tabla de casos de sus ítems, sin código (terminada el 2026-11-21) | Raul (pruebas y configuración) y Mario (solo `frontend/src/`) |
 | **2 · Pruebas por nivel** | Cada dueño escribe las pruebas de su nivel (§6). La interfaz queda congelada | Cada uno, solo en sus archivos |
 | **3 · Cierre** | Regresión completa dos veces, trazabilidad con la consigna, ensayo de la defensa | Todos |
 

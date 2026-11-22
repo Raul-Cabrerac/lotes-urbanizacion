@@ -27,13 +27,13 @@ async function reiniciar() {
     await bd.cerrar();
   }
 
-  console.info('✔ Listo. Usuarios de demostración:');
+  console.info('Listo. Usuarios de demostración:');
   for (const { rol, email, password } of USUARIOS_DEMO) {
     console.info(`  ${rol.padEnd(8)} ${email.padEnd(20)} ${password}`);
   }
 }
 
 reiniciar().catch((error: unknown) => {
-  console.error('✖', error instanceof Error ? error.message : error);
+  console.error('Error:', error instanceof Error ? error.message : error);
   process.exit(1);
 });

@@ -12,7 +12,7 @@ import { RelojSistema } from './infraestructura/reloj';
 async function iniciar() {
   const enMemoria = esEnMemoria(config.bdUrl);
   if (enMemoria && config.entorno !== 'pruebas') {
-    console.warn('⚠ Falta DATABASE_URL en .env.local: se usa una base EN MEMORIA y los datos se pierden al cerrar.');
+    console.warn('Aviso: falta DATABASE_URL en .env.local: se usa una base EN MEMORIA y los datos se pierden al cerrar.');
   }
 
   const bd = await abrirBaseDeDatos({ url: config.bdUrl, urlDirecta: config.bdUrlDirecta });
@@ -28,7 +28,7 @@ async function iniciar() {
 
   const servidor = crearApp(servicios, { reiniciarDatos }).listen(config.puerto, () => {
     const base = enMemoria ? 'PostgreSQL en memoria' : 'PostgreSQL (Neon)';
-    console.info(`✔ API lista en http://localhost:${config.puerto}/api  ·  base: ${base}  ·  modo: ${config.entorno}`);
+    console.info(`API lista en http://localhost:${config.puerto}/api  ·  base: ${base}  ·  modo: ${config.entorno}`);
   });
 
   let cerrando = false;
@@ -47,7 +47,7 @@ async function iniciar() {
 const TABLA_YA_EXISTE = '42P07';
 
 iniciar().catch((error: unknown) => {
-  console.error('✖ No se pudo iniciar la API:', error instanceof Error ? error.message : error);
+  console.error('No se pudo iniciar la API:', error instanceof Error ? error.message : error);
   if (error instanceof Error && 'code' in error && error.code === TABLA_YA_EXISTE) {
     console.error('  Tu base tiene tablas de una versión anterior del proyecto. Para recrearla');
     console.error('  (borra sus datos y carga los datos demo) ejecuta: npm run db:reset');

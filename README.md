@@ -69,8 +69,8 @@ probar la reserva duplicada.
 | Requisito | Dónde se ve |
 |---|---|
 | Creación de proyectos y gestión de etapas o manzanos | *Proyectos → + Nuevo proyecto*; cada lote tiene etapa y manzano, con filtros y resumen por manzano |
-| Carga de archivo KML | Mapa → *📁 Importar KML* (botón "Usar KML de ejemplo") |
-| Dibujo y edición de polígonos | Mapa → *✏️ Dibujar lote*: clic en cada esquina sobre Google Maps; detalle del lote → *Editar forma* |
+| Carga de archivo KML | Mapa → *Importar KML* (botón "Usar KML de ejemplo") |
+| Dibujo y edición de polígonos | Mapa → *Dibujar lote*: clic en cada esquina sobre Google Maps; detalle del lote → *Editar forma* |
 | Visualización de lotes y detalle desde el mapa | Polígonos de colores; clic en un lote abre su detalle (cargado bajo demanda) |
 | Superficie, dimensiones y precio | Se calculan del polígono y se pueden ajustar |
 | Estados y filtro por estado | DISPONIBLE verde, RESERVADO ámbar, VENDIDO rojo, BLOQUEADO gris; contadores y filtros |
