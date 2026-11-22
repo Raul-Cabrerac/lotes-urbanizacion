@@ -9,16 +9,17 @@ las skills `test-unitario`, `test-integracion` y `test-e2e` de `.claude/skills/`
 
 | Nivel | Archivos | Responsable | Consigna | Herramientas | Comando |
 |---|---|---|---|---|---|
-| Unitaria | `backend/tests/unitarias/dominio/<modulo>.test.ts` y `backend/tests/unitarias/servicios/<Servicio>.test.ts` | Laura | §12 | Vitest (mocks con `vi.fn()`) | `npm run test:unit` |
-| Integración | `backend/tests/integracion/<recurso>.test.ts`: `proyectos`, `lotes`, `clientes`, `reservas` | Raul | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
-| Integración | `backend/tests/integracion/<recurso>.test.ts`: `ventas`, `planPagos`, `pagos`, `permisos` | Luciana | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
-| E2E | `e2e/tests/e2e-0N-nombre.spec.ts` | Mario | §14 | Playwright | `npm run test:e2e` |
+| Unitaria | `backend/tests/unitarias/dominio/<modulo>.test.ts` | Luciana | §12 | Vitest | `npm run test:unit` |
+| Unitaria | `backend/tests/unitarias/servicios/<Servicio>.test.ts` | Laura | §12 | Vitest (mocks con `vi.fn()`) | `npm run test:unit` |
+| Integración | `backend/tests/integracion/<recurso>.test.ts` | Raul (ya no se evalúa) | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
+| E2E | `e2e/tests/e2e-0N-nombre.spec.ts` | Raul (valida Mario) | §14 | Playwright | `npm run test:e2e` |
 
 - Las unitarias repiten la estructura de `src/`: `src/dominio/lote.ts` se prueba en
   `tests/unitarias/dominio/lote.test.ts`, y `src/aplicacion/servicios/ReservaServicio.ts` en
   `tests/unitarias/servicios/ReservaServicio.test.ts`.
 - Ayudantes compartidos: `backend/tests/apoyo/` y `e2e/apoyo/`. Los mantiene Raul.
-- `npm run test:cobertura` mide la cobertura de `dominio/` y `aplicacion/`.
+- Cobertura mínima de 80 % en `dominio/` y `aplicacion/`, medida solo con unitarias:
+  `npm run test:cobertura -w backend -- tests/unitarias`. Cómo llegar: `docs/MANUAL_UNITARIAS.md`.
 - Por qué esta estructura: `docs/DECISIONES.md` §12. Qué ítem cubre cada responsable: §7 de esta
   guía.
 
@@ -160,7 +161,7 @@ M1-08 y su perímetro) y `kml_con_errores.kml` (caso negativo: no se importa nad
 | Reserva | `modal-reserva`, `reserva-cliente` (y `reserva-cliente-buscar`, `reserva-cliente-nuevo`), `reserva-vencimiento`, `reserva-observacion`, `reserva-error`, `reserva-confirmar`, `reserva-cancelar` |
 | Cliente (formulario) | `modal-cliente`, `cliente-nombre`, `cliente-documento`, `cliente-telefono`, `cliente-email`, `cliente-direccion`, `cliente-guardar`, `cliente-cancelar` |
 | Venta | `modal-venta`, `venta-cliente-reserva`, `venta-cliente` (y `-buscar`, `-nuevo`), `venta-precio`, `venta-contado`, `venta-financiado`, `venta-cuota-inicial`, `venta-numero-cuotas`, `venta-primera-cuota`, `venta-metodo`, `venta-vista-plan`, `venta-error-plan`, `venta-error`, `venta-confirmar`, `venta-cancelar` |
-| Confirmaciones | `modal-cancelar-reserva`, `modal-eliminar-lote`, `modal-publicar`, `confirmar-motivo`, `confirmar-aceptar`, `confirmar-cancelar`, `modal-cerrar` |
+| Confirmaciones | `modal-cancelar-reserva`, `modal-eliminar-lote`, `modal-publicar`, `modal-confirmar` (cancelar desde `/reservas` y confirmaciones sin nombre propio), `confirmar-motivo`, `confirmar-aceptar`, `confirmar-cancelar`, `modal-cerrar`, `mensaje-error` (error de un formulario sin nombre propio) |
 | Plan de pagos | `volver-ventas`, `venta-estado`, `anular-venta`, `venta-anulada`, `resumen-saldo`, `venta-precio-pactado`, `venta-total-pagado`, `venta-saldo`, `venta-vencidas`, `venta-proxima`, `venta-mapa`, `tabla-cuotas`, `cuota-<n>` con `data-estado`, `cuota-<n>-estado`, `pagar-cuota-<n>`, `tabla-pagos`, `pago-<id>`, `anular-pago-<id>` |
 | Registrar pago | `modal-pago`, `pago-monto`, `pago-metodo`, `pago-referencia`, `pago-error`, `pago-confirmar`, `pago-cancelar` |
 | Clientes | `nuevo-cliente`, `buscar-cliente`, `tabla-clientes`, `fila-cliente-<documento>`, `editar-cliente-<documento>`, `volver-clientes`, `cliente-saldo-total` |
@@ -175,6 +176,10 @@ M1-08 y su perímetro) y `kml_con_errores.kml` (caso negativo: no se importa nad
 Completar la última columna a medida que se escriben las pruebas (cada responsable, solo sus
 filas). Esta tabla se muestra en la presentación final. Las últimas filas son ítems del checklist
 §15 y de §5, §7 y §11 que no aparecen en las listas de §12 a §14 pero también se evalúan.
+
+Desde el 2026-11-21 el docente evalúa solo unitarias y E2E: las filas de integración (§13) quedan
+como referencia. En las filas de §12, la columna «Responsable» pasa a ser Luciana (`dominio/`) o
+Laura (`servicios/`), según el archivo de la prueba (reparto en `AGENTS.md` §6).
 
 | Consigna | Ítem | Nivel | Responsable | Prueba |
 |---|---|---|---|---|

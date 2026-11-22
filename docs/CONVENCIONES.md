@@ -173,7 +173,8 @@ it('lanza LOTE_NO_DISPONIBLE cuando el lote está RESERVADO', () => {
     `POST /api/pruebas/reiniciar` en `beforeEach`.
 
 Qué no se prueba: getters triviales, CRUD sin reglas, código de librerías, estilos.
-Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run test:cobertura`).
+Cobertura mínima: 80 % de líneas en `dominio/` y `aplicacion/`, medida solo con unitarias
+(`npm run test:cobertura -w backend -- tests/unitarias`); lo pide el docente. Ideal: 90 %.
 
 ## 9. Git y revisión
 
@@ -202,9 +203,8 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 12. Organización del equipo
 
-Cada integrante es **dueño de un nivel de prueba**, sin rotación: Laura las unitarias, Raul y
-Luciana la integración (cada archivo con un solo dueño) y Mario los E2E y la interfaz. Así nadie
-edita las pruebas de otro. Para que todos puedan explicar los tres niveles en la defensa, cada
-pull request lo revisa alguien de otro nivel. El reparto, los archivos de cada uno, las etapas y
-las reglas para no pisarse están en `AGENTS.md` §1, §6 y §7; el porqué, en `docs/DECISIONES.md`
-§12 y §13.
+Cada integrante es **dueño de un nivel de prueba**, sin rotación. Desde el 2026-11-21: Luciana las
+unitarias del dominio, Laura las de los servicios, Raul los E2E y Mario la interfaz, ya terminada.
+Así nadie edita las pruebas de otro. El reparto, los archivos de cada uno, quién revisa a quién,
+las etapas y las reglas para no pisarse están en `AGENTS.md` §1, §6 y §7; el porqué, en
+`docs/DECISIONES.md` §12 y §13.
