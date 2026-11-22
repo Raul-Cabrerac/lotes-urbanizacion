@@ -76,7 +76,7 @@ probar la reserva duplicada.
 | Estados y filtro por estado | DISPONIBLE verde, RESERVADO ámbar, VENDIDO rojo, BLOQUEADO gris; contadores y filtros |
 | Clientes, reserva y prevención de reserva duplicada | *Reservar* desde el lote, con "+ Nuevo cliente"; la segunda reserva simultánea se rechaza |
 | Cancelación, vencimiento y liberación | *Cancelar reserva*; las vencidas se liberan solas |
-| Venta, precio pactado y cambio a VENDIDO | *Vender* al contado o financiado; el precio pactado queda congelado |
+| Venta, precio pactado y cambio a VENDIDO | *Vender* al contado o con crédito financiado; el precio pactado queda congelado |
 | Plan de pagos, cuotas, pagos, total pagado, saldo e historial | *Ventas y pagos → plan de pagos*; anular pago con motivo (admin) |
 | Consulta de operaciones del cliente | Portal *Mis lotes*, con su lote en el mapa |
 | Control de acceso por roles | Menú y botones según el rol; la API responde 401 o 403 |
@@ -91,7 +91,7 @@ probar la reserva duplicada.
 3. **E2E 03** · `asesor` y `asesor2` abren el mismo lote disponible. El primero reserva; el
    segundo recibe el rechazo.
 4. **E2E 04** · Lote → *Vender* → *Al contado* → queda rojo (VENDIDO) con el detalle de la venta.
-5. **E2E 05** · Vender *Financiado* (cuota inicial + 12 cuotas) → *Ver plan de pagos* →
+5. **E2E 05** · Vender con *Crédito financiado* (cuota inicial + 12 cuotas) → *Ver plan de pagos* →
    *Registrar pago* de la cuota 1 → PAGADA y baja el saldo.
 6. **E2E 06** · Lote reservado → *Cancelar reserva* → vuelve a DISPONIBLE.
 7. **E2E 07** · `cliente`: *Mis lotes*, su lote A-05 en el mapa, plan de pagos y saldo
