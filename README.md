@@ -158,9 +158,9 @@ lotes-urbanizacion/
 
 | Nivel | Carpeta | Qué prueba | Responsable | Comando |
 |---|---|---|---|---|
-| Unitarias | `backend/tests/unitarias/` | Reglas del dominio y servicios con mocks (consigna §12) | Laura | `npm run test:unit` |
-| Integración | `backend/tests/integracion/` | API con la base de datos real, en memoria (§13) | Raul y Luciana | `npm run test:integracion` |
-| E2E | `e2e/tests/` | Los 8 flujos de la consigna en el navegador (§14) | Mario | `npm run test:e2e` |
+| Unitarias | `backend/tests/unitarias/` | Reglas del dominio y servicios con mocks (consigna §12) | Luciana (dominio) y Laura (servicios) | `npm run test:unit` |
+| Integración | `backend/tests/integracion/` | API con la base de datos real, en memoria (§13). Ya no se evalúa | Raul | `npm run test:integracion` |
+| E2E | `e2e/tests/` | Los 8 flujos de la consigna en el navegador (§14) | Raul | `npm run test:e2e` |
 
 - **Cada prueba vive junto a lo que prueba.** Las unitarias y las de integración prueban el
   backend, así que están dentro de `backend/` y usan su configuración, sus dependencias y su
@@ -213,5 +213,6 @@ DISPONIBLE ──reservar──► RESERVADO ──vender──► VENDIDO
 | [docs/GOOGLE_MAPS.md](docs/GOOGLE_MAPS.md) | Clave de Google Maps y cómo funciona el mapa |
 | [docs/API.md](docs/API.md) | Rutas de la API y catálogo de códigos de error |
 | [docs/GUIA_TESTING.md](docs/GUIA_TESTING.md) | Dónde va cada prueba, puntos de entrada, datos demo y `data-testid` |
+| [docs/MANUAL_UNITARIAS.md](docs/MANUAL_UNITARIAS.md) | Cómo escribir las unitarias, qué le toca a cada una y cómo llegar al 80 % de cobertura |
 | [docs/CONVENCIONES.md](docs/CONVENCIONES.md) | Convenciones de código, pruebas y trabajo en equipo |
 | [docs/DECISIONES.md](docs/DECISIONES.md) | Decisiones técnicas y por qué |
