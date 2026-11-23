@@ -3,18 +3,12 @@
  * apertura es una base nueva y vacía. Lo usan las pruebas de integración y el modo pruebas de los
  * E2E (`npm run dev:pruebas`), así esas pruebas no dependen de la red ni tocan Neon.
  */
-import { PGlite, types, type Transaction } from '@electric-sql/pglite';
+import { PGlite, type Transaction } from '@electric-sql/pglite';
 import type { BaseDeDatos, Ejecutor } from './baseDeDatos';
-
-/** Las mismas conversiones que en Neon: DATE como texto, NUMERIC y BIGINT como number. */
-const CONVERSIONES = {
-  [types.DATE]: (valor: string) => valor,
-  [types.NUMERIC]: (valor: string) => Number(valor),
-  [types.INT8]: (valor: string) => Number(valor),
-};
+import { CONVERSIONES_TIPOS } from './tiposPostgres';
 
 export async function abrirPostgresEnMemoria(): Promise<BaseDeDatos> {
-  const pglite = await PGlite.create({ parsers: CONVERSIONES });
+  const pglite = await PGlite.create({ parsers: CONVERSIONES_TIPOS });
   return {
     sql: ejecutorDe(pglite),
     // PGlite atiende una transacción a la vez: las demás consultas esperan su turno.

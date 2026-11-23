@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { mensajeDeError } from '../api/http';
+import { useEnvio } from '../utilidades/useEnvio';
 import { Campo, MensajeError } from './Basicos';
 import { Modal } from './Modal';
 
@@ -11,26 +11,30 @@ interface Props {
   /** Si se indica, se pide un motivo (texto) antes de confirmar. */
   motivo?: { etiqueta: string; obligatorio: boolean };
   onConfirmar: (motivo: string) => Promise<void>;
+  /** Otro usuario cambió los datos mientras tanto (409): hay que volver a pedirlos. */
+  onConflicto?: () => void;
   onCerrar: () => void;
   testid?: string;
 }
 
 /** Confirmación de una acción (opcionalmente pidiendo un motivo). Muestra el error si la API lo rechaza. */
-export function ModalConfirmar({ titulo, mensaje, textoConfirmar, peligro, motivo, onConfirmar, onCerrar, testid }: Props) {
+export function ModalConfirmar({
+  titulo,
+  mensaje,
+  textoConfirmar,
+  peligro,
+  motivo,
+  onConfirmar,
+  onConflicto,
+  onCerrar,
+  testid,
+}: Props) {
   const [texto, setTexto] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const { enviar, enviando, error } = useEnvio({ alConflicto: onConflicto });
 
-  const confirmar = async (e: FormEvent) => {
+  const confirmar = (e: FormEvent) => {
     e.preventDefault();
-    setEnviando(true);
-    setError(null);
-    try {
-      await onConfirmar(texto);
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setEnviando(false);
-    }
+    void enviar(() => onConfirmar(texto));
   };
 
   return (
@@ -59,7 +63,7 @@ export function ModalConfirmar({ titulo, mensaje, textoConfirmar, peligro, motiv
             disabled={enviando}
             data-testid="confirmar-aceptar"
           >
-            {enviando ? 'Procesando...' : textoConfirmar}
+            {enviando ? 'Procesando…' : textoConfirmar}
           </button>
         </div>
       </form>

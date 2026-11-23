@@ -4,8 +4,8 @@
  * vuelve a crear el esquema con las migraciones y carga los datos de demostración.
  */
 import { config } from '../src/config';
+import { cargarDatosDemo, USUARIOS_DEMO } from '../src/datosDemo';
 import { esEnMemoria, recrearEsquema } from '../src/infraestructura/bd/baseDeDatos';
-import { cargarDatosDemo, USUARIOS_DEMO } from '../src/infraestructura/bd/datosDemo';
 import { abrirPostgresNeon } from '../src/infraestructura/bd/postgresNeon';
 import { RelojSistema } from '../src/infraestructura/reloj';
 
@@ -27,13 +27,13 @@ async function reiniciar() {
     await bd.cerrar();
   }
 
-  console.info('✔ Listo. Usuarios de demostración:');
+  console.info('Listo. Usuarios de demostración:');
   for (const { rol, email, password } of USUARIOS_DEMO) {
     console.info(`  ${rol.padEnd(8)} ${email.padEnd(20)} ${password}`);
   }
 }
 
 reiniciar().catch((error: unknown) => {
-  console.error('✖', error instanceof Error ? error.message : error);
+  console.error('Error:', error instanceof Error ? error.message : error);
   process.exit(1);
 });

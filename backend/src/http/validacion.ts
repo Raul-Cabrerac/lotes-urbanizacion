@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { esFechaISO } from '../dominio/fechas';
 import { ErrorValidacion } from '../dominio/errores';
+import { LARGO_MAXIMO } from '../dominio/lote';
 import {
   ESTADOS_LOTE,
   ESTADOS_RESERVA,
@@ -86,12 +87,12 @@ export const esquemas = {
   proyectoEdicion: z.object(camposProyecto).partial(),
 
   lote: z.object({
-    codigo: obligatorio('El código', 30),
-    manzano: opcional(40),
-    etapa: opcional(40),
+    codigo: obligatorio('El código', LARGO_MAXIMO.codigo),
+    manzano: opcional(LARGO_MAXIMO.manzano),
+    etapa: opcional(LARGO_MAXIMO.etapa),
     precio: numero('El precio').optional(),
     superficieM2: numero('La superficie').nullable().optional(),
-    dimensiones: opcional(60),
+    dimensiones: opcional(LARGO_MAXIMO.dimensiones),
     geometria: z.unknown().refine((g) => g !== undefined, 'La geometría (polígono) es obligatoria.'),
   }),
 
@@ -100,8 +101,8 @@ export const esquemas = {
   importarKml: z.object({
     kml: z.string({ error: 'Adjunte el contenido del archivo KML.' }).min(1, 'El archivo KML está vacío.'),
     precioPorDefecto: numero('El precio por defecto').optional(),
-    manzanoPorDefecto: opcional(40),
-    etapaPorDefecto: opcional(40),
+    manzanoPorDefecto: opcional(LARGO_MAXIMO.manzano),
+    etapaPorDefecto: opcional(LARGO_MAXIMO.etapa),
   }),
 
   estadoLote: z.object({ estado: z.enum(ESTADOS_LOTE) }),
@@ -112,6 +113,9 @@ export const esquemas = {
     etapa: filtro(z.string()),
     q: filtro(z.string()),
   }),
+
+  // Un q repetido (?q=a&q=b) llega como lista: se ignora y se listan todos, como antes.
+  filtrosClientes: z.object({ q: filtro(z.string()).catch(undefined) }),
 
   cliente: z.object({
     ...camposCliente,

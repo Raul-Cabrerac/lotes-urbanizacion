@@ -1,6 +1,7 @@
 import { ErrorNoEncontrado } from '../../dominio/errores';
 import { normalizarPoligono } from '../../dominio/geometria';
-import { conteoVacio, resumirLotes, validarProyectoPublicable } from '../../dominio/proyecto';
+import { estadosVisibles } from '../../dominio/permisos';
+import { conteoDelProyecto, proyectoYaPublicado, resumirLotes, validarProyectoPublicable } from '../../dominio/proyecto';
 import type { Proyecto } from '../../dominio/tipos';
 import type { DatosProyecto, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 
@@ -10,12 +11,10 @@ export class ProyectoServicio {
 
   /** El administrador ve todos los proyectos; los asesores solo los PUBLICADOS. */
   async listar(usuario: UsuarioActual) {
-    const proyectos = await this.uow.repos.proyectos.listar(usuario.rol !== 'ADMIN');
+    const proyectos = await this.uow.repos.proyectos.listar(estadosVisibles(usuario.rol));
     const conteos = await this.uow.repos.lotes.contarPorEstado();
     return proyectos.map((proyecto) => {
-      const lotesPorEstado = conteoVacio();
-      for (const c of conteos.filter((c) => c.proyectoId === proyecto.id)) lotesPorEstado[c.estado] = c.cantidad;
-      const totalLotes = Object.values(lotesPorEstado).reduce((a, b) => a + b, 0);
+      const { total: totalLotes, porEstado: lotesPorEstado } = conteoDelProyecto(conteos, proyecto.id);
       return { ...proyecto, totalLotes, lotesPorEstado };
     });
   }
@@ -44,10 +43,16 @@ export class ProyectoServicio {
 
   /** Paso 5 del flujo de la consigna: publicar el mapa para el equipo comercial. */
   async publicar(id: number): Promise<Proyecto> {
-    const proyecto = await this.buscarExistente(id);
-    const lotes = await this.uow.repos.lotes.listarPorProyecto(id);
-    validarProyectoPublicable(proyecto, lotes.length);
-    return this.uow.repos.proyectos.actualizar(id, { estado: 'PUBLICADO' });
+    return this.uow.transaccion(async (repos) => {
+      await repos.proyectos.bloquearPorId(id);
+      const proyecto = await repos.proyectos.buscarPorId(id);
+      if (!proyecto) throw new ErrorNoEncontrado('Proyecto no encontrado.');
+      const lotes = await repos.lotes.listarPorProyecto(id);
+      validarProyectoPublicable(proyecto, lotes.length);
+      const publicado = await repos.proyectos.publicarSiBorrador(id);
+      if (!publicado) throw proyectoYaPublicado();
+      return publicado;
+    });
   }
 
   async buscarExistente(id: number): Promise<Proyecto> {
@@ -59,7 +64,7 @@ export class ProyectoServicio {
   /** Un proyecto en BORRADOR solo lo ve el administrador. */
   async buscarVisible(id: number, usuario: UsuarioActual): Promise<Proyecto> {
     const proyecto = await this.buscarExistente(id);
-    if (proyecto.estado !== 'PUBLICADO' && usuario.rol !== 'ADMIN') {
+    if (!estadosVisibles(usuario.rol).includes(proyecto.estado)) {
       throw new ErrorNoEncontrado('Proyecto no encontrado.');
     }
     return proyecto;

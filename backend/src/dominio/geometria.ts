@@ -15,6 +15,8 @@ export interface PoligonoGeoJSON {
 
 /** Radio medio de la Tierra en metros (el mismo que usa Turf.js para áreas y distancias). */
 const RADIO_TIERRA_M = 6371008.8;
+/** Un polígono necesita al menos 3 vértices distintos (lo usa también la herramienta de dibujo). */
+export const MIN_VERTICES = 3;
 const MAX_VERTICES = 500;
 const AREA_MINIMA_M2 = 1;
 
@@ -56,7 +58,7 @@ export function normalizarPoligono(entrada: unknown): PoligonoGeoJSON {
     if (primero[0] === ultimo[0] && primero[1] === ultimo[1]) vertices.pop();
   }
 
-  if (vertices.length < 3) throw geometriaInvalida('se necesitan al menos 3 vértices distintos.');
+  if (vertices.length < MIN_VERTICES) throw geometriaInvalida(`se necesitan al menos ${MIN_VERTICES} vértices distintos.`);
   if (vertices.length > MAX_VERTICES) throw geometriaInvalida(`máximo ${MAX_VERTICES} vértices.`);
   if (tieneAutoInterseccion(vertices)) throw geometriaInvalida('los lados del polígono se cruzan entre sí.');
   if (areaDeVertices(vertices) < AREA_MINIMA_M2) throw geometriaInvalida('la superficie es prácticamente cero.');

@@ -2,57 +2,56 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Reserva, Venta } from '../api/tiposOperaciones';
-import { bs, fecha } from '../utilidades/formato';
+import { ETIQUETA_MODALIDAD } from '../utilidades/estados';
+import { bs, fecha, plural } from '../utilidades/formato';
 import { Insignia, Vacio } from './Basicos';
+import { Tabla } from './Tabla';
 
 export function TablaVentas({ ventas, mostrarCliente = true }: { ventas: Venta[]; mostrarCliente?: boolean }) {
   if (ventas.length === 0) return <Vacio>No hay ventas.</Vacio>;
   return (
-    <table className="tabla" data-testid="tabla-ventas">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Lote</th>
-          <th>Proyecto</th>
-          {mostrarCliente && <th>Cliente</th>}
-          <th>Modalidad</th>
-          <th className="numero">Precio pactado</th>
-          <th className="numero">Pagado</th>
-          <th className="numero">Saldo</th>
-          <th>Estado</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        {ventas.map((v) => (
-          <tr key={v.id} data-testid={`fila-venta-${v.lote.codigo}`}>
-            <td>{fecha(v.fecha)}</td>
-            <td>
-              <strong>{v.lote.codigo}</strong>
-            </td>
-            <td>{v.lote.proyecto.nombre}</td>
-            {mostrarCliente && <td>{v.cliente.nombreCompleto}</td>}
-            <td>{v.modalidad === 'CONTADO' ? 'Contado' : `Financiado (${v.numeroCuotas} cuotas)`}</td>
-            <td className="numero">{bs(v.precioPactado)}</td>
-            <td className="numero">{bs(v.resumen.totalPagado)}</td>
-            <td className="numero">
+    <Tabla
+      testid="tabla-ventas"
+      filas={ventas}
+      clave={(v) => v.id}
+      atributosFila={(v) => ({ 'data-testid': `fila-venta-${v.lote.codigo}` })}
+      columnas={[
+        { titulo: 'Fecha', celda: (v) => fecha(v.fecha) },
+        { titulo: 'Lote', celda: (v) => <strong className="codigo">{v.lote.codigo}</strong> },
+        { titulo: 'Proyecto', celda: (v) => v.lote.proyecto.nombre },
+        mostrarCliente && { titulo: 'Cliente', celda: (v) => v.cliente.nombreCompleto },
+        {
+          titulo: 'Modalidad',
+          celda: (v) =>
+            v.modalidad === 'CONTADO'
+              ? ETIQUETA_MODALIDAD.CONTADO
+              : `${ETIQUETA_MODALIDAD.FINANCIADO} en ${plural(v.numeroCuotas, 'cuota', 'cuotas')}`,
+        },
+        { titulo: 'Precio pactado', clase: 'numero', celda: (v) => bs(v.precioPactado) },
+        { titulo: 'Pagado', clase: 'numero', celda: (v) => bs(v.resumen.totalPagado) },
+        {
+          titulo: 'Saldo',
+          clase: 'numero',
+          celda: (v) => (
+            <div>
               {bs(v.resumen.saldoPendiente)}
               {v.resumen.cuotasVencidas > 0 && v.estado === 'VIGENTE' && (
-                <div className="texto-alerta pequeno">{v.resumen.cuotasVencidas} cuota(s) vencida(s)</div>
+                <div className="texto-alerta pequeno">{plural(v.resumen.cuotasVencidas, 'cuota vencida', 'cuotas vencidas')}</div>
               )}
-            </td>
-            <td>
-              <Insignia estado={v.estado} />
-            </td>
-            <td>
-              <Link className="boton boton-chico" to={`/ventas/${v.id}`} data-testid={`ver-venta-${v.lote.codigo}`}>
-                Plan de pagos
-              </Link>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </div>
+          ),
+        },
+        { titulo: 'Estado', celda: (v) => <Insignia estado={v.estado} /> },
+        {
+          titulo: '',
+          celda: (v) => (
+            <Link className="boton boton-chico" to={`/ventas/${v.id}`} data-testid={`ver-venta-${v.lote.codigo}`}>
+              Plan de pagos
+            </Link>
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -67,39 +66,26 @@ export function TablaReservas({
 }) {
   if (reservas.length === 0) return <Vacio>No hay reservas.</Vacio>;
   return (
-    <table className="tabla" data-testid="tabla-reservas">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Lote</th>
-          <th>Proyecto</th>
-          {mostrarCliente && <th>Cliente</th>}
-          <th>Vence</th>
-          <th>Asesor</th>
-          <th>Estado</th>
-          <th>Observación / motivo</th>
-          {acciones && <th />}
-        </tr>
-      </thead>
-      <tbody>
-        {reservas.map((r) => (
-          <tr key={r.id} data-testid={`fila-reserva-${r.lote.codigo}`}>
-            <td>{fecha(r.fecha)}</td>
-            <td>
-              <strong>{r.lote.codigo}</strong>
-            </td>
-            <td>{r.lote.proyecto.nombre}</td>
-            {mostrarCliente && <td>{r.cliente.nombreCompleto}</td>}
-            <td>{r.fechaVencimiento ? fecha(r.fechaVencimiento) : 'Sin vencimiento'}</td>
-            <td>{r.asesor.nombre}</td>
-            <td>
-              <Insignia estado={r.estado} />
-            </td>
-            <td className="texto-suave pequeno">{r.motivoFinalizacion ?? r.observacion}</td>
-            {acciones && <td className="numero">{acciones(r)}</td>}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Tabla
+      testid="tabla-reservas"
+      filas={reservas}
+      clave={(r) => r.id}
+      atributosFila={(r) => ({ 'data-testid': `fila-reserva-${r.lote.codigo}` })}
+      columnas={[
+        { titulo: 'Fecha', celda: (r) => fecha(r.fecha) },
+        { titulo: 'Lote', celda: (r) => <strong className="codigo">{r.lote.codigo}</strong> },
+        { titulo: 'Proyecto', celda: (r) => r.lote.proyecto.nombre },
+        mostrarCliente && { titulo: 'Cliente', celda: (r) => r.cliente.nombreCompleto },
+        { titulo: 'Vence', celda: (r) => (r.fechaVencimiento ? fecha(r.fechaVencimiento) : 'Sin vencimiento') },
+        { titulo: 'Asesor', celda: (r) => r.asesor.nombre },
+        { titulo: 'Estado', celda: (r) => <Insignia estado={r.estado} /> },
+        {
+          titulo: 'Observación / motivo',
+          claseCelda: 'texto-suave pequeno',
+          celda: (r) => r.motivoFinalizacion ?? r.observacion,
+        },
+        acciones !== undefined && { titulo: '', clase: 'numero', celda: acciones },
+      ]}
+    />
   );
 }

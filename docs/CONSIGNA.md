@@ -7,6 +7,10 @@
 
 *Taller de Actualización V · Proyectos inmobiliarios, mapa de lotes, reservas, ventas y planes de pago*
 
+> **Gráfico «Mapa interactivo de lotes»** (página 1): lotes A-01 a A-06 y B-01 a B-03 coloreados
+> como Disponible, Reservado o Vendido. Leyenda: «Cada polígono representa un lote y conserva su
+> geometría, dimensiones, precio y estado comercial.»
+
 **Alcance del proyecto.** La solución permitirá administrar proyectos de urbanización y visualizar
 sus lotes georreferenciados sobre un mapa. Los lotes podrán importarse desde archivos KML o
 dibujarse como polígonos, y mostrar visualmente si están disponibles, reservados o vendidos.
@@ -48,6 +52,12 @@ como mínimo nombre, descripción, ubicación, estado, fecha de creación y dato
 
 Un proyecto podrá organizarse adicionalmente por etapas, sectores o manzanos. Los lotes siempre
 deberán pertenecer a un proyecto.
+
+> **Gráfico «Carga KML / dibujo de polígonos»** (página 2): 1. Crear proyecto (ubicación y datos
+> generales) → 2. Cargar KML (importar límites y polígonos) → 3. Editar lotes (dibujar, ajustar y
+> dimensionar) → 4. Asignar datos (código, superficie, precio y etapa) → 5. Publicar mapa (mostrar
+> estado comercial). Leyenda: «La geometría puede provenir de KML o ser dibujada manualmente sobre
+> el mapa. El sistema debe impedir lotes sin proyecto.»
 
 ## 4. Mapa y geometría de lotes
 
@@ -102,6 +112,11 @@ mismo cliente. La venta deberá almacenar el precio pactado, fecha, asesor y mod
 El precio pactado deberá conservarse históricamente. Si posteriormente cambia el precio comercial
 del lote, la venta existente no deberá modificarse.
 
+> **Gráfico «Plan de pagos del lote»** (página 4): lote A-05, precio Bs 75.000, pagado Bs 20.000,
+> saldo Bs 55.000. Cuotas: 1 · 15/01 · Inicial · 15.000 · PAGADO; 2 · 15/02 · Cuota 1 · 5.000 ·
+> PAGADO; 3 · 15/03 · Cuota 2 · 5.000 · PENDIENTE; 4 · 15/04 · Cuota 3 · 5.000 · PENDIENTE.
+> Leyenda: «El saldo debe calcularse desde el precio pactado menos los pagos válidos registrados.»
+
 ## 9. Plan de pagos
 
 Una venta podrá ser al contado o financiada. Para una venta financiada se deberá definir un plan de
@@ -150,6 +165,11 @@ La información comercial podrá cargarse bajo demanda al seleccionar un polígo
 
 **API.** Si existe frontend/backend separado, deberá utilizarse una API REST coherente para
 proyectos, lotes, clientes, reservas, ventas y pagos.
+
+> **Gráfico «Testing esperado»** (página 6): UNITARIOS: estados del lote, planes de pago, saldos y
+> reglas · INTEGRACIÓN: API + BD + mapa + reservas, ventas y pagos · E2E: proyecto → lote →
+> cliente → venta → plan de pagos. Leyenda: «Las pruebas deben proteger especialmente la
+> disponibilidad del lote, reservas duplicadas y cálculo del saldo.»
 
 ## 12. Testing
 

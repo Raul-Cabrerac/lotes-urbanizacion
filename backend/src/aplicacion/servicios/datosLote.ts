@@ -33,7 +33,26 @@ export function prepararDatosLote(entrada: EntradaLote): DatosLote {
   return datos;
 }
 
+/**
+ * Combina los cambios de una edición con el lote actual y los prepara igual que un alta. Si cambia
+ * el polígono (o superficieM2 llega en null), la superficie y las dimensiones se recalculan.
+ */
+export function prepararCambiosLote(actual: DatosLote, cambios: Partial<EntradaLote>): DatosLote {
+  const cambiaGeometria = cambios.geometria !== undefined;
+  const superficieM2 = cambios.superficieM2 !== undefined ? cambios.superficieM2 : cambiaGeometria ? null : actual.superficieM2;
+  const dimensiones = cambios.dimensiones?.trim() || (cambiaGeometria ? undefined : actual.dimensiones);
+  return prepararDatosLote({
+    codigo: cambios.codigo ?? actual.codigo,
+    manzano: cambios.manzano ?? actual.manzano,
+    etapa: cambios.etapa ?? actual.etapa,
+    precio: cambios.precio ?? actual.precio,
+    superficieM2,
+    dimensiones,
+    geometria: cambiaGeometria ? cambios.geometria : actual.geometria,
+  });
+}
+
 /** Los códigos se guardan sin espacios extra y en mayúsculas: "a-01 " => "A-01". */
-export function normalizarCodigo(codigo: string): string {
+function normalizarCodigo(codigo: string): string {
   return codigo.trim().toUpperCase();
 }

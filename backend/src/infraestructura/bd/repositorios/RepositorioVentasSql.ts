@@ -1,25 +1,22 @@
 import type { RepositorioVentas, VentaVista } from '../../../aplicacion/puertos';
 import type { Cuota } from '../../../dominio/tipos';
-import { construirWhere, type Consultas } from './consultas';
+import { OPERACIONES_VENTA } from '../../../dominio/venta';
+import { construirWhere, transicionarSi, type Consultas } from './consultas';
 import { aClienteResumen, aCuota, aLoteResumen, aPagoVista, aVenta } from './conversiones';
 import {
+  COLUMNAS_CLIENTE_Y_ASESOR,
   COLUMNAS_LOTE,
   type FilaCuota,
   type FilaPagoVista,
   type FilaVenta,
   type FilaVentaVista,
+  joinsDeOperacion,
 } from './filas';
 
 /** Venta con su lote, proyecto, cliente, asesor y quién la anuló. */
 const SQL_VENTA_VISTA = `
-  SELECT v.*, ${COLUMNAS_LOTE},
-         c.nombre_completo AS c_nombre_completo, c.documento AS c_documento, c.telefono AS c_telefono,
-         a.nombre AS a_nombre, an.nombre AS an_nombre
-  FROM ventas v
-  JOIN lotes l ON l.id = v.lote_id
-  JOIN proyectos p ON p.id = l.proyecto_id
-  JOIN clientes c ON c.id = v.cliente_id
-  JOIN usuarios a ON a.id = v.asesor_id
+  SELECT v.*, ${COLUMNAS_LOTE}, ${COLUMNAS_CLIENTE_Y_ASESOR}, an.nombre AS an_nombre
+  FROM ventas v ${joinsDeOperacion('v')}
   LEFT JOIN usuarios an ON an.id = v.anulada_por_id`;
 
 /** Historial de pagos con la cuota a la que pertenecen y quién los registró o anuló. */
@@ -111,13 +108,9 @@ export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
     },
 
     async anular(id, { motivo, anuladaPorId, fecha }) {
-      // Solo anula una venta que sigue VIGENTE (dos anulaciones simultáneas: gana una).
-      const actualizadas = await bd.filas(
-        `UPDATE ventas SET estado = 'ANULADA', motivo_anulacion = $1, anulada_por_id = $2, anulada_en = $3
-         WHERE id = $4 AND estado = 'VIGENTE' RETURNING id`,
-        [motivo, anuladaPorId, fecha, id],
-      );
-      return actualizadas.length === 1;
+      // Dos anulaciones simultáneas: gana una.
+      const columnas = { motivo_anulacion: motivo, anulada_por_id: anuladaPorId, anulada_en: fecha };
+      return (await transicionarSi(bd, 'ventas', id, OPERACIONES_VENTA.anular, columnas)) !== null;
     },
   };
 }

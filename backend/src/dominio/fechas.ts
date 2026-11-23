@@ -38,10 +38,3 @@ export function sumarMeses(fecha: FechaISO, meses: number): FechaISO {
   const ultimoDiaDelMes = new Date(Date.UTC(anioDestino, mesDestino + 1, 0)).getUTCDate();
   return `${anioDestino}-${dosDigitos(mesDestino + 1)}-${dosDigitos(Math.min(dia, ultimoDiaDelMes))}`;
 }
-
-/** Suma (o resta, con números negativos) días a una fecha. */
-export function sumarDias(fecha: FechaISO, dias: number): FechaISO {
-  const [anio, mes, dia] = fecha.split('-').map(Number);
-  const resultado = new Date(Date.UTC(anio, mes - 1, dia + dias));
-  return `${resultado.getUTCFullYear()}-${dosDigitos(resultado.getUTCMonth() + 1)}-${dosDigitos(resultado.getUTCDate())}`;
-}

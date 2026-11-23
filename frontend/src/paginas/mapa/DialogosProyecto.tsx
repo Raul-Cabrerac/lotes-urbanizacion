@@ -12,12 +12,14 @@ interface Props {
   onCerrar: () => void;
   /** La operación salió bien: se muestra el mensaje y se vuelven a pedir los datos al servidor. */
   onTerminado: (mensaje: string) => Promise<void>;
+  /** Otro usuario cambió el proyecto mientras tanto (409): hay que refrescar el mapa. */
+  onConflicto: () => Promise<void>;
   /** Después de importar un KML el mapa se vuelve a encuadrar para mostrar los lotes nuevos. */
   onLotesImportados: () => void;
 }
 
 /** Diálogos del administrador sobre el proyecto: importar KML, editar datos y publicar. */
-export function DialogosProyecto({ dialogo, proyecto, onCerrar, onTerminado, onLotesImportados }: Props) {
+export function DialogosProyecto({ dialogo, proyecto, onCerrar, onTerminado, onConflicto, onLotesImportados }: Props) {
   switch (dialogo) {
     case 'importar-kml':
       return (
@@ -50,6 +52,7 @@ export function DialogosProyecto({ dialogo, proyecto, onCerrar, onTerminado, onL
           textoConfirmar="Publicar"
           testid="modal-publicar"
           onCerrar={onCerrar}
+          onConflicto={onConflicto}
           onConfirmar={async () => {
             await api.proyectos.publicar(proyecto.id);
             await onTerminado('Proyecto publicado.');

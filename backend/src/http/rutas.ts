@@ -75,8 +75,7 @@ export function rutasLotes(s: Servicios): Router {
 export function rutasClientes(s: Servicios): Router {
   const r = Router();
   r.get('/', autorizar('clientes:ver'), async (req, res) => {
-    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-    res.json(await s.clientes.listar(q));
+    res.json(await s.clientes.listar(parsear(esquemas.filtrosClientes, req.query).q));
   });
   r.post('/', autorizar('clientes:gestionar'), async (req, res) => {
     res.status(201).json(await s.clientes.crear(parsear(esquemas.cliente, req.body)));

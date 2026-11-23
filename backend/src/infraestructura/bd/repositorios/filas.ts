@@ -126,6 +126,23 @@ export interface ColumnasLote {
   p_nombre: string;
 }
 
+/** Cliente y asesor de una operación (alias c y a de `joinsDeOperacion`). */
+export const COLUMNAS_CLIENTE_Y_ASESOR = `
+  c.nombre_completo AS c_nombre_completo, c.documento AS c_documento, c.telefono AS c_telefono,
+  a.nombre AS a_nombre`;
+
+/**
+ * Lote, proyecto, cliente y asesor de una reserva (`r`) o una venta (`v`), con los alias que
+ * esperan COLUMNAS_LOTE (l y p) y COLUMNAS_CLIENTE_Y_ASESOR (c y a).
+ */
+export function joinsDeOperacion(operacion: 'r' | 'v'): string {
+  return `
+  JOIN lotes l ON l.id = ${operacion}.lote_id
+  JOIN proyectos p ON p.id = l.proyecto_id
+  JOIN clientes c ON c.id = ${operacion}.cliente_id
+  JOIN usuarios a ON a.id = ${operacion}.asesor_id`;
+}
+
 export interface ColumnasCliente {
   c_nombre_completo: string;
   c_documento: string;

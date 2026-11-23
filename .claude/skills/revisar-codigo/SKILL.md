@@ -80,7 +80,7 @@ Gravedad:
 ```
 ## Revisión de <rama o archivos>
 
-Verificado: typecheck ✔ · test:unit ✔ (42) · test:integracion ✔ (11) · e2e no aplica
+Verificado: typecheck OK · test:unit OK (42) · test:integracion OK (11) · e2e no aplica
 
 ### Bloqueantes
 1. backend/src/http/rutas.ts:130 · Regla de negocio en la ruta: valida `monto > saldo` aquí en vez de en `validarPago`.

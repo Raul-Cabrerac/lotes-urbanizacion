@@ -1,8 +1,10 @@
 import { Link, useParams } from 'react-router';
 import { api } from '../api/api';
-import { Cargando, Dato, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Cargando, ContenedorTabla, Dato, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
 import { TablaReservas, TablaVentas } from '../componentes/TablasOperaciones';
-import { bs, fecha, sumarMontos } from '../utilidades/formato';
+import { saldoPendienteDelCliente } from '../dominio';
+import { bs, fecha } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 
 /** Un cliente con todas sus operaciones: reservas, ventas, pagos y saldo. */
@@ -14,12 +16,13 @@ export function ClienteDetalle() {
   if (!cliente) return <Cargando />;
 
   const vigentes = cliente.ventas.filter((v) => v.estado === 'VIGENTE');
-  const saldoTotal = sumarMontos(vigentes.map((v) => v.resumen.saldoPendiente));
+  const saldoTotal = saldoPendienteDelCliente(cliente.ventas);
 
   return (
     <div className="pagina">
       <Link to="/clientes" className="enlace-volver" data-testid="volver-clientes">
-        ← Clientes
+        <Icono nombre="volver" />
+        Clientes
       </Link>
       <Encabezado titulo={cliente.nombreCompleto} subtitulo={`Cliente desde ${fecha(cliente.creadoEn)}`} />
       <div className="tarjeta grilla-datos cuatro">
@@ -34,14 +37,14 @@ export function ClienteDetalle() {
       </div>
 
       <h2 className="titulo-seccion">Ventas</h2>
-      <div className="tarjeta sin-relleno">
+      <ContenedorTabla etiqueta="Ventas del cliente">
         <TablaVentas ventas={cliente.ventas} mostrarCliente={false} />
-      </div>
+      </ContenedorTabla>
 
       <h2 className="titulo-seccion">Reservas</h2>
-      <div className="tarjeta sin-relleno">
+      <ContenedorTabla etiqueta="Reservas del cliente">
         <TablaReservas reservas={cliente.reservas} mostrarCliente={false} />
-      </div>
+      </ContenedorTabla>
     </div>
   );
 }

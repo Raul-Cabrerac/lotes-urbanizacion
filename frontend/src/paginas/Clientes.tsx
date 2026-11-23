@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { api } from '../api/api';
 import type { Cliente } from '../api/tipos';
 import { useSesion } from '../auth/Sesion';
 import { useAvisos } from '../componentes/Avisos';
-import { Cargando, Encabezado, MensajeError, Vacio } from '../componentes/Basicos';
+import { CampoBusqueda, Cargando, ContenedorTabla, Encabezado, MensajeError, Vacio } from '../componentes/Basicos';
+import { Icono } from '../componentes/Icono';
+import { ModalCliente } from '../componentes/ModalCliente';
+import { Tabla } from '../componentes/Tabla';
 import { useDatos } from '../utilidades/useDatos';
-import { ModalCliente } from './ModalCliente';
+import { useValorDiferido } from '../utilidades/useValorDiferido';
 
 /** Registro y búsqueda de clientes (consigna, sección 6). */
 export function Clientes() {
@@ -14,28 +17,25 @@ export function Clientes() {
   const avisos = useAvisos();
   const navegar = useNavigate();
   const [texto, setTexto] = useState('');
-  const [busqueda, setBusqueda] = useState('');
+  const busqueda = useValorDiferido(texto);
   const { datos: clientes, error, cargando, recargar } = useDatos(() => api.clientes.listar(busqueda), [busqueda]);
   const [editando, setEditando] = useState<Cliente | 'nuevo' | null>(null);
-
-  useEffect(() => {
-    const temporizador = setTimeout(() => setBusqueda(texto), 300);
-    return () => clearTimeout(temporizador);
-  }, [texto]);
 
   return (
     <div className="pagina">
       <Encabezado titulo="Clientes" subtitulo="Personas que reservan o compran lotes.">
         {puede('clientes:gestionar') && (
-          <button className="boton boton-primario" onClick={() => setEditando('nuevo')} data-testid="nuevo-cliente">
-            + Registrar cliente
+          <button type="button" className="boton boton-primario" onClick={() => setEditando('nuevo')} data-testid="nuevo-cliente">
+            <Icono nombre="mas" />
+            Registrar cliente
           </button>
         )}
       </Encabezado>
 
-      <input
-        className="buscador"
-        placeholder="Buscar por nombre, documento, teléfono o correo..."
+      <CampoBusqueda
+        className="buscador-pagina"
+        placeholder="Nombre, documento, teléfono o correo"
+        aria-label="Buscar cliente"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         data-testid="buscar-cliente"
@@ -45,45 +45,50 @@ export function Clientes() {
       {clientes?.length === 0 && <Vacio>No se encontraron clientes.</Vacio>}
 
       {clientes && clientes.length > 0 && (
-        <div className="tarjeta sin-relleno">
-          <table className="tabla" data-testid="tabla-clientes">
-            <thead>
-              <tr>
-                <th>Nombre completo</th>
-                <th>Documento</th>
-                <th>Teléfono</th>
-                <th>Correo</th>
-                <th>Dirección</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {clientes.map((c) => (
-                <tr key={c.id} className="fila-clic" onClick={() => navegar(`/clientes/${c.id}`)} data-testid={`fila-cliente-${c.documento}`}>
-                  <td>{c.nombreCompleto}</td>
-                  <td>{c.documento}</td>
-                  <td>{c.telefono}</td>
-                  <td>{c.email || '—'}</td>
-                  <td>{c.direccion || '—'}</td>
-                  <td className="numero">
-                    {puede('clientes:gestionar') && (
-                      <button
-                        className="boton boton-chico"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditando(c);
-                        }}
-                        data-testid={`editar-cliente-${c.documento}`}
-                      >
-                        Editar
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ContenedorTabla etiqueta="Clientes">
+          <Tabla
+            testid="tabla-clientes"
+            filas={clientes}
+            clave={(c) => c.id}
+            atributosFila={(c) => ({
+              className: 'fila-clic',
+              onClick: () => navegar(`/clientes/${c.id}`),
+              'data-testid': `fila-cliente-${c.documento}`,
+            })}
+            columnas={[
+              {
+                titulo: 'Nombre completo',
+                encabezaFicha: true,
+                celda: (c) => (
+                  <Link to={`/clientes/${c.id}`} onClick={(e) => e.stopPropagation()}>
+                    {c.nombreCompleto}
+                  </Link>
+                ),
+              },
+              { titulo: 'Documento', celda: (c) => c.documento },
+              { titulo: 'Teléfono', celda: (c) => c.telefono },
+              { titulo: 'Correo', celda: (c) => c.email || '—' },
+              { titulo: 'Dirección', celda: (c) => c.direccion || '—' },
+              {
+                titulo: '',
+                clase: 'numero',
+                celda: (c) =>
+                  puede('clientes:gestionar') && (
+                    <button
+                      className="boton boton-chico"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditando(c);
+                      }}
+                      data-testid={`editar-cliente-${c.documento}`}
+                    >
+                      Editar
+                    </button>
+                  ),
+              },
+            ]}
+          />
+        </ContenedorTabla>
       )}
 
       {editando && (

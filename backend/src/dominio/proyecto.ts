@@ -4,12 +4,16 @@
 import { sumar } from './dinero';
 import { ErrorConflicto, ErrorReglaNegocio } from './errores';
 import { ESTADOS_LOTE, type EstadoLote, type EstadoProyecto } from './tipos';
+import { admite, type Transicion } from './transiciones';
+
+/** La máquina de estados del proyecto: se publica una sola vez. */
+export const OPERACIONES_PROYECTO: Readonly<Record<'publicar', Transicion<EstadoProyecto>>> = {
+  publicar: { de: ['BORRADOR'], a: 'PUBLICADO' },
+};
 
 /** Un proyecto se publica (visible para asesores) una sola vez y solo si ya tiene lotes. */
 export function validarProyectoPublicable(proyecto: { estado: EstadoProyecto }, cantidadLotes: number): void {
-  if (proyecto.estado === 'PUBLICADO') {
-    throw new ErrorConflicto('PROYECTO_YA_PUBLICADO', 'El proyecto ya está publicado.');
-  }
+  if (!admite(OPERACIONES_PROYECTO.publicar, proyecto.estado)) throw proyectoYaPublicado();
   if (cantidadLotes === 0) {
     throw new ErrorReglaNegocio(
       'PROYECTO_SIN_LOTES',
@@ -35,6 +39,26 @@ export interface ResumenLotes {
   etapas: string[];
   manzanos: string[];
   porManzano: ResumenManzano[];
+}
+
+/** El error de publicar un proyecto ya publicado (también si otro usuario lo publicó un instante antes). */
+export function proyectoYaPublicado(): ErrorConflicto {
+  return new ErrorConflicto('PROYECTO_YA_PUBLICADO', 'El proyecto ya está publicado.');
+}
+
+/**
+ * Total de lotes de un proyecto y cuántos hay en cada estado, a partir del conteo por estado de
+ * todos los proyectos (una sola consulta para el listado y el reporte).
+ */
+export function conteoDelProyecto(
+  conteos: readonly { proyectoId: number; estado: EstadoLote; cantidad: number }[],
+  proyectoId: number,
+): { total: number; porEstado: ConteoPorEstado } {
+  const porEstado = conteoVacio();
+  for (const conteo of conteos) {
+    if (conteo.proyectoId === proyectoId) porEstado[conteo.estado] = conteo.cantidad;
+  }
+  return { total: Object.values(porEstado).reduce((a, b) => a + b, 0), porEstado };
 }
 
 export function conteoVacio(): ConteoPorEstado {

@@ -1,62 +1,72 @@
+// Consigna §13: Publicación de proyectos y consistencia bajo concurrencia (Incidencia #4).
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { iniciarEntornoPruebas, type EntornoPruebas } from '../apoyo/entornoPruebas';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { iniciarSesionComo } from '../apoyo/app';
+import { buscarProyecto } from '../apoyo/buscadores';
+import { CONSULTAS, crearAppInterceptable, intercalarUnaVez, otroUsuario, type AppInterceptable } from '../apoyo/carreras';
+import { PROYECTO_BORRADOR } from '../apoyo/datosDemo';
+import { GEOMETRIA_LOTE } from '../apoyo/dobles';
 
-describe('Integracion: Proyectos', () => {
-  let e: EntornoPruebas;
+describe('POST /api/proyectos/:id/publicar', () => {
+  let app: AppInterceptable;
+  let adminToken: string;
 
-  beforeAll(async () => {
-    e = await iniciarEntornoPruebas();
+  beforeEach(async () => {
+    app = await crearAppInterceptable();
+    adminToken = await iniciarSesionComo(app, 'ADMIN');
   });
 
-  afterAll(async () => {
-    await e.cerrar();
+  afterEach(async () => {
+    await app.cerrar();
   });
 
-  it('crea un proyecto y persiste sus datos en la base de datos', async () => {
-    const nuevoProyecto = {
-      nombre: 'Urbanizacion Nueva Esperanza',
-      descripcion: 'Proyecto residencial en el norte',
-      ubicacion: 'Santa Cruz, Warnes',
-    };
+  it('responde 409 PROYECTO_YA_PUBLICADO si otra operación publica el proyecto concurrentemente', async () => {
+    // Arrange
+    const proyecto = await buscarProyecto(app, adminToken, PROYECTO_BORRADOR);
+    intercalarUnaVez(app, {
+      antesDe: CONSULTAS.bloquearProyecto,
+      parametros: [proyecto.id],
+      accion: (sql) => otroUsuario.publicaProyecto(sql, proyecto.id),
+    });
+    // Act
+    const respuesta = await request(app.express)
+      .post(`/api/proyectos/${proyecto.id}/publicar`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    // Assert
+    expect(respuesta.status).toBe(409);
+    expect(respuesta.body.error.codigo).toBe('PROYECTO_YA_PUBLICADO');
+  });
 
-    const resCrear = await request(e.app)
+  it('responde 422 PROYECTO_SIN_LOTES y mantiene BORRADOR si el último lote se elimina antes de publicar', async () => {
+    // Arrange
+    const creado = await request(app.express)
       .post('/api/proyectos')
-      .set('Authorization', `Bearer ${e.tokenAdmin}`)
-      .send(nuevoProyecto);
-
-    expect(resCrear.status).toBe(201);
-    expect(resCrear.body.id).toBeDefined();
-    expect(resCrear.body.nombre).toBe(nuevoProyecto.nombre);
-    expect(resCrear.body.estado).toBe('BORRADOR');
-
-    const resObtener = await request(e.app)
-      .get(`/api/proyectos/${resCrear.body.id}`)
-      .set('Authorization', `Bearer ${e.tokenAdmin}`);
-
-    expect(resObtener.status).toBe(200);
-    expect(resObtener.body.nombre).toBe(nuevoProyecto.nombre);
-    expect(resObtener.body.descripcion).toBe(nuevoProyecto.descripcion);
-    expect(resObtener.body.ubicacion).toBe(nuevoProyecto.ubicacion);
-    expect(resObtener.body.estado).toBe('BORRADOR');
-  });
-
-  it('permite a un asesor ver proyectos publicados pero no los borradores', async () => {
-    const resAsesor = await request(e.app)
-      .get('/api/proyectos')
-      .set('Authorization', `Bearer ${e.tokenAsesor}`);
-
-    expect(resAsesor.status).toBe(200);
-    expect(Array.isArray(resAsesor.body)).toBe(true);
-    const tieneBorradores = resAsesor.body.some((p: any) => p.estado === 'BORRADOR');
-    expect(tieneBorradores).toBe(false);
-
-    const resAdmin = await request(e.app)
-      .get('/api/proyectos')
-      .set('Authorization', `Bearer ${e.tokenAdmin}`);
-
-    expect(resAdmin.status).toBe(200);
-    const tieneBorradorAdmin = resAdmin.body.some((p: any) => p.estado === 'BORRADOR');
-    expect(tieneBorradorAdmin).toBe(true);
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ nombre: 'Proyecto Carrera', ubicacion: 'SCZ', descripcion: '' })
+      .expect(201);
+    const proyectoNuevoId = creado.body.id as number;
+    const lote = await request(app.express)
+      .post(`/api/proyectos/${proyectoNuevoId}/lotes`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ codigo: 'U-01', precio: 30000, geometria: GEOMETRIA_LOTE })
+      .expect(201);
+    const loteUnicoId = lote.body.id as number;
+    intercalarUnaVez(app, {
+      antesDe: CONSULTAS.bloquearProyecto,
+      parametros: [proyectoNuevoId],
+      accion: (sql) => otroUsuario.eliminaLote(sql, loteUnicoId),
+    });
+    // Act
+    const respuesta = await request(app.express)
+      .post(`/api/proyectos/${proyectoNuevoId}/publicar`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    // Assert
+    expect(respuesta.status).toBe(422);
+    expect(respuesta.body.error.codigo).toBe('PROYECTO_SIN_LOTES');
+    const proyectoActual = await request(app.express)
+      .get(`/api/proyectos/${proyectoNuevoId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(proyectoActual.body.estado).toBe('BORRADOR');
   });
 });

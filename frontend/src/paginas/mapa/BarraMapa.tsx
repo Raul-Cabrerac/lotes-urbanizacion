@@ -1,4 +1,7 @@
-export type Modo = 'normal' | 'dibujar-lote' | 'dibujar-limite' | 'editar-forma';
+import { Icono } from '../../componentes/Icono';
+
+export type ModoDibujo = 'dibujar-lote' | 'dibujar-limite';
+export type Modo = 'normal' | ModoDibujo | 'editar-forma';
 
 interface Props {
   esAdmin: boolean;
@@ -6,7 +9,7 @@ interface Props {
   /** Código del lote cuya forma se está editando. */
   codigoEditando: string | null;
   puedeGuardarForma: boolean;
-  onModo: (modo: Modo) => void;
+  onModo: (modo: ModoDibujo) => void;
   onImportarKml: () => void;
   onActualizar: () => void;
   onGuardarForma: () => void;
@@ -25,31 +28,39 @@ export function BarraMapa(props: Props) {
           {esAdmin && (
             <>
               <button
+                type="button"
                 className="boton boton-chico boton-primario"
                 onClick={() => props.onModo('dibujar-lote')}
                 data-testid="dibujar-lote"
               >
-                ✏️ Dibujar lote
+                <Icono nombre="poligono" />
+                Dibujar lote
               </button>
-              <button className="boton boton-chico" onClick={props.onImportarKml} data-testid="importar-kml">
-                📁 Importar KML
+              <button type="button" className="boton boton-chico" onClick={props.onImportarKml} data-testid="importar-kml">
+                <Icono nombre="importar" />
+                Importar KML
               </button>
               <button
+                type="button"
                 className="boton boton-chico"
                 onClick={() => props.onModo('dibujar-limite')}
                 data-testid="dibujar-limite"
               >
-                ⬚ Dibujar perímetro
+                <Icono nombre="perimetro" />
+                Dibujar perímetro
               </button>
+              <span className="barra-mapa-separador" aria-hidden="true" />
             </>
           )}
           <button
-            className="boton boton-chico"
+            type="button"
+            className="boton boton-chico boton-fantasma"
             onClick={props.onActualizar}
             data-testid="actualizar-mapa"
             title="Volver a cargar los lotes"
           >
-            ↻ Actualizar
+            <Icono nombre="actualizar" />
+            Actualizar
           </button>
           {!esAdmin && (
             <span className="barra-mapa-ayuda texto-suave pequeno" data-testid="ayuda-asesor">
@@ -61,24 +72,31 @@ export function BarraMapa(props: Props) {
 
       {dibujando && (
         <div className="aviso-modo" data-testid="aviso-dibujo">
-          <span>
-            <strong>{modo === 'dibujar-lote' ? 'Dibujando un lote' : 'Dibujando el perímetro'}:</strong>{' '}
-            haga clic en el mapa en cada esquina. Para cerrar el polígono, haga clic en el primer punto o
-            use «Terminar polígono».
-          </span>
-          <button className="boton boton-chico" onClick={props.onCancelar} data-testid="cancelar-dibujo">
+          <p className="aviso-modo-texto">
+            <Icono nombre="info" />
+            <span>
+              <strong>{modo === 'dibujar-lote' ? 'Dibujando un lote' : 'Dibujando el perímetro'}:</strong> haga clic
+              en el mapa en cada esquina. Para cerrar el polígono, haga clic en el primer punto o use «Terminar
+              polígono».
+            </span>
+          </p>
+          <button type="button" className="boton boton-chico" onClick={props.onCancelar} data-testid="cancelar-dibujo">
             Cancelar
           </button>
         </div>
       )}
 
-      {modo === 'editar-forma' && props.codigoEditando && (
+      {modo === 'editar-forma' && (
         <div className="aviso-modo" data-testid="aviso-edicion">
-          <span>
-            <strong>Editando la forma de {props.codigoEditando}:</strong> arrastre los vértices, o los
-            puntos intermedios para agregar uno nuevo.
-          </span>
+          <p className="aviso-modo-texto">
+            <Icono nombre="info" />
+            <span>
+              <strong>Editando la forma de {props.codigoEditando ?? 'lote'}:</strong> arrastre los vértices, o los
+              puntos intermedios para agregar uno nuevo.
+            </span>
+          </p>
           <button
+            type="button"
             className="boton boton-chico boton-primario"
             onClick={props.onGuardarForma}
             disabled={!props.puedeGuardarForma}
@@ -86,7 +104,7 @@ export function BarraMapa(props: Props) {
           >
             Guardar forma
           </button>
-          <button className="boton boton-chico" onClick={props.onCancelar} data-testid="cancelar-forma">
+          <button type="button" className="boton boton-chico" onClick={props.onCancelar} data-testid="cancelar-forma">
             Cancelar
           </button>
         </div>

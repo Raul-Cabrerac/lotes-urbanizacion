@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { api } from '../api/api';
-import type { EstadoVenta } from '../api/tipos';
-import { Cargando, Encabezado, MensajeError } from '../componentes/Basicos';
+import { ESTADOS_VENTA, type EstadoVenta } from '../dominio';
+import { Campo, Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
+import { SelectCliente } from '../componentes/SelectorCliente';
 import { TablaVentas } from '../componentes/TablasOperaciones';
+import { ASPECTO_ESTADO } from '../utilidades/estados';
 import { useDatos } from '../utilidades/useDatos';
 
 /** Consulta de ventas por cliente, proyecto y estado (consigna, sección 10). */
@@ -21,34 +23,42 @@ export function Ventas() {
     <div className="pagina">
       <Encabezado titulo="Ventas y planes de pago" subtitulo="Las ventas se registran desde el mapa del proyecto." />
       <div className="filtros-fila">
-        <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value ? Number(e.target.value) : '')} data-testid="ventas-filtro-proyecto">
-          <option value="">Todos los proyectos</option>
-          {proyectos?.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </select>
-        <select value={clienteId} onChange={(e) => setClienteId(e.target.value ? Number(e.target.value) : '')} data-testid="ventas-filtro-cliente">
-          <option value="">Todos los clientes</option>
-          {clientes?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombreCompleto}
-            </option>
-          ))}
-        </select>
-        <select value={estado} onChange={(e) => setEstado(e.target.value as EstadoVenta | '')} data-testid="ventas-filtro-estado">
-          <option value="VIGENTE">Vigentes</option>
-          <option value="ANULADA">Anuladas</option>
-          <option value="">Todas</option>
-        </select>
+        <Campo etiqueta="Proyecto">
+          <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value ? Number(e.target.value) : '')} data-testid="ventas-filtro-proyecto">
+            <option value="">Todos los proyectos</option>
+            {proyectos?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </Campo>
+        <Campo etiqueta="Cliente">
+          <SelectCliente
+            clientes={clientes ?? []}
+            valor={clienteId || null}
+            onCambiar={(id) => setClienteId(id ?? '')}
+            opcionVacia="Todos los clientes"
+            testid="ventas-filtro-cliente"
+          />
+        </Campo>
+        <Campo etiqueta="Estado">
+          <select value={estado} onChange={(e) => setEstado(e.target.value as EstadoVenta | '')} data-testid="ventas-filtro-estado">
+            {ESTADOS_VENTA.map((valor) => (
+              <option key={valor} value={valor}>
+                {ASPECTO_ESTADO[valor].plural}
+              </option>
+            ))}
+            <option value="">Todas</option>
+          </select>
+        </Campo>
       </div>
       <MensajeError mensaje={error} />
       {cargando && !ventas && <Cargando />}
       {ventas && (
-        <div className="tarjeta sin-relleno">
+        <ContenedorTabla etiqueta="Ventas">
           <TablaVentas ventas={ventas} />
-        </div>
+        </ContenedorTabla>
       )}
     </div>
   );

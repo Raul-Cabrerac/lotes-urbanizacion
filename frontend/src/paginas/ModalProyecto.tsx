@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api/api';
-import { mensajeDeError } from '../api/http';
 import type { Proyecto } from '../api/tipos';
 import { Campo, MensajeError } from '../componentes/Basicos';
 import { Modal } from '../componentes/Modal';
+import { useEnvio } from '../utilidades/useEnvio';
 
 /** Crear (sin `proyecto`) o editar un proyecto de urbanización. */
 export function ModalProyecto({
@@ -18,20 +18,14 @@ export function ModalProyecto({
   const [nombre, setNombre] = useState(proyecto?.nombre ?? '');
   const [descripcion, setDescripcion] = useState(proyecto?.descripcion ?? '');
   const [ubicacion, setUbicacion] = useState(proyecto?.ubicacion ?? '');
-  const [error, setError] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState(false);
+  const { enviar, enviando, error } = useEnvio();
 
-  const guardar = async (e: FormEvent) => {
+  const guardar = (e: FormEvent) => {
     e.preventDefault();
-    setGuardando(true);
-    setError(null);
-    try {
-      const datos = { nombre, descripcion, ubicacion };
-      onGuardado(proyecto ? await api.proyectos.actualizar(proyecto.id, datos) : await api.proyectos.crear(datos));
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setGuardando(false);
-    }
+    const datos = { nombre, descripcion, ubicacion };
+    void enviar(async () =>
+      onGuardado(proyecto ? await api.proyectos.actualizar(proyecto.id, datos) : await api.proyectos.crear(datos)),
+    );
   };
 
   return (
@@ -51,8 +45,8 @@ export function ModalProyecto({
           <button type="button" className="boton" onClick={onCerrar} data-testid="proyecto-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="proyecto-guardar">
-            {guardando ? 'Guardando...' : 'Guardar'}
+          <button type="submit" className="boton boton-primario" disabled={enviando} data-testid="proyecto-guardar">
+            {enviando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </form>

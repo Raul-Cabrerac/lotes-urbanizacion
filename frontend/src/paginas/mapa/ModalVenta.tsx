@@ -1,12 +1,34 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { api } from '../../api/api';
-import { ApiError, mensajeDeError } from '../../api/http';
-import { METODOS_PAGO, type LoteDetalle, type MetodoPago, type Modalidad } from '../../api/tipos';
-import type { CuotaSimulada, Venta } from '../../api/tiposOperaciones';
+import type { LoteDetalle } from '../../api/tipos';
+import {
+  MAX_CUOTAS,
+  METODO_PAGO_POR_DEFECTO,
+  METODOS_PAGO,
+  NUMERO_CUOTA_AL_FIRMAR,
+  operacionesDelLote,
+  sumar,
+  type MetodoPago,
+  type ModalidadPago,
+} from '../../dominio';
+import type { Venta } from '../../api/tiposOperaciones';
 import { Campo, MensajeError } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { SelectorCliente } from '../../componentes/SelectorCliente';
-import { bs, fecha, numeroOIndefinido, sumarMontos } from '../../utilidades/formato';
+import { numeroOIndefinido } from '../../utilidades/entradas';
+import { ETIQUETA_MODALIDAD } from '../../utilidades/estados';
+import { bs, fecha } from '../../utilidades/formato';
+import { useDatos } from '../../utilidades/useDatos';
+import { useEnvio } from '../../utilidades/useEnvio';
+import { useValorDiferido } from '../../utilidades/useValorDiferido';
+
+/**
+ * Condiciones que propone el formulario de venta. Son sugerencias, no reglas: el backend acepta
+ * cualquier cuota inicial y número de cuotas válidos (docs/DECISIONES.md §15).
+ */
+const MODALIDAD_SUGERIDA: ModalidadPago = 'FINANCIADO';
+const PORCENTAJE_CUOTA_INICIAL_SUGERIDA = 0.2;
+const CUOTAS_SUGERIDAS = 12;
 
 /** Registrar la venta de un lote, al contado o financiada con su plan de pagos (consigna, secciones 8 y 9). */
 export function ModalVenta({
@@ -21,19 +43,19 @@ export function ModalVenta({
   onConflicto: () => void;
 }) {
   const reserva = lote.reservaActiva;
-  const [clienteId, setClienteId] = useState<number | null>(reserva?.cliente.id ?? null);
+  // Si el lote está reservado, el comprador es quien tiene la reserva (también si la reserva
+  // apareció al refrescar tras un 409).
+  const [clienteElegido, setClienteElegido] = useState<number | null>(reserva?.cliente.id ?? null);
+  const clienteId = reserva ? reserva.cliente.id : clienteElegido;
   const [precio, setPrecio] = useState(String(lote.precio));
-  const [modalidad, setModalidad] = useState<Modalidad>('FINANCIADO');
-  const [cuotaInicial, setCuotaInicial] = useState(String(Math.round(lote.precio * 0.2)));
-  const [numeroCuotas, setNumeroCuotas] = useState('12');
+  const [modalidad, setModalidad] = useState<ModalidadPago>(MODALIDAD_SUGERIDA);
+  const [cuotaInicial, setCuotaInicial] = useState(String(Math.round(lote.precio * PORCENTAJE_CUOTA_INICIAL_SUGERIDA)));
+  const [numeroCuotas, setNumeroCuotas] = useState(String(CUOTAS_SUGERIDAS));
   const [fechaPrimeraCuota, setFechaPrimeraCuota] = useState('');
-  const [metodo, setMetodo] = useState<MetodoPago>('EFECTIVO');
-  const [plan, setPlan] = useState<CuotaSimulada[] | null>(null);
-  const [errorPlan, setErrorPlan] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const [metodo, setMetodo] = useState<MetodoPago>(METODO_PAGO_POR_DEFECTO);
+  const { enviar, enviando, error, setError } = useEnvio({ alConflicto: onConflicto });
 
-  const condiciones = () => ({
+  const condiciones = {
     modalidad,
     precioPactado: numeroOIndefinido(precio) as number,
     ...(modalidad === 'FINANCIADO'
@@ -43,42 +65,33 @@ export function ModalVenta({
           fechaPrimeraCuota: fechaPrimeraCuota || undefined,
         }
       : {}),
-  });
-
-  // Vista previa del cronograma (la calcula el backend con las mismas reglas que al vender).
-  useEffect(() => {
-    const temporizador = setTimeout(async () => {
-      try {
-        setPlan(await api.ventas.simularPlan(condiciones()));
-        setErrorPlan(null);
-      } catch (err) {
-        setPlan(null);
-        setErrorPlan(mensajeDeError(err));
-      }
-    }, 300);
-    return () => clearTimeout(temporizador);
-  }, [precio, modalidad, cuotaInicial, numeroCuotas, fechaPrimeraCuota]);
-
-  const vender = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!clienteId) return setError('Seleccione un cliente.');
-    setEnviando(true);
-    setError(null);
-    try {
-      onVendido(await api.ventas.registrar({ loteId: lote.id, clienteId, metodoPago: metodo, ...condiciones() }));
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setEnviando(false);
-      if (err instanceof ApiError && err.estado === 409) onConflicto();
-    }
   };
 
-  const cuotaACobrar = plan?.find((c) => c.numero === 0);
-  const mensuales = plan?.filter((c) => c.numero > 0) ?? [];
+  // Vista previa del cronograma (la calcula el backend con las mismas reglas que al vender), cuando
+  // el usuario deja de escribir. Solo se muestra si corresponde a las condiciones actuales.
+  const clavePlan = JSON.stringify(condiciones);
+  const claveSimulada = useValorDiferido(clavePlan);
+  const simulacion = useDatos(
+    () => api.ventas.simularPlan(JSON.parse(claveSimulada) as typeof condiciones),
+    [claveSimulada],
+  );
+  const alDia = clavePlan === claveSimulada && !simulacion.cargando && !simulacion.error;
+  const plan = alDia ? simulacion.datos : null;
+
+  const vender = (e: FormEvent) => {
+    e.preventDefault();
+    if (!clienteId) return setError('Seleccione un cliente.');
+    void enviar(async () =>
+      onVendido(await api.ventas.registrar({ loteId: lote.id, clienteId, metodoPago: metodo, ...condiciones })),
+    );
+  };
+
+  const cuotaACobrar = plan?.find((c) => c.numero === NUMERO_CUOTA_AL_FIRMAR);
+  const mensuales = plan?.filter((c) => c.numero !== NUMERO_CUOTA_AL_FIRMAR) ?? [];
   const filasVisibles = mensuales.length > 8 ? [...mensuales.slice(0, 5), null, ...mensuales.slice(-2)] : mensuales;
 
   return (
-    <Modal titulo={`Vender lote ${lote.codigo}`} onCerrar={onCerrar} ancho="ancho" testid="modal-venta">
+    <Modal titulo={`Vender lote ${lote.codigo}`} onCerrar={onCerrar} ancho testid="modal-venta">
       <form onSubmit={vender} className="formulario">
         <div className="columnas-venta">
           <div className="formulario">
@@ -88,7 +101,7 @@ export function ModalVenta({
                   {reserva.cliente.nombreCompleto} ({reserva.cliente.documento}) — tiene la reserva del lote
                 </div>
               ) : (
-                <SelectorCliente valor={clienteId} onCambiar={setClienteId} testid="venta-cliente" />
+                <SelectorCliente valor={clienteId} onCambiar={setClienteElegido} testid="venta-cliente" />
               )}
             </Campo>
             <Campo etiqueta="Precio pactado (Bs) *" ayuda={`Precio de lista: ${bs(lote.precio)}. Queda guardado en la venta aunque luego cambie el precio del lote.`}>
@@ -97,10 +110,10 @@ export function ModalVenta({
             <Campo etiqueta="Modalidad de pago">
               <div className="opciones">
                 <label>
-                  <input type="radio" checked={modalidad === 'CONTADO'} onChange={() => setModalidad('CONTADO')} data-testid="venta-contado" /> Al contado
+                  <input type="radio" checked={modalidad === 'CONTADO'} onChange={() => setModalidad('CONTADO')} data-testid="venta-contado" /> {ETIQUETA_MODALIDAD.CONTADO}
                 </label>
                 <label>
-                  <input type="radio" checked={modalidad === 'FINANCIADO'} onChange={() => setModalidad('FINANCIADO')} data-testid="venta-financiado" /> Financiado
+                  <input type="radio" checked={modalidad === 'FINANCIADO'} onChange={() => setModalidad('FINANCIADO')} data-testid="venta-financiado" /> {ETIQUETA_MODALIDAD.FINANCIADO}
                 </label>
               </div>
             </Campo>
@@ -111,7 +124,7 @@ export function ModalVenta({
                     <input type="number" min="0" step="0.01" value={cuotaInicial} onChange={(e) => setCuotaInicial(e.target.value)} data-testid="venta-cuota-inicial" />
                   </Campo>
                   <Campo etiqueta="Número de cuotas *">
-                    <input type="number" min="1" max="240" step="1" value={numeroCuotas} onChange={(e) => setNumeroCuotas(e.target.value)} required data-testid="venta-numero-cuotas" />
+                    <input type="number" min="1" max={MAX_CUOTAS} step="1" value={numeroCuotas} onChange={(e) => setNumeroCuotas(e.target.value)} required data-testid="venta-numero-cuotas" />
                   </Campo>
                 </div>
                 <Campo etiqueta="Vencimiento de la primera cuota" ayuda="Si se deja vacío: un mes después de hoy.">
@@ -130,7 +143,7 @@ export function ModalVenta({
 
           <div className="vista-plan" data-testid="venta-vista-plan">
             <h3>Plan de pagos</h3>
-            <MensajeError mensaje={errorPlan} testid="venta-error-plan" />
+            <MensajeError mensaje={simulacion.error} testid="venta-error-plan" />
             {plan && (
               <>
                 {cuotaACobrar && (
@@ -168,7 +181,7 @@ export function ModalVenta({
                 )}
                 {mensuales.length > 0 && (
                   <p className="texto-suave pequeno">
-                    {mensuales.length} cuotas mensuales · saldo a financiar {bs(sumarMontos(mensuales.map((c) => c.monto)))}
+                    {mensuales.length} cuotas mensuales · saldo a financiar {bs(sumar(...mensuales.map((c) => c.monto)))}
                   </p>
                 )}
               </>
@@ -181,8 +194,13 @@ export function ModalVenta({
           <button type="button" className="boton" onClick={onCerrar} data-testid="venta-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-rojo" disabled={enviando || !plan} data-testid="venta-confirmar">
-            {enviando ? 'Registrando...' : 'Confirmar venta'}
+          <button
+            type="submit"
+            className="boton boton-primario"
+            disabled={enviando || !plan || !operacionesDelLote(lote, lote.proyecto.estado).vender}
+            data-testid="venta-confirmar"
+          >
+            {enviando ? 'Registrando…' : 'Confirmar venta'}
           </button>
         </div>
       </form>

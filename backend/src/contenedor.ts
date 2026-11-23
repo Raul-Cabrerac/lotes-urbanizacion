@@ -46,18 +46,19 @@ export function crearContenedor({
 
   const proyectos = new ProyectoServicio(uow);
   const ventas = new VentaServicio(uow, reloj);
+  const clientes = new ClienteServicio(uow, ventas);
 
   return {
     auth: new AuthServicio(uow, hasher, tokens),
     proyectos,
     lotes: new LoteServicio(uow, proyectos, reloj),
     importacionKml: new ImportacionKmlServicio(uow, proyectos, new LectorKmlXml()),
-    clientes: new ClienteServicio(uow, ventas),
+    clientes,
     reservas: new ReservaServicio(uow, reloj),
     ventas,
     pagos: new PagoServicio(uow, ventas, reloj),
     usuarios: new UsuarioServicio(uow, hasher),
-    portal: new PortalServicio(uow, ventas),
+    portal: new PortalServicio(clientes),
     reportes: new ReporteServicio(uow, reloj),
   };
 }

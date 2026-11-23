@@ -6,14 +6,14 @@
  * negocio. Para las operaciones "del pasado" se usa un reloj fijo (RelojFijo) que se mueve hacia
  * atrás en el tiempo a partir de `ahora`.
  */
-import type { UsuarioActual } from '../../aplicacion/puertos';
-import { aUsuarioActual } from '../../aplicacion/servicios/AuthServicio';
-import { crearContenedor } from '../../contenedor';
-import { aFechaISO } from '../../dominio/fechas';
-import { rectanguloEnMetros, type PoligonoGeoJSON, type Posicion } from '../../dominio/geometria';
-import type { Lote, Rol } from '../../dominio/tipos';
-import { RelojFijo } from '../reloj';
-import type { BaseDeDatos } from './baseDeDatos';
+import type { UsuarioActual } from './aplicacion/puertos';
+import { aUsuarioActual } from './aplicacion/servicios/AuthServicio';
+import { crearContenedor, type Dependencias } from './contenedor';
+import { aFechaISO } from './dominio/fechas';
+import { rectanguloEnMetros, type PoligonoGeoJSON, type Posicion } from './dominio/geometria';
+import type { Lote, Rol } from './dominio/tipos';
+import { vaciarDatos, type BaseDeDatos } from './infraestructura/bd/baseDeDatos';
+import { RelojFijo } from './infraestructura/reloj';
 
 /** Usuarios para iniciar sesión (también se muestran en la pantalla de login y en el README). */
 export const USUARIOS_DEMO: { rol: Rol; nombre: string; email: string; password: string }[] = [
@@ -49,32 +49,21 @@ function filaDeLotes(
   }));
 }
 
-/** Tablas con datos del negocio (la tabla `migraciones` no se toca). */
-const TABLAS = ['pagos', 'cuotas', 'ventas', 'reservas', 'lotes', 'proyectos', 'usuarios', 'clientes'];
-
-/** true si todavía no hay ningún usuario: la base recién se creó. */
-export async function baseSinDatos(bd: BaseDeDatos): Promise<boolean> {
-  const { rows } = await bd.sql.query<{ cantidad: number }>('SELECT count(*) AS cantidad FROM usuarios');
-  return rows[0]?.cantidad === 0;
-}
-
-/** Borra todos los datos (no el esquema) y reinicia los id en 1. */
-export async function vaciarDatos(bd: BaseDeDatos): Promise<void> {
-  await bd.sql.query(`TRUNCATE ${TABLAS.join(', ')} RESTART IDENTITY CASCADE`);
-}
-
 /** Vacía la base y vuelve a cargar los datos de demostración. */
-export async function reiniciarDatosDemo(bd: BaseDeDatos, ahora: Date): Promise<void> {
+export async function reiniciarDatosDemo(bd: BaseDeDatos, ahora: Date, opciones: OpcionesDatosDemo = {}): Promise<void> {
   await vaciarDatos(bd);
-  await cargarDatosDemo(bd, ahora);
+  await cargarDatosDemo(bd, ahora, opciones);
 }
+
+/** El costo de bcrypt de las contraseñas demo (las pruebas usan uno bajo para ser rápidas). */
+export type OpcionesDatosDemo = Pick<Dependencias, 'bcryptRondas'>;
 
 /** Carga los datos de demostración. `ahora` es la fecha "actual" de la demostración. */
-export async function cargarDatosDemo(bd: BaseDeDatos, ahora: Date): Promise<void> {
+export async function cargarDatosDemo(bd: BaseDeDatos, ahora: Date, opciones: OpcionesDatosDemo = {}): Promise<void> {
   const haceDias = (dias: number) => new Date(ahora.getTime() - dias * MS_POR_DIA);
   const fechaEnDias = (dias: number) => aFechaISO(new Date(ahora.getTime() + dias * MS_POR_DIA)); // 'AAAA-MM-DD'
   const reloj = new RelojFijo(ahora);
-  const s = crearContenedor({ bd, jwtSecreto: 'datos-demo', jwtExpiraEn: '1h', reloj });
+  const s = crearContenedor({ bd, jwtSecreto: 'datos-demo', jwtExpiraEn: '1h', reloj, ...opciones });
 
   // --- Clientes ---------------------------------------------------------------
   const maria = await s.clientes.crear({

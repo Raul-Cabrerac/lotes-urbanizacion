@@ -1,6 +1,7 @@
-import { ErrorNoEncontrado, ErrorSinPermiso } from '../../dominio/errores';
-import type { UnidadDeTrabajo, UsuarioActual } from '../puertos';
-import type { VentaServicio } from './VentaServicio';
+import { ErrorSinPermiso } from '../../dominio/errores';
+import { clienteDelAlcance } from '../../dominio/permisos';
+import type { UsuarioActual } from '../puertos';
+import type { ClienteServicio } from './ClienteServicio';
 
 /**
  * Portal del cliente: sus lotes, compras, cronograma, pagos y saldo.
@@ -8,22 +9,12 @@ import type { VentaServicio } from './VentaServicio';
  * cliente no puede ver operaciones de otro.
  */
 export class PortalServicio {
-  constructor(
-    private readonly uow: UnidadDeTrabajo,
-    private readonly ventas: VentaServicio,
-  ) {}
+  constructor(private readonly clientes: ClienteServicio) {}
 
   async misOperaciones(usuario: UsuarioActual) {
-    if (usuario.rol !== 'CLIENTE' || !usuario.clienteId) {
-      throw new ErrorSinPermiso('El portal es solo para clientes.');
-    }
-    const cliente = await this.uow.repos.clientes.buscarPorId(usuario.clienteId);
-    if (!cliente) throw new ErrorNoEncontrado('Cliente no encontrado.');
-
-    const [ventas, reservas] = await Promise.all([
-      this.ventas.listar({ clienteId: cliente.id }, usuario),
-      this.uow.repos.reservas.listar({ clienteId: cliente.id }),
-    ]);
+    const clienteId = clienteDelAlcance(usuario);
+    if (clienteId === undefined) throw new ErrorSinPermiso('El portal es solo para clientes.');
+    const { reservas, ventas, ...cliente } = await this.clientes.obtener(clienteId, usuario);
     return { cliente, ventas, reservas };
   }
 }

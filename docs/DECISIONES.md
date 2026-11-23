@@ -58,9 +58,10 @@ vencer o convertir una reserva y anular una venta o un pago son `UPDATE` condici
 (`... WHERE id = $1 AND estado = 'ACTIVA'`). Si otra operación cerró la fila un instante antes, se
 responde 409 (`RESERVA_NO_ACTIVA`, `LOTE_NO_DISPONIBLE`, `VENTA_NO_VIGENTE`, `PAGO_YA_ANULADO`) en
 vez de pisar su resultado; por ejemplo, una reserva convertida en venta no puede quedar luego como
-CANCELADA. Además, toda operación que cambia una reserva y su lote lo hace en el mismo orden
-(primero la reserva, después el lote), para que dos transacciones no se esperen mutuamente
-(deadlock).
+CANCELADA. Además, toda operación que cambia varias tablas respeta un orden global acíclico de
+bloqueos (`proyectos -> lotes`, `reservas -> lotes`, `ventas -> lotes / pagos`) para que dos
+transacciones no se esperen mutuamente (deadlock), y `procesarVencidas` procesa cada reserva
+expirada en orden determinista (`ORDER BY id`) y transacciones cortas independientes.
 
 ## 4. Arquitectura en capas con puertos
 
@@ -84,10 +85,12 @@ CANCELADA. Además, toda operación que cambia una reserva y su lote lo hace en 
   total pagado) y el estado de cada cuota (PENDIENTE, PAGADA o VENCIDA) cada vez que se consulta.
 - **Por qué:** no hay dos fuentes de verdad que puedan desincronizarse. Anular un pago lo excluye
   de la suma y el saldo se corrige solo, conservando la trazabilidad (consigna §9).
-- **Pagos simultáneos:** `PagoServicio.registrar` bloquea la fila de la venta
-  (`RepositorioVentas.bloquearPorId`, `SELECT ... FOR UPDATE`) antes de leer el saldo. Si dos
+- **Pagos simultáneos y anulación:** `PagoServicio.registrar` y `PagoServicio.anular` bloquean la fila de la venta
+  (`RepositorioVentas.bloquearPorId`, `SELECT ... FOR UPDATE`) antes de validar el saldo o anular un pago. Si dos
   personas pagan la misma venta a la vez, la segunda espera, lee el saldo ya descontado y
-  `validarPago` la rechaza si se pasa (`MONTO_EXCEDE_SALDO` o `CUOTA_YA_PAGADA`). Sin el bloqueo
+  `validarPago` la rechaza si se pasa (`MONTO_EXCEDE_SALDO` o `CUOTA_YA_PAGADA`). Asimismo, si una
+  venta ya fue `ANULADA` (o se anula concurrentemente), `PagoServicio.anular` rechaza anular sus
+  pagos con `409 VENTA_NO_VIGENTE`. Sin el bloqueo
   las dos leían el mismo saldo, el total pagado podía superar el precio pactado y la venta quedaba
   respondiendo error 500. PGlite atiende una transacción a la vez, así que esta carrera solo se
   reproduce sobre PostgreSQL real (Neon).
@@ -121,6 +124,20 @@ CANCELADA. Además, toda operación que cambia una reserva y su lote lo hace en 
   `getByTestId`.
 - `npm run dev:pruebas` usa PostgreSQL en memoria y habilita `POST /api/pruebas/reiniciar`, para
   que cada E2E empiece desde los mismos datos.
+
+**Por qué Playwright y no Cypress ni Selenium** (pregunta frecuente en la defensa):
+
+- **Dos usuarios a la vez (E2E 03).** Playwright abre dos navegadores independientes en la misma
+  prueba. Cypress, según su propia documentación, no puede controlar dos navegadores ni dos
+  pestañas a la vez: el segundo asesor tendría que simularse llamando a la API.
+- **Clics sobre el mapa (E2E 01).** Para dibujar un lote hay que hacer clic en coordenadas de
+  Google Maps. Playwright manda eventos de mouse reales; Cypress los simula con JavaScript.
+- **Menos configuración.** Playwright levanta la app antes de las pruebas (`webServer`), espera
+  sola a que cada elemento esté listo y guarda una traza paso a paso cuando algo falla, todo
+  gratis. Selenium necesita un driver por navegador y esperas escritas a mano.
+- **Mismo estilo que Vitest:** TypeScript con `async/await` en los tres niveles.
+- **A favor de Cypress:** su ejecutor interactivo con «viaje en el tiempo» es muy cómodo para
+  depurar. Pesaron más los tres primeros puntos.
 
 ## 11. Origen del código
 
@@ -186,3 +203,80 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
     momento se congela.
   - Para que todos puedan explicar los tres niveles en la defensa, cada pull request lo revisa
     alguien de otro nivel.
+- **Cambio del 2026-11-21:** el docente dejó de evaluar las pruebas de integración y pidió una
+  cobertura mínima de 80 % del backend. Como Mario ya había terminado la interfaz y los E2E no
+  estaban empezados, Raul tomó los E2E (Mario los valida) y Laura y Luciana se repartieron las
+  unitarias por carpeta: Luciana `dominio/`, Laura `servicios/`. Las pruebas de integración que ya
+  existían se mantienen en el CI. El detalle está en `AGENTS.md` §6.
+
+## 14. Una sola fuente para las reglas que cruzan capas
+
+- **Estado:** propuesta en la rama `dev`, pendiente del acuerdo del grupo (`AGENTS.md` §7.8).
+  `main` no cambia hasta que se apruebe.
+- **Elegido:**
+  - Cada entidad declara su máquina de estados como una tabla de operaciones en su módulo del
+    dominio (`OPERACIONES_LOTE`, `OPERACIONES_RESERVA`, `OPERACIONES_VENTA`, `OPERACIONES_PAGO`,
+    `OPERACIONES_PROYECTO`, con `admite` de `dominio/transiciones.ts`). La leen las validaciones,
+    el único UPDATE condicional de los repositorios (`transicionarSi` en `consultas.ts`) y los
+    botones de la interfaz.
+  - El frontend importa de `backend/src/dominio` (es código puro) los tipos, las listas de
+    estados, los límites y las reglas de qué operación admite cada registro, en vez de copiarlos.
+  - Una reserva vencida se cierra en su propia transacción antes de reservar, vender o cancelar
+    (`vencerReserva` y `vencerReservaDelLote`), además de en cada petición. Las operaciones ya no
+    tienen casos especiales para el vencimiento.
+  - Los códigos de error forman un catálogo tipado (`CODIGOS_ERROR` en `dominio/errores.ts`):
+    cada código tiene un solo tipo y el tipo decide el estado HTTP.
+  - Lo que ve cada rol (los estados de proyecto visibles, las operaciones de un cliente) se decide en
+    `dominio/permisos.ts`.
+  - Los errores de PostgreSQL se traducen en un solo lugar, `crearConsultas` en
+    `infraestructura/bd/repositorios/consultas.ts`: cada restricción única tiene su código del
+    catálogo, y `http/` ya no conoce los códigos de PostgreSQL.
+  - Los datos demo se cargan por los servicios, así que pasan a `backend/src/datosDemo.ts`, junto
+    a la raíz de composición; el vaciado SQL queda en `infraestructura/bd/baseDeDatos.ts`.
+- **Alternativas:** dejar las reglas repetidas en cada capa; que la API devuelva las acciones
+  permitidas de cada recurso; un paquete compartido de tipos entre backend y frontend.
+- **Por qué:**
+  - Un cambio de regla tocaba hasta cinco lugares (dominio, servicio, SQL, interfaz y
+    documentación) sin que nada avisara si uno quedaba atrás. Ahora toca uno.
+  - Importar el dominio no agrega dependencias ni configuración: no hay `rootDir` y Vite sirve
+    archivos del workspace. Que la API devolviera las acciones habría cambiado todas las
+    respuestas y la documentación de `docs/API.md`.
+  - Con el vencimiento en su propia transacción, el lote ya liberado es un hecho guardado antes
+    de que empiece la operación, en vez de un caso que cada operación debía recordar.
+
+## 15. Reglas de producto aclaradas por el grupo
+
+- **Contexto:** al reordenar el código (§14) quedaron preguntas que el código no respondía. El
+  grupo las decidió así (2026-11-18):
+- **Decisión:**
+  - **Un lote inconsistente no frena el vencimiento de reservas.** `procesarVencidas` corre antes
+    de cada petición. Si una reserva vencida apunta a un lote que ya no está RESERVADO, esa reserva
+    se omite, se avisa en el log y las demás vencen; operar sobre ese lote sí responde 409
+    `LOTE_MODIFICADO`. Antes, un solo lote así hacía responder 409 a toda la API.
+  - **El resumen por manzano muestra los lotes BLOQUEADOS.** El administrador puede retirar un lote
+    de la venta por cualquier motivo, y el resumen tiene que sumar el total.
+  - **Cada pantalla exige el permiso de lo que muestra y opera, no el de su nombre.** `/ventas` es
+    la mesa de trabajo de quien vende y cobra, así que exige `ventas:registrar`; el cliente ve sus
+    ventas en su portal y abre su detalle (`/ventas/:id`, `ventas:ver`). El mapa
+    `/proyectos/:id` opera lotes, así que exige `lotes:ver`. Cada línea de
+    `frontend/src/rutas.ts` lleva su razón.
+  - **Los valores iniciales de los formularios son sugerencias, no reglas:** 7 días de reserva y,
+    en la venta, modalidad financiada, cuota inicial del 20 % y 12 cuotas. El backend no los exige y
+    las pruebas no los tratan como reglas. Están con nombre en `ModalReserva.tsx` y
+    `ModalVenta.tsx`.
+- **Por qué:** son reglas del negocio. Escritas aquí y junto al código, nadie tiene que adivinar
+  si un valor es una regla o un descuido, ni volver a preguntarlo.
+
+## 16. «Crédito financiado»: el nombre visible de la venta financiada
+
+- **Contexto:** al revisar el proyecto, el docente pidió (2026-11-21) que las modalidades de pago
+  incluyan el «crédito financiado».
+- **Elegido:** la modalidad `FINANCIADO` se muestra como «Crédito financiado» en todas las
+  pantallas. Es una sola línea, `ETIQUETA_MODALIDAD` en `frontend/src/utilidades/estados.ts`. No
+  cambian el valor `FINANCIADO`, la base de datos, la API ni los `data-testid`.
+- **Alternativas:** agregar una tercera modalidad distinta (por ejemplo, un crédito bancario).
+  Habría que definir una regla que la consigna no tiene y tocar más de 20 archivos, con una
+  migración nueva.
+- **Por qué:** la consigna (§9) define dos modalidades, al contado o financiada, y la financiada ya
+  es un crédito directo de la empresa: cuota inicial, cuotas mensuales, cronograma, pagos y saldo.
+  Cambiar el nombre cumple el pedido sin riesgo, y los E2E no dependen de ese texto.

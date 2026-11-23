@@ -1,5 +1,5 @@
 import type { RepositorioUsuarios } from '../../../aplicacion/puertos';
-import type { Consultas } from './consultas';
+import { type Consultas } from './consultas';
 import { aUsuario } from './conversiones';
 import type { FilaUsuario } from './filas';
 

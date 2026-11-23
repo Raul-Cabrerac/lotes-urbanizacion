@@ -1,18 +1,19 @@
 import type { RepositorioReservas } from '../../../aplicacion/puertos';
-import { construirWhere, type Consultas } from './consultas';
+import { OPERACIONES_RESERVA } from '../../../dominio/reserva';
+import { construirWhere, transicionarSi, type Consultas } from './consultas';
 import { aReserva, aReservaVista } from './conversiones';
-import { COLUMNAS_LOTE, type FilaReserva, type FilaReservaVista } from './filas';
+import {
+  COLUMNAS_CLIENTE_Y_ASESOR,
+  COLUMNAS_LOTE,
+  joinsDeOperacion,
+  type FilaReserva,
+  type FilaReservaVista,
+} from './filas';
 
 /** Reserva con su lote, proyecto, cliente y asesor (para mostrarla sin más consultas). */
 const SQL_RESERVA_VISTA = `
-  SELECT r.*, ${COLUMNAS_LOTE},
-         c.nombre_completo AS c_nombre_completo, c.documento AS c_documento, c.telefono AS c_telefono,
-         a.nombre AS a_nombre
-  FROM reservas r
-  JOIN lotes l ON l.id = r.lote_id
-  JOIN proyectos p ON p.id = l.proyecto_id
-  JOIN clientes c ON c.id = r.cliente_id
-  JOIN usuarios a ON a.id = r.asesor_id`;
+  SELECT r.*, ${COLUMNAS_LOTE}, ${COLUMNAS_CLIENTE_Y_ASESOR}
+  FROM reservas r ${joinsDeOperacion('r')}`;
 
 export function crearRepositorioReservas(bd: Consultas): RepositorioReservas {
   return {
@@ -43,10 +44,11 @@ export function crearRepositorioReservas(bd: Consultas): RepositorioReservas {
       return fila && aReservaVista(fila);
     },
 
-    async listarActivasVencidas(hoy) {
+    async listarCandidatasAVencer() {
+      // Cuáles ya vencieron lo decide estaVencida (dominio/reserva.ts), no este SQL.
       const filas = await bd.filas<FilaReserva>(
-        "SELECT * FROM reservas WHERE estado = 'ACTIVA' AND fecha_vencimiento < $1::date",
-        [hoy],
+        'SELECT * FROM reservas WHERE estado = ANY($1) AND fecha_vencimiento IS NOT NULL ORDER BY id',
+        [[...OPERACIONES_RESERVA.vencer.de]],
       );
       return filas.map(aReserva);
     },
@@ -60,15 +62,9 @@ export function crearRepositorioReservas(bd: Consultas): RepositorioReservas {
       return aReserva(fila);
     },
 
-    async finalizar(id, estado, fecha, motivo) {
-      // Solo cierra una reserva que sigue ACTIVA: si otra operación la canceló, la venció o la
-      // convirtió en venta un instante antes, no se pisa su resultado.
-      const actualizadas = await bd.filas(
-        `UPDATE reservas SET estado = $1, finalizada_en = $2, motivo_finalizacion = $3
-         WHERE id = $4 AND estado = 'ACTIVA' RETURNING id`,
-        [estado, fecha, motivo ?? null, id],
-      );
-      return actualizadas.length === 1;
+    async finalizar(id, transicion, fecha, motivo) {
+      const columnas = { finalizada_en: fecha, motivo_finalizacion: motivo ?? null };
+      return (await transicionarSi(bd, 'reservas', id, transicion, columnas)) !== null;
     },
   };
 }

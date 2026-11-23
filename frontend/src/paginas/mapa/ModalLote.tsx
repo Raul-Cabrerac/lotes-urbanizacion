@@ -4,7 +4,9 @@ import { mensajeDeError } from '../../api/http';
 import type { Lote, Poligono } from '../../api/tipos';
 import { Campo, MensajeError } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
-import { m2, numeroOIndefinido } from '../../utilidades/formato';
+import { numeroOIndefinido } from '../../utilidades/entradas';
+import { m2 } from '../../utilidades/formato';
+import { useEnvio } from '../../utilidades/useEnvio';
 
 /**
  * Asignar los datos de un lote (paso 4 del flujo de la consigna):
@@ -33,8 +35,7 @@ export function ModalLote({
   const [superficie, setSuperficie] = useState(lote ? String(lote.superficieM2) : '');
   const [dimensiones, setDimensiones] = useState(lote?.dimensiones ?? '');
   const [calculado, setCalculado] = useState<{ superficieM2: number; dimensiones: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState(false);
+  const { enviar, enviando, error, setError } = useEnvio();
 
   // Superficie y dimensiones calculadas por el backend a partir del polígono dibujado.
   useEffect(() => {
@@ -49,10 +50,8 @@ export function ModalLote({
     void analizar();
   }, [geometria]);
 
-  const guardar = async (e: FormEvent) => {
+  const guardar = (e: FormEvent) => {
     e.preventDefault();
-    setGuardando(true);
-    setError(null);
     const datos = {
       codigo,
       manzano,
@@ -61,12 +60,9 @@ export function ModalLote({
       superficieM2: numeroOIndefinido(superficie) ?? null, // vacío = calcular desde el polígono
       dimensiones: dimensiones || undefined,
     };
-    try {
-      onGuardado(lote ? await api.lotes.actualizar(lote.id, datos) : await api.proyectos.crearLote(proyectoId, { ...datos, geometria }));
-    } catch (err) {
-      setError(mensajeDeError(err));
-      setGuardando(false);
-    }
+    void enviar(async () =>
+      onGuardado(lote ? await api.lotes.actualizar(lote.id, datos) : await api.proyectos.crearLote(proyectoId, { ...datos, geometria })),
+    );
   };
 
   return (
@@ -129,8 +125,8 @@ export function ModalLote({
           <button type="button" className="boton" onClick={onCerrar} data-testid="lote-cancelar">
             Cancelar
           </button>
-          <button type="submit" className="boton boton-primario" disabled={guardando} data-testid="lote-guardar">
-            {guardando ? 'Guardando...' : 'Guardar lote'}
+          <button type="submit" className="boton boton-primario" disabled={enviando} data-testid="lote-guardar">
+            {enviando ? 'Guardando…' : 'Guardar lote'}
           </button>
         </div>
       </form>

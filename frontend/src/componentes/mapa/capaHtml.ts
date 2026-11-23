@@ -8,7 +8,7 @@
  */
 import type { Punto } from './geometriaMapa';
 
-export interface ElementoEnMapa {
+interface ElementoEnMapa {
   posicion: Punto;
   elemento: HTMLElement;
   /** Si se indica, el elemento se muestra compacto (un punto) cuando no cabe en estos límites. */
@@ -20,7 +20,6 @@ export interface CapaHtml {
   /** false: los clics atraviesan la capa y llegan al mapa (por ejemplo, al dibujar). */
   interactiva(valor: boolean): void;
   proyeccion(): google.maps.MapCanvasProjection | null;
-  quitar(): void;
 }
 
 export function crearCapaHtml(maps: google.maps.MapsLibrary, mapa: google.maps.Map): CapaHtml {
@@ -91,6 +90,5 @@ export function crearCapaHtml(maps: google.maps.MapsLibrary, mapa: google.maps.M
     mostrar: (elementos) => capa.mostrar(elementos),
     interactiva: (valor) => capa.contenedor.classList.toggle('inactiva', !valor),
     proyeccion: () => capa.getProjection() ?? null,
-    quitar: () => capa.setMap(null),
   };
 }

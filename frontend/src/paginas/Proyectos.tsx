@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/api';
-import { ESTADOS_LOTE } from '../api/tipos';
+import { ESTADOS_LOTE } from '../dominio';
 import { useSesion } from '../auth/Sesion';
 import { Cargando, Encabezado, Insignia, MensajeError, Vacio } from '../componentes/Basicos';
-import { COLOR_ESTADO } from '../componentes/mapa/colores';
+import { Icono } from '../componentes/Icono';
+import { ASPECTO_ESTADO, estiloEstado } from '../utilidades/estados';
 import { fecha } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 import { ModalProyecto } from './ModalProyecto';
@@ -21,7 +22,8 @@ export function Proyectos() {
       <Encabezado titulo="Proyectos" subtitulo="Seleccione un proyecto para ver su mapa de lotes.">
         {puede('proyectos:gestionar') && (
           <button className="boton boton-primario" onClick={() => setCreando(true)} data-testid="nuevo-proyecto">
-            + Nuevo proyecto
+            <Icono nombre="mas" />
+            Nuevo proyecto
           </button>
         )}
       </Encabezado>
@@ -37,22 +39,36 @@ export function Proyectos() {
               <h2>{p.nombre}</h2>
               <Insignia estado={p.estado} />
             </div>
-            <p className="texto-suave">{p.ubicacion}</p>
+            <p className="proyecto-ubicacion">
+              <Icono nombre="ubicacion" tamano={14} />
+              {p.ubicacion}
+            </p>
             {p.descripcion && <p className="descripcion">{p.descripcion}</p>}
             <div className="barra-estados" title="Lotes por estado">
               {ESTADOS_LOTE.map((estado) =>
                 p.lotesPorEstado[estado] ? (
                   <span
                     key={estado}
-                    style={{ flex: p.lotesPorEstado[estado], background: COLOR_ESTADO[estado] }}
-                    title={`${estado}: ${p.lotesPorEstado[estado]}`}
+                    style={{ ...estiloEstado(estado), flex: p.lotesPorEstado[estado] }}
+                    title={`${ASPECTO_ESTADO[estado].etiqueta}: ${p.lotesPorEstado[estado]}`}
                   />
                 ) : null,
               )}
             </div>
-            <div className="texto-suave pequeno">
-              {p.totalLotes} lotes · {p.lotesPorEstado.DISPONIBLE} disponibles · creado el {fecha(p.creadoEn)}
-            </div>
+            <dl className="proyecto-cifras">
+              <div>
+                <dt>Lotes</dt>
+                <dd>{p.totalLotes}</dd>
+              </div>
+              <div>
+                <dt>{ASPECTO_ESTADO.DISPONIBLE.plural}</dt>
+                <dd>{p.lotesPorEstado.DISPONIBLE}</dd>
+              </div>
+              <div>
+                <dt>Creado</dt>
+                <dd>{fecha(p.creadoEn)}</dd>
+              </div>
+            </dl>
           </Link>
         ))}
       </div>

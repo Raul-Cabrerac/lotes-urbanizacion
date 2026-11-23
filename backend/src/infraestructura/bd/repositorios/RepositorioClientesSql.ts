@@ -52,9 +52,10 @@ export function crearRepositorioClientes(bd: Consultas): RepositorioClientes {
           email: c.email,
           direccion: c.direccion,
         },
-        false,
       );
-      return aCliente(await bd.filaObligatoria<FilaCliente>(sql, parametros));
+      return aCliente(
+        await bd.filaObligatoria<FilaCliente>(sql, parametros),
+      );
     },
   };
 }

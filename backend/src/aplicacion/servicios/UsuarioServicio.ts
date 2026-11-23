@@ -1,6 +1,6 @@
 import { ErrorConflicto, ErrorNoEncontrado, ErrorReglaNegocio } from '../../dominio/errores';
 import type { Rol, Usuario } from '../../dominio/tipos';
-import { validarPassword, validarVinculoCliente } from '../../dominio/usuario';
+import { normalizarEmail, validarPassword, validarVinculoCliente } from '../../dominio/usuario';
 import type { Hasher, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 
 export interface EntradaUsuario {
@@ -23,18 +23,18 @@ export class UsuarioServicio {
   }
 
   async crear(entrada: EntradaUsuario): Promise<Usuario> {
-    const email = entrada.email.trim().toLowerCase();
+    const email = normalizarEmail(entrada.email);
     validarPassword(entrada.password);
-    validarVinculoCliente(entrada.rol, entrada.clienteId);
+    const clienteId = validarVinculoCliente(entrada.rol, entrada.clienteId);
 
     if (await this.uow.repos.usuarios.buscarPorEmail(email)) {
       throw new ErrorConflicto('EMAIL_DUPLICADO', `Ya existe un usuario con el correo ${email}.`);
     }
-    if (entrada.rol === 'CLIENTE' && entrada.clienteId) {
-      if (!(await this.uow.repos.clientes.buscarPorId(entrada.clienteId))) {
+    if (clienteId) {
+      if (!(await this.uow.repos.clientes.buscarPorId(clienteId))) {
         throw new ErrorNoEncontrado('Cliente no encontrado.');
       }
-      if (await this.uow.repos.usuarios.buscarPorClienteId(entrada.clienteId)) {
+      if (await this.uow.repos.usuarios.buscarPorClienteId(clienteId)) {
         throw new ErrorConflicto('CLIENTE_YA_TIENE_USUARIO', 'Ese cliente ya tiene un usuario para el portal.');
       }
     }
@@ -44,7 +44,7 @@ export class UsuarioServicio {
       email,
       passwordHash: await this.hasher.hashear(entrada.password),
       rol: entrada.rol,
-      clienteId: entrada.rol === 'CLIENTE' ? (entrada.clienteId ?? null) : null,
+      clienteId,
     });
   }
 

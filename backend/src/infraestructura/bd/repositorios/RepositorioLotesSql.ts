@@ -1,6 +1,6 @@
 import type { RepositorioLotes } from '../../../aplicacion/puertos';
 import type { EstadoLote } from '../../../dominio/tipos';
-import { construirUpdate, construirWhere, type Consultas } from './consultas';
+import { construirUpdate, construirWhere, transicionarSi, type Consultas } from './consultas';
 import { aLote } from './conversiones';
 import type { FilaLote } from './filas';
 
@@ -25,6 +25,10 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
     async buscarPorId(id) {
       const fila = await bd.fila<FilaLote>('SELECT * FROM lotes WHERE id = $1', [id]);
       return fila && aLote(fila);
+    },
+
+    async bloquearPorId(id) {
+      await bd.filas('SELECT id FROM lotes WHERE id = $1 FOR UPDATE', [id]);
     },
 
     async buscarPorCodigo(proyectoId, codigo) {
@@ -66,20 +70,12 @@ export function crearRepositorioLotes(bd: Consultas): RepositorioLotes {
           precio: c.precio,
           geometria: c.geometria && JSON.stringify(c.geometria),
         },
-        true,
       );
       return aLote(await bd.filaObligatoria<FilaLote>(sql, parametros));
     },
 
-    async cambiarEstadoSi(id, estadoEsperado, nuevoEstado) {
-      // Un solo UPDATE condicional: si otro usuario cambió el estado antes, no se actualiza
-      // ninguna fila y la operación se rechaza (dos personas no reservan el mismo lote).
-      const actualizadas = await bd.filas(
-        `UPDATE lotes SET estado = $1, actualizado_en = now()
-         WHERE id = $2 AND estado = $3 RETURNING id`,
-        [nuevoEstado, id, estadoEsperado],
-      );
-      return actualizadas.length === 1;
+    async cambiarEstadoSi(id, transicion) {
+      return (await transicionarSi(bd, 'lotes', id, transicion)) !== null;
     },
 
     async contarPorEstado() {

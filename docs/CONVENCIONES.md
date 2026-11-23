@@ -38,18 +38,20 @@ procedimientos paso a paso para personas y agentes.
 
 ```
 dominio  ◄──  aplicacion  ◄──  infraestructura / http  ◄──  frontend (por HTTP)
+   ▲                                                            │
+   └──────────── frontend/src/dominio.ts (tipos y reglas puras) ─┘
 ```
 
 | Capa | Qué contiene | Qué tiene prohibido |
 |---|---|---|
 | `backend/src/dominio/` | Reglas puras (`validarLoteReservable`, `generarPlanDePagos`, `resumirPlan`), dinero, fechas, geometría, permisos, errores con código, tipos | Importar Express, `pg`, zod, JWT o `new Date()` |
 | `backend/src/aplicacion/` | Puertos (`puertos.ts`, `repositorios.ts`) y servicios que orquestan reglas y repositorios dentro de una transacción | Conocer SQL, HTTP o detalles de librerías |
-| `backend/src/infraestructura/` | Implementaciones: conexión a PostgreSQL, migraciones, repositorios SQL, datos demo, bcrypt, JWT, lector KML, relojes | Contener reglas de negocio |
+| `backend/src/infraestructura/` | Implementaciones: conexión a PostgreSQL, migraciones, repositorios SQL, vaciado de la base, bcrypt, JWT, lector KML, relojes | Contener reglas de negocio |
 | `backend/src/http/` | Rutas, esquemas zod, autenticación, traducción de errores a HTTP | Tocar la base de datos o decidir reglas |
-| `frontend/src/` | Páginas, componentes, mapa, cliente de la API | Duplicar reglas de negocio (solo validaciones de formulario) |
+| `frontend/src/` | Páginas, componentes, mapa, cliente de la API | Duplicar reglas de negocio: estados, límites y qué operación admite cada registro se importan del dominio por `frontend/src/dominio.ts`, el único archivo que importa del backend |
 
 Principios: una responsabilidad por archivo; las dependencias entran por el constructor y se
-conectan en `contenedor.ts`; todo lo externo tiene una interfaz en `aplicacion/` para poder
+conectan en `contenedor.ts` (los datos demo, que se cargan por los servicios, están a su lado en `datosDemo.ts`); todo lo externo tiene una interfaz en `aplicacion/` para poder
 sustituirlo en pruebas.
 
 ## 5. Nomenclatura
@@ -62,7 +64,7 @@ sustituirlo en pruebas.
 | Clase, tipo, interfaz | `PascalCase`, sin prefijo `I` | `Reserva`, `UnidadDeTrabajo` |
 | Función, variable | `camelCase`; las funciones empiezan con verbo | `calcularAreaM2`, `validarPago` |
 | Booleano | `es`, `esta`, `tiene`, `puede` | `estaVencida`, `tienePermiso` |
-| Constante | `MAYUSCULAS_CON_GUION_BAJO` | `TRANSICIONES_LOTE`, `MAX_CUOTAS` |
+| Constante | `MAYUSCULAS_CON_GUION_BAJO` | `OPERACIONES_LOTE`, `MAX_CUOTAS` |
 | Implementación de un puerto | `Nombre + Tecnología` | `HasherBcrypt`, `RelojSistema`, `LectorKmlXml` |
 | Código de error | `MAYUSCULAS_CON_GUION_BAJO` | `LOTE_NO_DISPONIBLE`, `MONTO_EXCEDE_SALDO` |
 | Tabla y columna SQL | `snake_case`; tablas en plural | `lotes`, `precio_pactado` |
@@ -171,7 +173,8 @@ it('lanza LOTE_NO_DISPONIBLE cuando el lote está RESERVADO', () => {
     `POST /api/pruebas/reiniciar` en `beforeEach`.
 
 Qué no se prueba: getters triviales, CRUD sin reglas, código de librerías, estilos.
-Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run test:cobertura`).
+Cobertura mínima: 80 % de líneas en `dominio/` y `aplicacion/`, medida solo con unitarias
+(`npm run test:cobertura -w backend -- tests/unitarias`); lo pide el docente. Ideal: 90 %.
 
 ## 9. Git y revisión
 
@@ -200,9 +203,8 @@ Cobertura objetivo: ≥ 90 % de líneas en `dominio/` y `aplicacion/` (`npm run 
 
 ## 12. Organización del equipo
 
-Cada integrante es **dueño de un nivel de prueba**, sin rotación: Laura las unitarias, Raul y
-Luciana la integración (cada archivo con un solo dueño) y Mario los E2E y la interfaz. Así nadie
-edita las pruebas de otro. Para que todos puedan explicar los tres niveles en la defensa, cada
-pull request lo revisa alguien de otro nivel. El reparto, los archivos de cada uno, las etapas y
-las reglas para no pisarse están en `AGENTS.md` §1, §6 y §7; el porqué, en `docs/DECISIONES.md`
-§12 y §13.
+Cada integrante es **dueño de un nivel de prueba**, sin rotación. Desde el 2026-11-21: Luciana las
+unitarias del dominio, Laura las de los servicios, Raul los E2E y Mario la interfaz, ya terminada.
+Así nadie edita las pruebas de otro. El reparto, los archivos de cada uno, quién revisa a quién,
+las etapas y las reglas para no pisarse están en `AGENTS.md` §1, §6 y §7; el porqué, en
+`docs/DECISIONES.md` §12 y §13.

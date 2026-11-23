@@ -1,41 +1,32 @@
 /** Componentes pequeños reutilizables. */
-import type { ReactNode } from 'react';
-import type { EstadoCuota, EstadoLote, EstadoPago, EstadoProyecto, EstadoReserva, EstadoVenta } from '../api/tipos';
+import type { InputHTMLAttributes, ReactNode } from 'react';
+import { ASPECTO_ESTADO, estiloEstado, type Estado } from '../utilidades/estados';
+import { Icono } from './Icono';
 
-type Estado = EstadoLote | EstadoProyecto | EstadoReserva | EstadoVenta | EstadoCuota | EstadoPago;
-
-/** Color de cada estado (clases definidas en estilos.css). */
-const TONO: Record<Estado, string> = {
-  DISPONIBLE: 'verde',
-  RESERVADO: 'ambar',
-  VENDIDO: 'rojo',
-  BLOQUEADO: 'gris',
-  BORRADOR: 'gris',
-  PUBLICADO: 'verde',
-  ACTIVA: 'ambar',
-  CANCELADA: 'gris',
-  VENCIDA: 'rojo',
-  CONVERTIDA: 'azul',
-  VIGENTE: 'verde',
-  ANULADA: 'gris',
-  PENDIENTE: 'ambar',
-  PAGADA: 'verde',
-  VALIDO: 'verde',
-  ANULADO: 'gris',
-};
-
+/**
+ * Estado con su color. El texto queda en el DOM tal cual el enum ('DISPONIBLE': las pruebas lo
+ * leen así) y estilos.css lo muestra como 'Disponible'.
+ */
 export function Insignia({ estado, testid }: { estado: Estado; testid?: string }) {
+  const { tono } = ASPECTO_ESTADO[estado];
   return (
-    <span className={`insignia insignia-${TONO[estado]}`} data-testid={testid} data-estado={estado}>
+    <span
+      className={`insignia insignia-${tono}`}
+      style={estiloEstado(estado)}
+      data-testid={testid}
+      data-estado={estado}
+    >
       {estado}
     </span>
   );
 }
 
-export function Cargando({ texto = 'Cargando...' }: { texto?: string }) {
+/** Indicador de carga: un <progress> sin valor es "indeterminado" para los lectores de pantalla. */
+export function Cargando() {
   return (
-    <div className="cargando" role="status">
-      <span className="spinner" /> {texto}
+    <div className="cargando">
+      <progress className="spinner" aria-label="Cargando…" />
+      <span aria-hidden="true">Cargando…</span>
     </div>
   );
 }
@@ -74,6 +65,29 @@ export function Dato({ etiqueta, children, testid }: { etiqueta: string; childre
       <div className="dato-valor" data-testid={testid}>
         {children}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Envoltorio de una tabla: si no entra a lo ancho se desplaza, y con el teclado se puede
+ * llegar a él para desplazarla. Por debajo de 40rem cada fila se muestra como ficha
+ * (cada <td> lleva su `data-etiqueta`).
+ */
+export function ContenedorTabla({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
+  return (
+    <div className="tabla-contenedor" role="region" aria-label={etiqueta} tabIndex={0}>
+      {children}
+    </div>
+  );
+}
+
+/** Campo de texto para buscar, con la lupa adentro. */
+export function CampoBusqueda({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className={`buscador ${className ?? ''}`}>
+      <Icono nombre="buscar" />
+      <input type="search" {...props} />
     </div>
   );
 }

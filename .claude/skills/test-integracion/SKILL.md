@@ -35,7 +35,7 @@ import request from 'supertest';
 import { crearApp } from '../../src/app';
 import { crearContenedor } from '../../src/contenedor';
 import { abrirBaseDeDatos } from '../../src/infraestructura/bd/baseDeDatos';
-import { cargarDatosDemo } from '../../src/infraestructura/bd/datosDemo';
+import { cargarDatosDemo } from '../../src/datosDemo';
 import { RelojFijo } from '../../src/infraestructura/reloj';
 
 export const HOY = new Date('2026-03-15T12:00:00');

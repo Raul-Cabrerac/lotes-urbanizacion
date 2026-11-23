@@ -1,10 +1,20 @@
 import { ErrorConflicto, ErrorNoEncontrado, ErrorSinPermiso } from '../../dominio/errores';
 import type { FechaISO } from '../../dominio/fechas';
-import { validarCambioEstado, validarLoteVendible } from '../../dominio/lote';
-import { generarPlanDePagos, resumirPlan } from '../../dominio/planPagos';
+import { OPERACIONES_LOTE, validarLoteVendible } from '../../dominio/lote';
+import { alcanzaCliente, clienteDelAlcance } from '../../dominio/permisos';
+import {
+  condicionesEfectivas,
+  generarPlanDePagos,
+  METODO_PAGO_POR_DEFECTO,
+  NUMERO_CUOTA_AL_FIRMAR,
+  resumirPlan,
+} from '../../dominio/planPagos';
+import { OPERACIONES_RESERVA } from '../../dominio/reserva';
 import type { MetodoPago, ModalidadPago } from '../../dominio/tipos';
-import { validarVentaAnulable } from '../../dominio/venta';
+import { restringir } from '../../dominio/transiciones';
+import { validarVentaAnulable, ventaYaAnulada } from '../../dominio/venta';
 import type { FiltrosVentas, Reloj, UnidadDeTrabajo, UsuarioActual, VentaVista } from '../puertos';
+import { vencerReservaDelLote } from './expirarReserva';
 
 export interface EntradaVenta {
   loteId: number;
@@ -28,15 +38,15 @@ export class VentaServicio {
 
   /** Un cliente solo ve sus propias ventas, aunque pida las de otro. */
   async listar(filtros: FiltrosVentas, usuario: UsuarioActual) {
-    const filtrosEfectivos = usuario.rol === 'CLIENTE' ? { ...filtros, clienteId: usuario.clienteId ?? -1 } : filtros;
-    const ventas = await this.uow.repos.ventas.listar(filtrosEfectivos);
+    const clienteId = clienteDelAlcance(usuario);
+    const ventas = await this.uow.repos.ventas.listar(clienteId === undefined ? filtros : { ...filtros, clienteId });
     return ventas.map((venta) => this.conResumen(venta));
   }
 
   async obtener(id: number, usuario: UsuarioActual) {
     const venta = await this.uow.repos.ventas.buscarPorId(id);
     if (!venta) throw new ErrorNoEncontrado('Venta no encontrada.');
-    if (usuario.rol === 'CLIENTE' && venta.clienteId !== usuario.clienteId) {
+    if (!alcanzaCliente(usuario, venta.clienteId)) {
       throw new ErrorSinPermiso('Solo puede consultar sus propias operaciones.');
     }
     return this.conResumen(venta);
@@ -56,6 +66,7 @@ export class VentaServicio {
    * del lote, la venta no se modifica.
    */
   async registrar(entrada: EntradaVenta, usuario: UsuarioActual) {
+    await vencerReservaDelLote(this.uow, this.reloj, entrada.loteId);
     const ventaId = await this.uow.transaccion(async (repos) => {
       const lote = await repos.lotes.buscarPorId(entrada.loteId);
       if (!lote) throw new ErrorNoEncontrado('Lote no encontrado.');
@@ -64,29 +75,31 @@ export class VentaServicio {
       const proyecto = await repos.proyectos.buscarPorId(lote.proyectoId);
       if (!proyecto) throw new ErrorNoEncontrado('Proyecto no encontrado.');
       const reservaActiva = await repos.reservas.buscarActivaPorLote(lote.id);
+      const hoy = this.reloj.hoy();
+      const ahora = this.reloj.ahora();
 
       validarLoteVendible(lote, proyecto.estado, cliente.id, reservaActiva);
 
-      const ahora = this.reloj.ahora();
       const precioPactado = entrada.precioPactado ?? lote.precio;
-      const esFinanciada = entrada.modalidad === 'FINANCIADO';
       const cuotas = generarPlanDePagos({
         precioPactado,
         modalidad: entrada.modalidad,
         cuotaInicial: entrada.cuotaInicial,
         numeroCuotas: entrada.numeroCuotas,
-        fechaVenta: this.reloj.hoy(),
+        fechaVenta: hoy,
         fechaPrimeraCuota: entrada.fechaPrimeraCuota,
       });
 
-      validarCambioEstado(lote.estado, 'VENDIDO');
-      // Primero la reserva y después el lote, el mismo orden que usan cancelar y vencer: así dos
-      // operaciones simultáneas sobre el mismo lote no se esperan mutuamente (deadlock).
+      // Orden de bloqueo: reserva -> lote (ver UnidadDeTrabajo en puertos.ts).
       const reservaConvertida = reservaActiva
-        ? await repos.reservas.finalizar(reservaActiva.id, 'CONVERTIDA', ahora)
+        ? await repos.reservas.finalizar(reservaActiva.id, OPERACIONES_RESERVA.convertir, ahora)
         : true;
-      const vendido = reservaConvertida && (await repos.lotes.cambiarEstadoSi(lote.id, lote.estado, 'VENDIDO'));
+      // Desde el estado leído (DISPONIBLE o RESERVADO): si otro usuario lo cambió, no se vende.
+      const vendido =
+        reservaConvertida &&
+        (await repos.lotes.cambiarEstadoSi(lote.id, restringir(OPERACIONES_LOTE.vender, lote.estado)));
       if (!vendido) {
+        if (!(await repos.lotes.buscarPorId(lote.id))) throw new ErrorNoEncontrado('Lote no encontrado.');
         // El error deshace la transacción: si la reserva ya se había convertido, vuelve a ACTIVA.
         throw new ErrorConflicto('LOTE_NO_DISPONIBLE', `El lote ${lote.codigo} acaba de ser modificado por otro usuario.`);
       }
@@ -100,19 +113,18 @@ export class VentaServicio {
           fecha: ahora,
           precioPactado,
           modalidad: entrada.modalidad,
-          cuotaInicial: esFinanciada ? (entrada.cuotaInicial ?? 0) : 0,
-          numeroCuotas: esFinanciada ? (entrada.numeroCuotas ?? 0) : 0,
+          ...condicionesEfectivas(entrada),
         },
         cuotas,
       );
 
       // La cuota inicial (o el pago al contado) se cobra al firmar la venta.
-      const cuotaAlFirmar = venta.cuotas.find((cuota) => cuota.numero === 0);
+      const cuotaAlFirmar = venta.cuotas.find((cuota) => cuota.numero === NUMERO_CUOTA_AL_FIRMAR);
       if (cuotaAlFirmar) {
         await repos.pagos.crear({
           cuotaId: cuotaAlFirmar.id,
           monto: cuotaAlFirmar.monto,
-          metodo: entrada.metodoPago ?? 'EFECTIVO',
+          metodo: entrada.metodoPago ?? METODO_PAGO_POR_DEFECTO,
           referencia: 'Cobrado al registrar la venta',
           fecha: ahora,
           registradoPorId: usuario.id,
@@ -130,11 +142,13 @@ export class VentaServicio {
       const venta = await repos.ventas.buscarPorId(id);
       if (!venta) throw new ErrorNoEncontrado('Venta no encontrada.');
       validarVentaAnulable(venta, motivo);
-      validarCambioEstado('VENDIDO', 'DISPONIBLE');
 
       const anulada = await repos.ventas.anular(id, { motivo: motivo.trim(), anuladaPorId: usuario.id, fecha: this.reloj.ahora() });
-      if (!anulada) throw new ErrorConflicto('VENTA_NO_VIGENTE', 'La venta ya fue anulada.');
-      await repos.lotes.cambiarEstadoSi(venta.loteId, 'VENDIDO', 'DISPONIBLE');
+      if (!anulada) throw ventaYaAnulada();
+      const liberado = await repos.lotes.cambiarEstadoSi(venta.loteId, OPERACIONES_LOTE.anularVenta);
+      if (!liberado) {
+        throw new ErrorConflicto('LOTE_MODIFICADO', 'El lote de la venta ya no estaba en estado VENDIDO.');
+      }
     });
     return this.obtener(id, usuario);
   }

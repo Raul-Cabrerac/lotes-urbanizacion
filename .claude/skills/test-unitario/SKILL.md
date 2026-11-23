@@ -28,12 +28,15 @@ argument-hint: "[archivo, función o regla a probar]"
 - En `backend/tests/unitarias/`, con la misma estructura que `src/` (nunca dentro de `src/`):
   `src/dominio/lote.ts` → `tests/unitarias/dominio/lote.test.ts`;
   `src/aplicacion/servicios/ReservaServicio.ts` → `tests/unitarias/servicios/ReservaServicio.test.ts`.
-  Por qué: `docs/DECISIONES.md` §12. Dueña de la carpeta: Laura (`AGENTS.md` §6).
+  Por qué: `docs/DECISIONES.md` §12. Dueñas: Luciana (`dominio/`) y Laura (`servicios/`), según
+  `AGENTS.md` §6. Guía práctica: `docs/MANUAL_UNITARIAS.md`.
 - Desde `tests/unitarias/dominio/` o `tests/unitarias/servicios/`, el código se importa con
   `../../../src/...`.
 - Primera línea: `// Consigna §12: <ítem que cubre>`.
-- Datos repetidos en `backend/tests/apoyo/constructores.ts` (`crearLote`, `crearCuota`...).
-  Crearlos si no existen; devuelven objetos válidos por defecto y aceptan sobrescribir campos.
+- Datos repetidos: una función dentro del propio archivo de prueba (`const lote = (estado) => ...`).
+  Si la necesitan varios archivos, se le pide a Raul para `backend/tests/apoyo/`, que está
+  congelada (`AGENTS.md` §7, regla 4). Ya existen `tests/apoyo/dobles.ts` (reloj fijo, usuarios,
+  unidad de trabajo falsa) y `tests/apoyo/datosDemo.ts`.
 
 ## 4. Estructura obligatoria
 
@@ -82,7 +85,7 @@ un comportamiento por `it`; sin `if`, `for` ni `try` dentro de un `it` (tablas c
 
 | Consigna §12 | Dónde | Casos mínimos |
 |---|---|---|
-| Cambios permitidos de estado | `lote.ts`: `TRANSICIONES_LOTE`, `puedeCambiarEstado`, `validarCambioEstadoManual` | `it.each` con transiciones válidas e inválidas · a mano solo bloquear y desbloquear |
+| Cambios permitidos de estado | `lote.ts`: `OPERACIONES_LOTE` con `admite` (`transiciones.ts`), `operacionesDelLote`, `validarCambioEstadoManual` | `it.each` con transiciones válidas e inválidas · a mano solo bloquear y desbloquear |
 | Impedir reservar un lote no DISPONIBLE | `validarLoteReservable` | DISPONIBLE → ok · RESERVADO/VENDIDO/BLOQUEADO → `LOTE_NO_DISPONIBLE` · precio 0 → `LOTE_SIN_PRECIO` · proyecto BORRADOR → `PROYECTO_NO_PUBLICADO` |
 | Impedir vender un lote ya VENDIDO | `validarLoteVendible` | VENDIDO → `LOTE_YA_VENDIDO` · RESERVADO por otro cliente → `LOTE_RESERVADO_POR_OTRO_CLIENTE` · RESERVADO por el mismo cliente → ok |
 | Total pagado y saldo | `planPagos.ts`: `resumirPlan` | sin pagos · con pagos · con un pago ANULADO (no cuenta) · ejemplo A-05: 75 000 − 20 000 = 55 000 |
@@ -156,9 +159,9 @@ describe('ReservaServicio', () => {
   dobles parciales. Si se repite, mover a `tests/apoyo/dobles.ts`.
 - `reservas.finalizar`, `ventas.anular` y `pagos.anular` devuelven `true` si cambiaron la fila:
   en el doble, `mockResolvedValue(true)` para el caso normal y `false` para simular que otro
-  usuario la cerró antes (el servicio responde 409). `PagoServicio.registrar` llama primero a
-  `ventas.bloquearPorId`, así que el doble necesita ese método. Detalle en
-  `docs/GUIA_TESTING.md` §2.
+  usuario la cerró antes (el servicio responde 409). Arma la unidad de trabajo con
+  `unidadDeTrabajoFalsa(repos)` de `tests/apoyo/dobles.ts`: agrega sola los `bloquearPorId` que
+  piden los servicios. Detalle en `docs/GUIA_TESTING.md` §2.
 
 ## 8. Fechas
 
@@ -178,7 +181,7 @@ superficies en m², nunca para dinero (el dinero tiene 2 decimales exactos).
 npm run test:unit                                  # todas las unitarias
 npx vitest run tests/unitarias/dominio/lote.test.ts   # un archivo (desde backend/)
 npx vitest -t "LOTE_NO_DISPONIBLE"                 # por nombre
-npm run test:cobertura                             # objetivo ≥ 90 % en dominio y aplicación
+npm run test:cobertura -w backend -- tests/unitarias   # desde la raíz: mínimo 80 % (solo unitarias)
 ```
 
 ## 11. Lista de verificación
