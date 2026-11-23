@@ -1,4 +1,4 @@
-// Consigna §14: Exclusión mutua de modos de mapa y sincronización tras conflicto 409 (Incidencia #6).
+// Consigna §4 y §7: regresión de la incidencia #6 (modos del mapa y sincronización tras un conflicto 409).
 import { expect, test } from '@playwright/test';
 import { abrirProyecto, iniciarSesionComo, reiniciarDatos, tokenApi } from '../apoyo/sesion';
 

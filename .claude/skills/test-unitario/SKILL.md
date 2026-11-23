@@ -28,12 +28,15 @@ argument-hint: "[archivo, función o regla a probar]"
 - En `backend/tests/unitarias/`, con la misma estructura que `src/` (nunca dentro de `src/`):
   `src/dominio/lote.ts` → `tests/unitarias/dominio/lote.test.ts`;
   `src/aplicacion/servicios/ReservaServicio.ts` → `tests/unitarias/servicios/ReservaServicio.test.ts`.
-  Por qué: `docs/DECISIONES.md` §12. Dueña de la carpeta: Laura (`AGENTS.md` §6).
+  Por qué: `docs/DECISIONES.md` §12. Dueñas: Luciana (`dominio/`) y Laura (`servicios/`), según
+  `AGENTS.md` §6. Guía práctica: `docs/MANUAL_UNITARIAS.md`.
 - Desde `tests/unitarias/dominio/` o `tests/unitarias/servicios/`, el código se importa con
   `../../../src/...`.
 - Primera línea: `// Consigna §12: <ítem que cubre>`.
-- Datos repetidos en `backend/tests/apoyo/constructores.ts` (`crearLote`, `crearCuota`...).
-  Crearlos si no existen; devuelven objetos válidos por defecto y aceptan sobrescribir campos.
+- Datos repetidos: una función dentro del propio archivo de prueba (`const lote = (estado) => ...`).
+  Si la necesitan varios archivos, se le pide a Raul para `backend/tests/apoyo/`, que está
+  congelada (`AGENTS.md` §7, regla 4). Ya existen `tests/apoyo/dobles.ts` (reloj fijo, usuarios,
+  unidad de trabajo falsa) y `tests/apoyo/datosDemo.ts`.
 
 ## 4. Estructura obligatoria
 
@@ -178,7 +181,7 @@ superficies en m², nunca para dinero (el dinero tiene 2 decimales exactos).
 npm run test:unit                                  # todas las unitarias
 npx vitest run tests/unitarias/dominio/lote.test.ts   # un archivo (desde backend/)
 npx vitest -t "LOTE_NO_DISPONIBLE"                 # por nombre
-npm run test:cobertura                             # objetivo ≥ 90 % en dominio y aplicación
+npm run test:cobertura -w backend -- tests/unitarias   # desde la raíz: mínimo 80 % (solo unitarias)
 ```
 
 ## 11. Lista de verificación

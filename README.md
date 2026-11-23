@@ -69,14 +69,14 @@ probar la reserva duplicada.
 | Requisito | Dónde se ve |
 |---|---|
 | Creación de proyectos y gestión de etapas o manzanos | *Proyectos → + Nuevo proyecto*; cada lote tiene etapa y manzano, con filtros y resumen por manzano |
-| Carga de archivo KML | Mapa → *📁 Importar KML* (botón "Usar KML de ejemplo") |
-| Dibujo y edición de polígonos | Mapa → *✏️ Dibujar lote*: clic en cada esquina sobre Google Maps; detalle del lote → *Editar forma* |
+| Carga de archivo KML | Mapa → *Importar KML* (botón "Usar KML de ejemplo") |
+| Dibujo y edición de polígonos | Mapa → *Dibujar lote*: clic en cada esquina sobre Google Maps; detalle del lote → *Editar forma* |
 | Visualización de lotes y detalle desde el mapa | Polígonos de colores; clic en un lote abre su detalle (cargado bajo demanda) |
 | Superficie, dimensiones y precio | Se calculan del polígono y se pueden ajustar |
 | Estados y filtro por estado | DISPONIBLE verde, RESERVADO ámbar, VENDIDO rojo, BLOQUEADO gris; contadores y filtros |
 | Clientes, reserva y prevención de reserva duplicada | *Reservar* desde el lote, con "+ Nuevo cliente"; la segunda reserva simultánea se rechaza |
 | Cancelación, vencimiento y liberación | *Cancelar reserva*; las vencidas se liberan solas |
-| Venta, precio pactado y cambio a VENDIDO | *Vender* al contado o financiado; el precio pactado queda congelado |
+| Venta, precio pactado y cambio a VENDIDO | *Vender* al contado o con crédito financiado; el precio pactado queda congelado |
 | Plan de pagos, cuotas, pagos, total pagado, saldo e historial | *Ventas y pagos → plan de pagos*; anular pago con motivo (admin) |
 | Consulta de operaciones del cliente | Portal *Mis lotes*, con su lote en el mapa |
 | Control de acceso por roles | Menú y botones según el rol; la API responde 401 o 403 |
@@ -91,7 +91,7 @@ probar la reserva duplicada.
 3. **E2E 03** · `asesor` y `asesor2` abren el mismo lote disponible. El primero reserva; el
    segundo recibe el rechazo.
 4. **E2E 04** · Lote → *Vender* → *Al contado* → queda rojo (VENDIDO) con el detalle de la venta.
-5. **E2E 05** · Vender *Financiado* (cuota inicial + 12 cuotas) → *Ver plan de pagos* →
+5. **E2E 05** · Vender con *Crédito financiado* (cuota inicial + 12 cuotas) → *Ver plan de pagos* →
    *Registrar pago* de la cuota 1 → PAGADA y baja el saldo.
 6. **E2E 06** · Lote reservado → *Cancelar reserva* → vuelve a DISPONIBLE.
 7. **E2E 07** · `cliente`: *Mis lotes*, su lote A-05 en el mapa, plan de pagos y saldo
@@ -158,9 +158,9 @@ lotes-urbanizacion/
 
 | Nivel | Carpeta | Qué prueba | Responsable | Comando |
 |---|---|---|---|---|
-| Unitarias | `backend/tests/unitarias/` | Reglas del dominio y servicios con mocks (consigna §12) | Laura | `npm run test:unit` |
-| Integración | `backend/tests/integracion/` | API con la base de datos real, en memoria (§13) | Raul y Luciana | `npm run test:integracion` |
-| E2E | `e2e/tests/` | Los 8 flujos de la consigna en el navegador (§14) | Mario | `npm run test:e2e` |
+| Unitarias | `backend/tests/unitarias/` | Reglas del dominio y servicios con mocks (consigna §12) | Luciana (dominio) y Laura (servicios) | `npm run test:unit` |
+| Integración | `backend/tests/integracion/` | API con la base de datos real, en memoria (§13). Ya no se evalúa | Raul | `npm run test:integracion` |
+| E2E | `e2e/tests/` | Los 8 flujos de la consigna en el navegador (§14) | Raul | `npm run test:e2e` |
 
 - **Cada prueba vive junto a lo que prueba.** Las unitarias y las de integración prueban el
   backend, así que están dentro de `backend/` y usan su configuración, sus dependencias y su
@@ -213,5 +213,6 @@ DISPONIBLE ──reservar──► RESERVADO ──vender──► VENDIDO
 | [docs/GOOGLE_MAPS.md](docs/GOOGLE_MAPS.md) | Clave de Google Maps y cómo funciona el mapa |
 | [docs/API.md](docs/API.md) | Rutas de la API y catálogo de códigos de error |
 | [docs/GUIA_TESTING.md](docs/GUIA_TESTING.md) | Dónde va cada prueba, puntos de entrada, datos demo y `data-testid` |
+| [docs/MANUAL_UNITARIAS.md](docs/MANUAL_UNITARIAS.md) | Cómo escribir las unitarias, qué le toca a cada una y cómo llegar al 80 % de cobertura |
 | [docs/CONVENCIONES.md](docs/CONVENCIONES.md) | Convenciones de código, pruebas y trabajo en equipo |
 | [docs/DECISIONES.md](docs/DECISIONES.md) | Decisiones técnicas y por qué |

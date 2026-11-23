@@ -125,6 +125,20 @@ expirada en orden determinista (`ORDER BY id`) y transacciones cortas independie
 - `npm run dev:pruebas` usa PostgreSQL en memoria y habilita `POST /api/pruebas/reiniciar`, para
   que cada E2E empiece desde los mismos datos.
 
+**Por qué Playwright y no Cypress ni Selenium** (pregunta frecuente en la defensa):
+
+- **Dos usuarios a la vez (E2E 03).** Playwright abre dos navegadores independientes en la misma
+  prueba. Cypress, según su propia documentación, no puede controlar dos navegadores ni dos
+  pestañas a la vez: el segundo asesor tendría que simularse llamando a la API.
+- **Clics sobre el mapa (E2E 01).** Para dibujar un lote hay que hacer clic en coordenadas de
+  Google Maps. Playwright manda eventos de mouse reales; Cypress los simula con JavaScript.
+- **Menos configuración.** Playwright levanta la app antes de las pruebas (`webServer`), espera
+  sola a que cada elemento esté listo y guarda una traza paso a paso cuando algo falla, todo
+  gratis. Selenium necesita un driver por navegador y esperas escritas a mano.
+- **Mismo estilo que Vitest:** TypeScript con `async/await` en los tres niveles.
+- **A favor de Cypress:** su ejecutor interactivo con «viaje en el tiempo» es muy cómodo para
+  depurar. Pesaron más los tres primeros puntos.
+
 ## 11. Origen del código
 
 La base funcional (dominio, servicios, rutas y pantallas) viene de una primera versión hecha con
@@ -189,6 +203,11 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
     momento se congela.
   - Para que todos puedan explicar los tres niveles en la defensa, cada pull request lo revisa
     alguien de otro nivel.
+- **Cambio del 2026-11-21:** el docente dejó de evaluar las pruebas de integración y pidió una
+  cobertura mínima de 80 % del backend. Como Mario ya había terminado la interfaz y los E2E no
+  estaban empezados, Raul tomó los E2E (Mario los valida) y Laura y Luciana se repartieron las
+  unitarias por carpeta: Luciana `dominio/`, Laura `servicios/`. Las pruebas de integración que ya
+  existían se mantienen en el CI. El detalle está en `AGENTS.md` §6.
 
 ## 14. Una sola fuente para las reglas que cruzan capas
 
@@ -247,3 +266,17 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
     `ModalVenta.tsx`.
 - **Por qué:** son reglas del negocio. Escritas aquí y junto al código, nadie tiene que adivinar
   si un valor es una regla o un descuido, ni volver a preguntarlo.
+
+## 16. «Crédito financiado»: el nombre visible de la venta financiada
+
+- **Contexto:** al revisar el proyecto, el docente pidió (2026-11-21) que las modalidades de pago
+  incluyan el «crédito financiado».
+- **Elegido:** la modalidad `FINANCIADO` se muestra como «Crédito financiado» en todas las
+  pantallas. Es una sola línea, `ETIQUETA_MODALIDAD` en `frontend/src/utilidades/estados.ts`. No
+  cambian el valor `FINANCIADO`, la base de datos, la API ni los `data-testid`.
+- **Alternativas:** agregar una tercera modalidad distinta (por ejemplo, un crédito bancario).
+  Habría que definir una regla que la consigna no tiene y tocar más de 20 archivos, con una
+  migración nueva.
+- **Por qué:** la consigna (§9) define dos modalidades, al contado o financiada, y la financiada ya
+  es un crédito directo de la empresa: cuota inicial, cuotas mensuales, cronograma, pagos y saldo.
+  Cambiar el nombre cumple el pedido sin riesgo, y los E2E no dependen de ese texto.

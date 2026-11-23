@@ -9,16 +9,17 @@ las skills `test-unitario`, `test-integracion` y `test-e2e` de `.claude/skills/`
 
 | Nivel | Archivos | Responsable | Consigna | Herramientas | Comando |
 |---|---|---|---|---|---|
-| Unitaria | `backend/tests/unitarias/dominio/<modulo>.test.ts` y `backend/tests/unitarias/servicios/<Servicio>.test.ts` | Laura | §12 | Vitest (mocks con `vi.fn()`) | `npm run test:unit` |
-| Integración | `backend/tests/integracion/<recurso>.test.ts`: `proyectos`, `lotes`, `clientes`, `reservas` | Raul | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
-| Integración | `backend/tests/integracion/<recurso>.test.ts`: `ventas`, `planPagos`, `pagos`, `permisos` | Luciana | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
-| E2E | `e2e/tests/e2e-0N-nombre.spec.ts` | Mario | §14 | Playwright | `npm run test:e2e` |
+| Unitaria | `backend/tests/unitarias/dominio/<modulo>.test.ts` | Luciana | §12 | Vitest | `npm run test:unit` |
+| Unitaria | `backend/tests/unitarias/servicios/<Servicio>.test.ts` | Laura | §12 | Vitest (mocks con `vi.fn()`) | `npm run test:unit` |
+| Integración | `backend/tests/integracion/<recurso>.test.ts` | Raul (ya no se evalúa) | §13 | Vitest + Supertest + PostgreSQL en memoria | `npm run test:integracion` |
+| E2E | `e2e/tests/e2e-0N-nombre.spec.ts` | Raul (valida Mario) | §14 | Playwright | `npm run test:e2e` |
 
 - Las unitarias repiten la estructura de `src/`: `src/dominio/lote.ts` se prueba en
   `tests/unitarias/dominio/lote.test.ts`, y `src/aplicacion/servicios/ReservaServicio.ts` en
   `tests/unitarias/servicios/ReservaServicio.test.ts`.
 - Ayudantes compartidos: `backend/tests/apoyo/` y `e2e/apoyo/`. Los mantiene Raul.
-- `npm run test:cobertura` mide la cobertura de `dominio/` y `aplicacion/`.
+- Cobertura mínima de 80 % en `dominio/` y `aplicacion/`, medida solo con unitarias:
+  `npm run test:cobertura -w backend -- tests/unitarias`. Cómo llegar: `docs/MANUAL_UNITARIAS.md`.
 - Por qué esta estructura: `docs/DECISIONES.md` §12. Qué ítem cubre cada responsable: §7 de esta
   guía.
 
@@ -98,17 +99,24 @@ Al simular repositorios, tener en cuenta lo que devuelven desde las correcciones
    `npm run dev:pruebas` abierto sí se reutiliza, y así las pruebas arrancan más rápido mientras las
    escribes.
 
-Notas sobre el mapa (Google Maps):
+Notas sobre el mapa (Google Maps). Los ayudantes están en `e2e/apoyo/mapa.ts`:
 
 - Cada lote tiene una etiqueta HTML sobre su polígono con `data-testid="poligono-<código>"` y
-  `data-estado`. Un clic en ella selecciona el lote, igual que un clic en el polígono.
-- Sin clave de Google el mapa muestra un aviso de Google; no tapa las etiquetas ni la barra.
-- **Dibujar un lote:** `dibujar-lote`, luego `page.mouse.click(x, y)` sobre `mapa` en cada
-  esquina, con `waitForTimeout(500)` entre clics (dos clics muy seguidos cuentan como doble clic).
-  Para cerrar: clic sobre el primer punto o `terminar-dibujo`. Se abre `modal-lote`.
+  `data-estado`. Un clic en ella selecciona el lote, igual que un clic en el polígono:
+  `seleccionarLote(page, 'C-02')` hace el clic y espera el panel de ese lote.
+- Sin clave de Google, el mapa muestra arriba el diálogo «Esta página no puede cargar Google Maps
+  correctamente», que **tapa la fila superior de lotes del proyecto 1 (C-04, C-05 y C-06)**. Los
+  E2E usan lotes libres: C-02, C-03, A-01, A-02, A-03 y A-05.
+- **Dibujar un lote:** con el mapa ya cargado (por ejemplo, con `poligono-P-01` visible en Las
+  Palmeras), `dibujar-lote` y luego `dibujarRectangulo(page)`. Google Maps descarta un clic que
+  llega a menos de ~0,3 s del anterior (lo toma como doble clic), así que el ayudante espera 0,5 s
+  antes de cada esquina. Es la única espera fija de los E2E. En un proyecto recién creado, sin
+  lotes, los primeros clics se pierden porque el mapa todavía no terminó de cargar.
 - Al seleccionar un lote se abre el panel de la derecha y el mapa se angosta. Si después hay que
   hacer clic en coordenadas del mapa, cierra antes el panel con `detalle-cerrar`.
 - Los avisos se apilan: usa `getByTestId('aviso-exito').filter({ hasText: '...' })`.
+- Para comprobar que un rechazo lo decidió el servidor, `esperarRespuestaApi` de
+  `e2e/apoyo/api.ts` devuelve el estado HTTP y el `codigo` del error.
 
 ## 5. Datos demo de referencia
 
@@ -160,7 +168,7 @@ M1-08 y su perímetro) y `kml_con_errores.kml` (caso negativo: no se importa nad
 | Reserva | `modal-reserva`, `reserva-cliente` (y `reserva-cliente-buscar`, `reserva-cliente-nuevo`), `reserva-vencimiento`, `reserva-observacion`, `reserva-error`, `reserva-confirmar`, `reserva-cancelar` |
 | Cliente (formulario) | `modal-cliente`, `cliente-nombre`, `cliente-documento`, `cliente-telefono`, `cliente-email`, `cliente-direccion`, `cliente-guardar`, `cliente-cancelar` |
 | Venta | `modal-venta`, `venta-cliente-reserva`, `venta-cliente` (y `-buscar`, `-nuevo`), `venta-precio`, `venta-contado`, `venta-financiado`, `venta-cuota-inicial`, `venta-numero-cuotas`, `venta-primera-cuota`, `venta-metodo`, `venta-vista-plan`, `venta-error-plan`, `venta-error`, `venta-confirmar`, `venta-cancelar` |
-| Confirmaciones | `modal-cancelar-reserva`, `modal-eliminar-lote`, `modal-publicar`, `confirmar-motivo`, `confirmar-aceptar`, `confirmar-cancelar`, `modal-cerrar` |
+| Confirmaciones | `modal-cancelar-reserva`, `modal-eliminar-lote`, `modal-publicar`, `modal-confirmar` (cancelar desde `/reservas` y confirmaciones sin nombre propio), `confirmar-motivo`, `confirmar-aceptar`, `confirmar-cancelar`, `modal-cerrar`, `mensaje-error` (error de un formulario sin nombre propio) |
 | Plan de pagos | `volver-ventas`, `venta-estado`, `anular-venta`, `venta-anulada`, `resumen-saldo`, `venta-precio-pactado`, `venta-total-pagado`, `venta-saldo`, `venta-vencidas`, `venta-proxima`, `venta-mapa`, `tabla-cuotas`, `cuota-<n>` con `data-estado`, `cuota-<n>-estado`, `pagar-cuota-<n>`, `tabla-pagos`, `pago-<id>`, `anular-pago-<id>` |
 | Registrar pago | `modal-pago`, `pago-monto`, `pago-metodo`, `pago-referencia`, `pago-error`, `pago-confirmar`, `pago-cancelar` |
 | Clientes | `nuevo-cliente`, `buscar-cliente`, `tabla-clientes`, `fila-cliente-<documento>`, `editar-cliente-<documento>`, `volver-clientes`, `cliente-saldo-total` |
@@ -175,6 +183,10 @@ M1-08 y su perímetro) y `kml_con_errores.kml` (caso negativo: no se importa nad
 Completar la última columna a medida que se escriben las pruebas (cada responsable, solo sus
 filas). Esta tabla se muestra en la presentación final. Las últimas filas son ítems del checklist
 §15 y de §5, §7 y §11 que no aparecen en las listas de §12 a §14 pero también se evalúan.
+
+Desde el 2026-11-21 el docente evalúa solo unitarias y E2E: las filas de integración (§13) quedan
+como referencia. En las filas de §12, la columna «Responsable» pasa a ser Luciana (`dominio/`) o
+Laura (`servicios/`), según el archivo de la prueba (reparto en `AGENTS.md` §6).
 
 | Consigna | Ítem | Nivel | Responsable | Prueba |
 |---|---|---|---|---|
@@ -199,14 +211,14 @@ filas). Esta tabla se muestra en la presentación final. Las últimas filas son 
 | §13 | Consultar lotes filtrados por estado o proyecto | Integración | Raul | pendiente |
 | §13 | Comprobar permisos de administrador, asesor y cliente | Integración | Luciana | pendiente |
 | §13 | Comprobar que un cliente no acceda a operaciones de otro | Integración | Luciana | pendiente |
-| §14 | E2E 01 Crear proyecto, dibujar lotes y verlos en el mapa | E2E | Mario | pendiente |
-| §14 | E2E 02 Reservar lote | E2E | Mario | pendiente |
-| §14 | E2E 03 Evitar reserva duplicada | E2E | Mario | pendiente |
-| §14 | E2E 04 Venta | E2E | Mario | pendiente |
-| §14 | E2E 05 Plan de pagos | E2E | Mario | pendiente |
-| §14 | E2E 06 Liberar reserva | E2E | Mario | pendiente |
-| §14 | E2E 07 Portal del cliente | E2E | Mario | pendiente |
-| §14 | E2E 08 Control de acceso | E2E | Mario | pendiente |
+| §14 | E2E 01 Crear proyecto, dibujar lotes y verlos en el mapa | E2E | Raul | `e2e-01-crear-proyecto.spec.ts`: proyecto nuevo con KML, precio y publicación; lote dibujado con código y precio |
+| §14 | E2E 02 Reservar lote | E2E | Raul | `e2e-02-reservar-lote.spec.ts`: reserva con cliente nuevo; un lote RESERVADO no ofrece reservar |
+| §14 | E2E 03 Evitar reserva duplicada | E2E | Raul | `e2e-03-reserva-duplicada.spec.ts`: dos asesores en dos navegadores; el segundo recibe 409 `LOTE_NO_DISPONIBLE` |
+| §14 | E2E 04 Venta | E2E | Raul | `e2e-04-venta.spec.ts`: venta al contado con precio pactado; un lote VENDIDO no ofrece vender |
+| §14 | E2E 05 Plan de pagos | E2E | Raul | `e2e-05-plan-de-pagos.spec.ts`: venta financiada, cronograma, pago y nuevo saldo; pago mayor al saldo → 422 `MONTO_EXCEDE_SALDO` |
+| §14 | E2E 06 Liberar reserva | E2E | Raul | `e2e-06-liberar-reserva.spec.ts`: cancelar libera el lote; una reserva vencida ya lo liberó |
+| §14 | E2E 07 Portal del cliente | E2E | Raul | `e2e-07-portal-cliente.spec.ts`: su lote en el mapa, pagado y saldo; su plan de pagos; no ve compras ajenas |
+| §14 | E2E 08 Control de acceso | E2E | Raul | `e2e-08-control-de-acceso.spec.ts`: sin sesión va al login; cliente sin acceso a usuarios; venta ajena → 403 `SIN_PERMISO` |
 | §15 | Test de venta duplicada | Unitario e Integración | Laura y Luciana | pendiente |
 | §15 | Mocks/stubs cuando corresponde (servicios con repositorios simulados) | Unitario | Laura | pendiente |
 | §7 | Dos reservas simultáneas del mismo lote: una se acepta y la otra recibe 409 | Integración | Raul | pendiente |
