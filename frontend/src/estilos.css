@@ -916,6 +916,27 @@ select:open::picker-icon {
   flex: 0 1 16rem;
 }
 
+/* Paginación debajo de un listado: el resumen a la izquierda y los controles a la derecha. */
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block-start: 0.75rem;
+}
+.paginacion-controles,
+.paginacion-por-pagina {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.paginacion-por-pagina select {
+  inline-size: auto;
+  min-block-size: 1.875rem;
+  padding-block: 0.25rem;
+}
+
 /* ---------- Tablas ---------- */
 
 .tabla-contenedor {

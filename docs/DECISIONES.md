@@ -280,3 +280,89 @@ convenciones del equipo (archivos cortos, sin `any` ni `!`, un repositorio por a
 - **Por qué:** la consigna (§9) define dos modalidades, al contado o financiada, y la financiada ya
   es un crédito directo de la empresa: cuota inicial, cuotas mensuales, cronograma, pagos y saldo.
   Cambiar el nombre cumple el pedido sin riesgo, y los E2E no dependen de ese texto.
+
+## 17. Los lotes de un proyecto no se superponen
+
+- **Contexto:** al probar la aplicación (2026-11-25) se pudo dibujar un lote encima de otro y
+  publicar el proyecto. La consigna (§11) pide «geometrías válidas», y hasta entonces cada
+  polígono se validaba solo, sin compararlo con los demás lotes.
+- **Elegido:** un lote no puede ocupar terreno de otro lote del mismo proyecto.
+  - Dos lotes pueden compartir un lado o una esquina. Se rechaza cuando la superficie que comparten
+    supera 1 m² (`SUPERPOSICION_TOLERADA_M2`): ese margen cubre el redondeo de las coordenadas y la
+    imprecisión de dibujar a mano dos lotes vecinos.
+  - La regla está en `dominio/superposicion.ts` (`validarSinSuperposicion`, código
+    `LOTE_SUPERPUESTO`, 409). Se aplica al crear un lote, al editar su forma y al importar un KML;
+    en el KML se informa dentro de `KML_CON_ERRORES` y sigue siendo todo o nada.
+  - La superficie compartida se calcula sin librerías (§8): cada polígono se parte en triángulos
+    y los triángulos se recortan entre sí (algoritmo de Sutherland-Hodgman). Sirve también para
+    lotes con entrantes, como uno en forma de L.
+- **Fuera del alcance:**
+  - Los lotes que ya estaban superpuestos no se tocan: la regla se aplica a lo que se crea o
+    cambia de forma desde ahora.
+  - No se compara con el perímetro del proyecto ni con lotes de otros proyectos.
+  - Si dos administradores crean a la vez dos lotes superpuestos, no se bloquean entre sí: crear
+    un lote no es una de las operaciones críticas de la consigna (§7).
+- **Alternativas:** la extensión PostGIS de PostgreSQL o una librería como Turf.js. Las dos agregan
+  una herramienta nueva y sacan la regla del dominio, donde hoy se prueba con unitarias.
+- **Por qué:** en la realidad dos lotes no ocupan el mismo terreno, y venderlos así sería vender
+  dos veces la misma tierra. La interfaz no cambia: el rechazo se muestra donde ya se mostraban
+  los errores del lote.
+
+## 18. La reserva exige un anticipo
+
+- **Contexto:** al revisar el proyecto, el docente observó (2026-11-25) que reservar un lote debía
+  tener un anticipo o cobro: hasta entonces reservar era gratis. La consigna (§7) no menciona dinero
+  en la reserva.
+- **Elegido:**
+  - Al reservar, el cliente paga un anticipo. Es obligatorio: al menos el 10 % del precio del lote
+    (`PORCENTAJE_MINIMO_ANTICIPO`) y menor a ese precio. La regla es `validarAnticipo` en
+    `dominio/reserva.ts` (`ANTICIPO_INVALIDO`, `ANTICIPO_INSUFICIENTE`, `ANTICIPO_EXCEDE_PRECIO`).
+    Se guarda en la reserva junto con su método de pago (migración `002_anticipo_reserva.sql`).
+  - Si el lote se vende a ese cliente, el anticipo cuenta como parte de lo que se cobra al firmar:
+    el pago al contado o la cuota inicial. En el historial quedan dos pagos sobre esa cuota: el
+    anticipo, con la fecha y el asesor de la reserva, y el resto. El total pagado y el saldo se
+    calculan igual que antes (§6).
+  - El anticipo no puede superar lo que se cobra al firmar (`descontarAnticipo` en
+    `dominio/venta.ts`; `ANTICIPO_EXCEDE_COBRO_AL_FIRMAR`): en una venta financiada, la cuota
+    inicial debe ser al menos el anticipo.
+  - El formulario propone el mínimo, que calcula con la misma función del dominio
+    (`anticipoMinimo`), y lo muestra como ayuda.
+- **Fuera del alcance:** si la reserva se cancela o vence, el anticipo queda registrado en la
+  reserva como constancia. El sistema no gestiona su devolución ni su retención.
+- **Reservas anteriores al cambio:** quedan con anticipo 0 y se venden como antes.
+- **Alternativas:** solo registrar el monto, sin efecto en la venta (dejaba sin respuesta qué pasa
+  con ese dinero); o una tabla aparte de cobros de reserva (más tablas y pantallas para lo mismo).
+- **Por qué:** una reserva sin costo, o con un monto simbólico, permite apartar lotes sin
+  compromiso; por eso el mínimo del 10 %. Descontar el anticipo al
+  firmar evita cobrarlo dos veces y no cambia el cálculo del saldo, que es lo más probado del
+  sistema.
+
+## 19. Listados paginados
+
+- **Contexto:** después de la defensa (2026-11-25), el docente pidió paginación. Hasta entonces
+  cada listado traía todos sus registros. La consigna (§10, «Historial y consultas») pide
+  consultar reservas, ventas y clientes, pero no dice cómo mostrarlos.
+- **Elegido:**
+  - Se paginan los listados que crecen sin límite: proyectos, clientes, reservas, ventas y
+    usuarios. Las rutas aceptan `?pagina=&porPagina=` (10 por defecto, 100 como máximo) y
+    responden `{ elementos, pagina, porPagina, total, totalPaginas }` (`docs/API.md` §1).
+  - La paginación se hace en la base de datos: un `COUNT` con los mismos filtros da el total y
+    `LIMIT`/`OFFSET` traen solo la página (`consultarPagina` en `consultas.ts`). El orden termina
+    en el id, para que ninguna fila se repita ni se salte entre dos páginas.
+  - Los cálculos (`calcularDesplazamiento`, `armarPagina`) son puros y están en
+    `dominio/paginacion.ts`. El frontend usa las mismas constantes por `frontend/src/dominio.ts`
+    (§14).
+  - Es compatible con lo anterior: sin `pagina` ni `porPagina`, la ruta responde la lista
+    completa, como antes. Así no cambian los selectores de cliente y de proyecto, el portal ni las
+    pruebas que ya existían.
+  - En pantalla, debajo de cada tabla: «Mostrando 1–10 de 23», «Por página» y Anterior /
+    Siguiente. Al cambiar un filtro se vuelve a la página 1.
+- **Fuera del alcance:** el mapa y su lista lateral de lotes no se paginan: el mapa necesita todos
+  los lotes del proyecto para dibujarlos.
+- **Alternativas:**
+  - Paginar en memoria, recortando la lista ya traída. Es más simple, pero igual lee la tabla
+    entera en cada consulta.
+  - Paginar por cursor («los 10 siguientes después del id X»). Rinde mejor con millones de filas,
+    pero no permite saltar a una página ni mostrar «Página 2 de 5».
+- **Por qué:** con `LIMIT`/`OFFSET`, la base solo envía las filas que se muestran. Responder igual
+  que antes cuando no se pide una página evita tocar las pantallas y pruebas que no la necesitan.

@@ -52,7 +52,7 @@ describe('Ciclo de vida de reservas vencidas', () => {
     const ana = await buscarCliente(app, asesorToken, DOCUMENTOS.ana);
     app.reloj.avanzarDias(DIAS_PARA_QUE_VENZA_B05);
     // Act
-    const nueva = await app.servicios.reservas.crear({ loteId: reservaB05.loteId, clienteId: ana.id }, asesor);
+    const nueva = await app.servicios.reservas.crear({ loteId: reservaB05.loteId, clienteId: ana.id, anticipo: 8000 }, asesor);
     // Assert
     expect(nueva.estado).toBe('ACTIVA');
     expect(nueva.cliente.id).toBe(ana.id);
@@ -70,7 +70,7 @@ describe('Ciclo de vida de reservas vencidas', () => {
       request(app.express)
         .post('/api/reservas')
         .set('Authorization', `Bearer ${asesorToken}`)
-        .send({ loteId, clienteId: maria.id, fechaVencimiento: MANIANA })
+        .send({ loteId, clienteId: maria.id, fechaVencimiento: MANIANA, anticipo: 8000 })
         .expect(201);
     await reservarHastaManiana(a01.id);
     await reservarHastaManiana(a02.id);

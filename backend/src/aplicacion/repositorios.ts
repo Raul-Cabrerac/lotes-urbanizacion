@@ -6,6 +6,7 @@
  */
 import type { FechaISO } from '../dominio/fechas';
 import type { PoligonoGeoJSON } from '../dominio/geometria';
+import type { Pagina, Paginacion } from '../dominio/paginacion';
 import type { CuotaNueva } from '../dominio/planPagos';
 import type { Transicion } from '../dominio/transiciones';
 import type {
@@ -19,6 +20,9 @@ export interface Referencia {
   id: number;
   nombre: string;
 }
+
+/** Usuario con el cliente que tiene vinculado (los usuarios del portal). */
+export type UsuarioListado = Usuario & { cliente: Referencia | null };
 
 export interface LoteResumen {
   id: number;
@@ -76,6 +80,8 @@ export interface DatosProyecto {
 export interface RepositorioProyectos {
   /** Proyectos en alguno de esos estados, del más nuevo al más viejo. */
   listar(estados: readonly EstadoProyecto[]): Promise<Proyecto[]>;
+  /** Igual que `listar`, pero solo la página pedida y el total. */
+  listarPagina(estados: readonly EstadoProyecto[], paginacion: Paginacion): Promise<Pagina<Proyecto>>;
   buscarPorId(id: number): Promise<Proyecto | null>;
   /** SELECT ... FOR UPDATE: bloquea la fila del proyecto hasta finalizar la transacción. */
   bloquearPorId(id: number): Promise<void>;
@@ -137,6 +143,7 @@ export interface DatosCliente {
 
 export interface RepositorioClientes {
   listar(busqueda?: string): Promise<Cliente[]>;
+  listarPagina(busqueda: string | undefined, paginacion: Paginacion): Promise<Pagina<Cliente>>;
   buscarPorId(id: number): Promise<Cliente | null>;
   buscarPorDocumento(documento: string): Promise<Cliente | null>;
   crear(datos: DatosCliente): Promise<Cliente>;
@@ -157,10 +164,13 @@ export interface NuevaReserva {
   fecha: Date;
   fechaVencimiento: FechaISO | null;
   observacion: string;
+  anticipo: number;
+  metodoAnticipo: MetodoPago;
 }
 
 export interface RepositorioReservas {
   listar(filtros?: FiltrosReservas): Promise<ReservaVista[]>;
+  listarPagina(filtros: FiltrosReservas, paginacion: Paginacion): Promise<Pagina<ReservaVista>>;
   buscarPorId(id: number): Promise<ReservaVista | null>;
   buscarActivaPorLote(loteId: number): Promise<ReservaVista | null>;
   /** Reservas que todavía pueden vencer (activas y con fecha de vencimiento), ordenadas por id. */
@@ -190,6 +200,7 @@ export interface NuevaVenta {
 
 export interface RepositorioVentas {
   listar(filtros?: FiltrosVentas): Promise<VentaVista[]>;
+  listarPagina(filtros: FiltrosVentas, paginacion: Paginacion): Promise<Pagina<VentaVista>>;
   buscarPorId(id: number): Promise<VentaVista | null>;
   /** SELECT ... FOR UPDATE: bloquea la venta (si existe) hasta que termine la transacción. */
   bloquearPorId(id: number): Promise<void>;
@@ -222,7 +233,8 @@ export interface NuevoUsuario {
 }
 
 export interface RepositorioUsuarios {
-  listar(): Promise<(Usuario & { cliente: Referencia | null })[]>;
+  listar(): Promise<UsuarioListado[]>;
+  listarPagina(paginacion: Paginacion): Promise<Pagina<UsuarioListado>>;
   buscarPorId(id: number): Promise<Usuario | null>;
   buscarPorEmail(email: string): Promise<UsuarioConCredenciales | null>;
   buscarPorClienteId(clienteId: number): Promise<Usuario | null>;

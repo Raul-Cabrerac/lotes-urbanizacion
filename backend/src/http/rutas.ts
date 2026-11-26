@@ -1,11 +1,14 @@
 /**
  * Rutas de la API REST. Cada ruta: autoriza por permiso, valida la forma de
  * los datos (zod) y delega en un servicio. No hay lógica de negocio aquí.
+ *
+ * Los listados (GET /) aceptan ?pagina=&porPagina=: con alguno de los dos responden una página
+ * ({ elementos, pagina, porPagina, total, totalPaginas }); sin ninguno, la lista completa.
  */
 import { Router } from 'express';
 import type { Servicios } from '../contenedor';
 import { autorizar, usuarioDe } from './middlewares/seguridad';
-import { esquemas, leerId, parsear } from './validacion';
+import { esquemas, leerId, leerPaginacion, parsear } from './validacion';
 
 export function rutasAuth(s: Servicios): Router {
   const r = Router();
@@ -19,7 +22,9 @@ export function rutasAuth(s: Servicios): Router {
 export function rutasProyectos(s: Servicios): Router {
   const r = Router();
   r.get('/', autorizar('proyectos:ver'), async (req, res) => {
-    res.json(await s.proyectos.listar(usuarioDe(req)));
+    const paginacion = leerPaginacion(req.query);
+    const usuario = usuarioDe(req);
+    res.json(paginacion ? await s.proyectos.listarPagina(usuario, paginacion) : await s.proyectos.listar(usuario));
   });
   r.post('/', autorizar('proyectos:gestionar'), async (req, res) => {
     res.status(201).json(await s.proyectos.crear(parsear(esquemas.proyecto, req.body)));
@@ -75,7 +80,9 @@ export function rutasLotes(s: Servicios): Router {
 export function rutasClientes(s: Servicios): Router {
   const r = Router();
   r.get('/', autorizar('clientes:ver'), async (req, res) => {
-    res.json(await s.clientes.listar(parsear(esquemas.filtrosClientes, req.query).q));
+    const { q } = parsear(esquemas.filtrosClientes, req.query);
+    const paginacion = leerPaginacion(req.query);
+    res.json(paginacion ? await s.clientes.listarPagina(q, paginacion) : await s.clientes.listar(q));
   });
   r.post('/', autorizar('clientes:gestionar'), async (req, res) => {
     res.status(201).json(await s.clientes.crear(parsear(esquemas.cliente, req.body)));
@@ -92,7 +99,9 @@ export function rutasClientes(s: Servicios): Router {
 export function rutasReservas(s: Servicios): Router {
   const r = Router();
   r.get('/', autorizar('reservas:ver'), async (req, res) => {
-    res.json(await s.reservas.listar(parsear(esquemas.filtrosReservas, req.query)));
+    const filtros = parsear(esquemas.filtrosReservas, req.query);
+    const paginacion = leerPaginacion(req.query);
+    res.json(paginacion ? await s.reservas.listarPagina(filtros, paginacion) : await s.reservas.listar(filtros));
   });
   r.post('/', autorizar('reservas:gestionar'), async (req, res) => {
     res.status(201).json(await s.reservas.crear(parsear(esquemas.reserva, req.body), usuarioDe(req)));
@@ -110,7 +119,10 @@ export function rutasReservas(s: Servicios): Router {
 export function rutasVentas(s: Servicios): Router {
   const r = Router();
   r.get('/', autorizar('ventas:ver'), async (req, res) => {
-    res.json(await s.ventas.listar(parsear(esquemas.filtrosVentas, req.query), usuarioDe(req)));
+    const filtros = parsear(esquemas.filtrosVentas, req.query);
+    const paginacion = leerPaginacion(req.query);
+    const usuario = usuarioDe(req);
+    res.json(paginacion ? await s.ventas.listarPagina(filtros, paginacion, usuario) : await s.ventas.listar(filtros, usuario));
   });
   r.post('/simular-plan', autorizar('ventas:registrar'), async (req, res) => {
     res.json(s.ventas.simularPlan(parsear(esquemas.simulacionPlan, req.body)));
@@ -143,8 +155,9 @@ export function rutasPagos(s: Servicios): Router {
 export function rutasUsuarios(s: Servicios): Router {
   const r = Router();
   r.use(autorizar('usuarios:gestionar'));
-  r.get('/', async (_req, res) => {
-    res.json(await s.usuarios.listar());
+  r.get('/', async (req, res) => {
+    const paginacion = leerPaginacion(req.query);
+    res.json(paginacion ? await s.usuarios.listarPagina(paginacion) : await s.usuarios.listar());
   });
   r.post('/', async (req, res) => {
     res.status(201).json(await s.usuarios.crear(parsear(esquemas.usuario, req.body)));

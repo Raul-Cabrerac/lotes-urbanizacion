@@ -5,16 +5,21 @@ import { ESTADOS_LOTE } from '../dominio';
 import { useSesion } from '../auth/Sesion';
 import { Cargando, Encabezado, Insignia, MensajeError, Vacio } from '../componentes/Basicos';
 import { Icono } from '../componentes/Icono';
+import { Paginacion } from '../componentes/Paginacion';
 import { ASPECTO_ESTADO, estiloEstado } from '../utilidades/estados';
 import { fecha } from '../utilidades/formato';
-import { useDatos } from '../utilidades/useDatos';
+import { useListadoPaginado } from '../utilidades/useListadoPaginado';
 import { ModalProyecto } from './ModalProyecto';
 
 /** Lista de proyectos de urbanización (el administrador ve también los BORRADOR). */
 export function Proyectos() {
   const { puede } = useSesion();
   const navegar = useNavigate();
-  const { datos: proyectos, error, cargando } = useDatos(() => api.proyectos.listar(), []);
+  const { datos: pagina, error, cargando, cambiarPagina } = useListadoPaginado(
+    (paginacion) => api.proyectos.listarPagina(paginacion),
+    [],
+  );
+  const proyectos = pagina?.elementos;
   const [creando, setCreando] = useState(false);
 
   return (
@@ -30,7 +35,7 @@ export function Proyectos() {
 
       <MensajeError mensaje={error} />
       {cargando && !proyectos && <Cargando />}
-      {proyectos?.length === 0 && <Vacio>No hay proyectos todavía.</Vacio>}
+      {pagina?.total === 0 && <Vacio>No hay proyectos todavía.</Vacio>}
 
       <div className="grilla-tarjetas">
         {proyectos?.map((p) => (
@@ -72,6 +77,7 @@ export function Proyectos() {
           </Link>
         ))}
       </div>
+      {pagina && pagina.total > 0 && <Paginacion pagina={pagina} onCambiar={cambiarPagina} />}
 
       {creando && (
         <ModalProyecto onCerrar={() => setCreando(false)} onGuardado={(nuevo) => navegar(`/proyectos/${nuevo.id}`)} />

@@ -103,7 +103,7 @@ describe('ReservaServicio', () => {
       };
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act + Assert
-      await expect(servicio.crear({ loteId: 1, clienteId: 7 }, usuarioAsesor)).rejects.toMatchObject({
+      await expect(servicio.crear({ loteId: 1, clienteId: 7, anticipo: 8000 }, usuarioAsesor)).rejects.toMatchObject({
         codigo: 'LOTE_NO_DISPONIBLE',
       });
       expect(repos.reservas.crear).not.toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe('ReservaServicio', () => {
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act
       const resultado = await servicio.crear(
-        { loteId: 1, clienteId: 7, fechaVencimiento: MANIANA, observacion: '  Señal pagada  ' },
+        { loteId: 1, clienteId: 7, fechaVencimiento: MANIANA, observacion: '  Señal pagada  ', anticipo: 8000 },
         usuarioAsesor,
       );
       // Assert
@@ -140,6 +140,8 @@ describe('ReservaServicio', () => {
         fecha: HOY,
         fechaVencimiento: MANIANA,
         observacion: 'Señal pagada',
+        anticipo: 8000,
+        metodoAnticipo: 'EFECTIVO',
       });
       expect(resultado).toEqual(reservaCreada);
     });
@@ -162,7 +164,7 @@ describe('ReservaServicio', () => {
       };
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act
-      const resultado = await servicio.crear({ loteId: 1, clienteId: 7 }, usuarioAsesor);
+      const resultado = await servicio.crear({ loteId: 1, clienteId: 7, anticipo: 8000 }, usuarioAsesor);
       // Assert
       expect(repos.reservas.crear).toHaveBeenCalledWith(
         expect.objectContaining({ fechaVencimiento: null, observacion: '' }),
@@ -176,7 +178,7 @@ describe('ReservaServicio', () => {
         lotes: [{ id: 5, proyectoId: 1, codigo: 'A-03', estado: 'RESERVADO', precio: 72000 }],
         reservas: [{ id: 10, loteId: 5, clienteId: 99, estado: 'ACTIVA', fechaVencimiento: AYER }],
       });
-      const nuevaVista = vistaReserva(21, { loteId: 5, clienteId: 7, fechaVencimiento: MANIANA });
+      const nuevaVista = vistaReserva(21, { loteId: 5, clienteId: 7, fechaVencimiento: MANIANA, anticipo: 8000 });
       const repos = {
         ...memoria.repos,
         clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
@@ -192,7 +194,7 @@ describe('ReservaServicio', () => {
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos, memoria), relojEnHoy());
       // Act
       const resultado = await servicio.crear(
-        { loteId: 5, clienteId: 7, fechaVencimiento: MANIANA },
+        { loteId: 5, clienteId: 7, fechaVencimiento: MANIANA, anticipo: 8000 },
         usuarioAsesor,
       );
       // Assert
@@ -209,7 +211,7 @@ describe('ReservaServicio', () => {
       };
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act
-      const crear = () => servicio.crear({ loteId: 1, clienteId: 7, fechaVencimiento: AYER }, usuarioAsesor);
+      const crear = () => servicio.crear({ loteId: 1, clienteId: 7, fechaVencimiento: AYER, anticipo: 8000 }, usuarioAsesor);
       // Assert
       await expect(crear()).rejects.toMatchObject({ codigo: 'FECHA_VENCIMIENTO_INVALIDA' });
       expect(repos.lotes.buscarPorId).not.toHaveBeenCalled();
@@ -226,7 +228,7 @@ describe('ReservaServicio', () => {
       };
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act
-      const crear = () => servicio.crear({ loteId: 999, clienteId: 7 }, usuarioAsesor);
+      const crear = () => servicio.crear({ loteId: 999, clienteId: 7, anticipo: 8000 }, usuarioAsesor);
       // Assert
       await expect(crear()).rejects.toMatchObject({ codigo: 'NO_ENCONTRADO' });
       expect(repos.reservas.crear).not.toHaveBeenCalled();
@@ -242,7 +244,7 @@ describe('ReservaServicio', () => {
       };
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act
-      const crear = () => servicio.crear({ loteId: 1, clienteId: 999 }, usuarioAsesor);
+      const crear = () => servicio.crear({ loteId: 1, clienteId: 999, anticipo: 8000 }, usuarioAsesor);
       // Assert
       await expect(crear()).rejects.toMatchObject({ codigo: 'NO_ENCONTRADO' });
       expect(repos.reservas.crear).not.toHaveBeenCalled();
@@ -258,7 +260,7 @@ describe('ReservaServicio', () => {
       };
       const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
       // Act
-      const crear = () => servicio.crear({ loteId: 1, clienteId: 7 }, usuarioAsesor);
+      const crear = () => servicio.crear({ loteId: 1, clienteId: 7, anticipo: 8000 }, usuarioAsesor);
       // Assert
       await expect(crear()).rejects.toMatchObject({ codigo: 'NO_ENCONTRADO' });
       expect(repos.reservas.crear).not.toHaveBeenCalled();
@@ -280,7 +282,110 @@ describe('ReservaServicio', () => {
         };
         const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
         // Act
-        const crear = () => servicio.crear({ loteId: 1, clienteId: 7 }, usuarioAsesor);
+        const crear = () => servicio.crear({ loteId: 1, clienteId: 7, anticipo: 8000 }, usuarioAsesor);
+        // Assert
+        await expect(crear()).rejects.toMatchObject({ codigo: codigoEsperado });
+        expect(repos.lotes.cambiarEstadoSi).not.toHaveBeenCalled();
+        expect(repos.reservas.crear).not.toHaveBeenCalled();
+      },
+    );
+
+    it('guarda el anticipo y el método con que se cobró cuando se indican', async () => {
+      // Arrange
+      const repos = {
+        lotes: {
+          buscarPorId: vi.fn().mockResolvedValue(loteDisponible),
+          cambiarEstadoSi: vi.fn().mockResolvedValue(true),
+        },
+        clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
+        proyectos: { buscarPorId: vi.fn().mockResolvedValue({ id: 1, estado: 'PUBLICADO' }) },
+        reservas: {
+          buscarActivaPorLote: vi.fn().mockResolvedValue(null),
+          crear: vi.fn().mockResolvedValue({ id: 17 }),
+          buscarPorId: vi.fn().mockResolvedValue(vistaReserva(17)),
+        },
+      };
+      const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+      // Act
+      await servicio.crear({ loteId: 1, clienteId: 7, anticipo: 8000.5, metodoAnticipo: 'QR' }, usuarioAsesor);
+      // Assert
+      expect(repos.reservas.crear).toHaveBeenCalledWith(
+        expect.objectContaining({ loteId: 1, clienteId: 7, anticipo: 8000.5, metodoAnticipo: 'QR' }),
+      );
+    });
+
+    it('reserva en el límite: el anticipo es exactamente el 10 % del precio del lote (Bs 4.500 de Bs 45.000)', async () => {
+      // Arrange
+      const repos = {
+        lotes: {
+          buscarPorId: vi.fn().mockResolvedValue(loteDisponible),
+          cambiarEstadoSi: vi.fn().mockResolvedValue(true),
+        },
+        clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
+        proyectos: { buscarPorId: vi.fn().mockResolvedValue({ id: 1, estado: 'PUBLICADO' }) },
+        reservas: {
+          buscarActivaPorLote: vi.fn().mockResolvedValue(null),
+          crear: vi.fn().mockResolvedValue({ id: 21 }),
+          buscarPorId: vi.fn().mockResolvedValue(vistaReserva(21)),
+        },
+      };
+      const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+      // Act
+      await servicio.crear({ loteId: 1, clienteId: 7, anticipo: 4500 }, usuarioAsesor);
+      // Assert
+      expect(repos.reservas.crear).toHaveBeenCalledWith(expect.objectContaining({ anticipo: 4500 }));
+    });
+
+    it('reserva en el límite: el anticipo es 1 centavo menor al precio del lote (Bs 45.000)', async () => {
+      // Arrange
+      const repos = {
+        lotes: {
+          buscarPorId: vi.fn().mockResolvedValue(loteDisponible),
+          cambiarEstadoSi: vi.fn().mockResolvedValue(true),
+        },
+        clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
+        proyectos: { buscarPorId: vi.fn().mockResolvedValue({ id: 1, estado: 'PUBLICADO' }) },
+        reservas: {
+          buscarActivaPorLote: vi.fn().mockResolvedValue(null),
+          crear: vi.fn().mockResolvedValue({ id: 18 }),
+          buscarPorId: vi.fn().mockResolvedValue(vistaReserva(18)),
+        },
+      };
+      const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+      // Act
+      await servicio.crear({ loteId: 1, clienteId: 7, anticipo: 44999.99 }, usuarioAsesor);
+      // Assert
+      expect(repos.lotes.cambiarEstadoSi).toHaveBeenCalledWith(1, OPERACIONES_LOTE.reservar);
+      expect(repos.reservas.crear).toHaveBeenCalledWith(expect.objectContaining({ anticipo: 44999.99 }));
+    });
+
+    it.each([
+      ['ANTICIPO_INVALIDO', 'es 0 (reservar sin pagar)', 0],
+      ['ANTICIPO_INVALIDO', 'es negativo', -500],
+      ['ANTICIPO_INVALIDO', 'tiene 3 decimales', 5000.005],
+      ['ANTICIPO_INSUFICIENTE', 'es 1 centavo menor al 10 % del precio (Bs 4.500)', 4499.99],
+      ['ANTICIPO_EXCEDE_PRECIO', 'es igual al precio del lote (Bs 45.000)', 45000],
+      ['ANTICIPO_EXCEDE_PRECIO', 'supera el precio del lote por 1 centavo', 45000.01],
+    ] as const)(
+      'lanza %s sin reservar el lote ni guardar la reserva cuando el anticipo %s',
+      async (codigoEsperado, _caso, anticipo) => {
+        // Arrange
+        const repos = {
+          lotes: {
+            buscarPorId: vi.fn().mockResolvedValue(loteDisponible),
+            cambiarEstadoSi: vi.fn().mockResolvedValue(true),
+          },
+          clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
+          proyectos: { buscarPorId: vi.fn().mockResolvedValue({ id: 1, estado: 'PUBLICADO' }) },
+          reservas: {
+            buscarActivaPorLote: vi.fn().mockResolvedValue(null),
+            crear: vi.fn().mockResolvedValue({ id: 19 }),
+            buscarPorId: vi.fn().mockResolvedValue(vistaReserva(19)),
+          },
+        };
+        const servicio = new ReservaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+          // Act
+        const crear = () => servicio.crear({ loteId: 1, clienteId: 7, anticipo }, usuarioAsesor);
         // Assert
         await expect(crear()).rejects.toMatchObject({ codigo: codigoEsperado });
         expect(repos.lotes.cambiarEstadoSi).not.toHaveBeenCalled();

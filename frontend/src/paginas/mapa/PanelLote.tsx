@@ -89,6 +89,11 @@ export function PanelLote({
           <div>
             Desde {fecha(reserva.fecha)} · {reserva.fechaVencimiento ? `vence el ${fecha(reserva.fechaVencimiento)}` : 'sin vencimiento'}
           </div>
+          {reserva.anticipo > 0 && (
+            <div data-testid="detalle-anticipo">
+              Anticipo: {bs(reserva.anticipo)} · {reserva.metodoAnticipo}
+            </div>
+          )}
           <div className="texto-suave">Asesor: {reserva.asesor.nombre}</div>
           {reserva.observacion && <div className="texto-suave">“{reserva.observacion}”</div>}
         </div>

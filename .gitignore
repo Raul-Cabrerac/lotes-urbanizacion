@@ -19,6 +19,9 @@ coverage/
 e2e/playwright-report/
 e2e/test-results/
 
+# Conversaciones exportadas de los asistentes de código (/export las guarda en la raíz)
+/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.txt
+
 # Sistema operativo y editores
 *.log
 .DS_Store

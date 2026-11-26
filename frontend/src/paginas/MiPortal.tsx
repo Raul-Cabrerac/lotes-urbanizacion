@@ -99,6 +99,11 @@ export function MiPortal() {
                 {r.lote.proyecto.nombre} · {m2(r.lote.superficieM2)} · {bs(r.lote.precio)}
               </div>
               <div className="pequeno">Reservado el {fecha(r.fecha)} · {r.fechaVencimiento ? `vence el ${fecha(r.fechaVencimiento)}` : 'sin vencimiento'}</div>
+              {r.anticipo > 0 && (
+                <div className="pequeno" data-testid="mi-reserva-anticipo">
+                  Anticipo pagado: {bs(r.anticipo)}
+                </div>
+              )}
             </div>
           ))}
         </div>

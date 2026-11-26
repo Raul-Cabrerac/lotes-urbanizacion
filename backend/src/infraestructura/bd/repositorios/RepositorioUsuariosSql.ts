@@ -1,20 +1,33 @@
-import type { RepositorioUsuarios } from '../../../aplicacion/puertos';
-import { type Consultas } from './consultas';
+import type { RepositorioUsuarios, UsuarioListado } from '../../../aplicacion/puertos';
+import { armarPagina } from '../../../dominio/paginacion';
+import { consultarPagina, type Consultas } from './consultas';
 import { aUsuario } from './conversiones';
 import type { FilaUsuario } from './filas';
+
+type FilaUsuarioListado = FilaUsuario & { cliente_nombre: string | null };
+
+/** Usuarios con el nombre del cliente vinculado (los del portal). */
+const SQL_USUARIOS = `
+  SELECT u.*, c.nombre_completo AS cliente_nombre
+  FROM usuarios u LEFT JOIN clientes c ON c.id = u.cliente_id`;
+
+/** Por rol y nombre; el id desempata. */
+const ORDEN_USUARIOS = 'u.rol, u.nombre, u.id';
+
+function aUsuarioListado(f: FilaUsuarioListado): UsuarioListado {
+  return { ...aUsuario(f), cliente: f.cliente_id ? { id: f.cliente_id, nombre: f.cliente_nombre ?? '' } : null };
+}
 
 export function crearRepositorioUsuarios(bd: Consultas): RepositorioUsuarios {
   return {
     async listar() {
-      const filas = await bd.filas<FilaUsuario & { cliente_nombre: string | null }>(
-        `SELECT u.*, c.nombre_completo AS cliente_nombre
-         FROM usuarios u LEFT JOIN clientes c ON c.id = u.cliente_id
-         ORDER BY u.rol, u.nombre`,
-      );
-      return filas.map((f) => ({
-        ...aUsuario(f),
-        cliente: f.cliente_id ? { id: f.cliente_id, nombre: f.cliente_nombre ?? '' } : null,
-      }));
+      const filas = await bd.filas<FilaUsuarioListado>(`${SQL_USUARIOS} ORDER BY ${ORDEN_USUARIOS}`);
+      return filas.map(aUsuarioListado);
+    },
+
+    async listarPagina(paginacion) {
+      const { filas, total } = await consultarPagina<FilaUsuarioListado>(bd, SQL_USUARIOS, [], ORDEN_USUARIOS, paginacion);
+      return armarPagina(filas.map(aUsuarioListado), total, paginacion);
     },
 
     async buscarPorId(id) {

@@ -59,6 +59,8 @@ export interface FilaReserva {
   fecha: Date;
   fecha_vencimiento: string | null;
   observacion: string;
+  anticipo: number;
+  metodo_anticipo: string;
   estado: string;
   motivo_finalizacion: string | null;
   finalizada_en: Date | null;

@@ -17,6 +17,18 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
   ```
 
 - Las pruebas verifican el `codigo`, nunca el texto del `mensaje`.
+- **Paginación.** Los listados marcados como *paginable* aceptan `pagina` (desde 1) y `porPagina`
+  (de 1 a 100; 10 si no se indica). Con alguno de los dos, la respuesta es una página:
+
+  ```json
+  { "elementos": [], "pagina": 2, "porPagina": 10, "total": 23, "totalPaginas": 3 }
+  ```
+
+  - Sin ninguno de los dos, la respuesta es la lista completa, como antes: la usan los selectores
+    de cliente y de proyecto.
+  - Una página después de la última devuelve `elementos` vacío y el `total` real.
+  - Un valor que no es un entero, o que queda fuera de rango, da **400** `VALIDACION`.
+  - Los lotes de un proyecto (`/proyectos/:id/lotes`) no se paginan: el mapa necesita todos.
 
 ## 2. Rutas
 
@@ -25,7 +37,7 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | GET | `/salud` | público | Comprobar que la API está corriendo |
 | POST | `/auth/login` | público | `{ email, password }` → `{ token, usuario }` |
 | GET | `/auth/yo` | con sesión | Usuario actual y sus permisos |
-| GET | `/proyectos` | admin, asesor | Proyectos con conteo por estado (el asesor solo ve los publicados) |
+| GET | `/proyectos` | admin, asesor | Proyectos con conteo por estado (el asesor solo ve los publicados). Paginable |
 | POST | `/proyectos` | admin | Crear proyecto `{ nombre, descripcion, ubicacion }` |
 | GET | `/proyectos/:id` | admin, asesor | Detalle con resumen por estado, etapa y manzano |
 | PUT | `/proyectos/:id` | admin | Editar datos del proyecto |
@@ -39,15 +51,15 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | PUT | `/lotes/:id` | admin | Editar datos, precio o geometría |
 | PATCH | `/lotes/:id/estado` | admin | Bloquear o desbloquear `{ estado }` |
 | DELETE | `/lotes/:id` | admin | Eliminar (solo si nunca tuvo reservas ni ventas) |
-| GET | `/clientes?q=` | admin, asesor | Listar o buscar clientes |
+| GET | `/clientes?q=` | admin, asesor | Listar o buscar clientes. Paginable |
 | POST | `/clientes` | admin, asesor | Registrar cliente |
 | GET | `/clientes/:id` | admin, asesor | Detalle con sus reservas y ventas |
 | PUT | `/clientes/:id` | admin, asesor | Editar cliente |
-| GET | `/reservas?estado=&clienteId=&loteId=&proyectoId=` | admin, asesor | Listar reservas |
-| POST | `/reservas` | admin, asesor | Reservar `{ loteId, clienteId, fechaVencimiento?, observacion? }` |
+| GET | `/reservas?estado=&clienteId=&loteId=&proyectoId=` | admin, asesor | Listar reservas. Paginable |
+| POST | `/reservas` | admin, asesor | Reservar `{ loteId, clienteId, anticipo, metodoAnticipo?, fechaVencimiento?, observacion? }`: el anticipo es obligatorio (al menos el 10 % del precio del lote) |
 | GET | `/reservas/:id` | admin, asesor | Detalle de una reserva |
 | POST | `/reservas/:id/cancelar` | admin, asesor | Cancelar `{ motivo? }`: el lote vuelve a DISPONIBLE |
-| GET | `/ventas?clienteId=&proyectoId=&estado=` | admin, asesor, cliente* | Listar ventas |
+| GET | `/ventas?clienteId=&proyectoId=&estado=` | admin, asesor, cliente* | Listar ventas. Paginable |
 | POST | `/ventas/simular-plan` | admin, asesor | Vista previa del cronograma, sin guardar |
 | POST | `/ventas` | admin, asesor | Registrar venta `{ loteId, clienteId, modalidad, precioPactado?, cuotaInicial?, numeroCuotas?, fechaPrimeraCuota?, metodoPago? }` |
 | GET | `/ventas/:id` | admin, asesor, cliente* | Plan de pagos, pagos y saldo |
@@ -55,7 +67,7 @@ Base: `http://localhost:3000/api`. El frontend la llama a través del proxy de V
 | POST | `/ventas/:id/anular` | admin | Anular venta `{ motivo }`: el lote vuelve a DISPONIBLE |
 | POST | `/pagos/:id/anular` | admin | Anular pago `{ motivo }` (queda en el historial) |
 | GET | `/portal/mis-operaciones` | cliente | Mis compras y reservas |
-| GET | `/usuarios` | admin | Listar usuarios |
+| GET | `/usuarios` | admin | Listar usuarios. Paginable |
 | POST | `/usuarios` | admin | Crear usuario `{ nombre, email, password, rol, clienteId? }` |
 | PATCH | `/usuarios/:id` | admin | Activar o desactivar `{ activo }` |
 | GET | `/reportes/resumen` | admin | Reporte por proyecto: vendido, cobrado, por cobrar, vencido |
@@ -98,6 +110,7 @@ Los códigos del dominio están definidos una sola vez en `backend/src/dominio/e
 | `LOTE_CON_OPERACIONES` | 409 | `dominio/lote.ts` | Eliminar un lote que tuvo reservas o ventas |
 | `LOTE_MODIFICADO` | 409 | `LoteServicio` | Otro usuario cambió el estado mientras se bloqueaba |
 | `CODIGO_LOTE_DUPLICADO` | 409 | `LoteServicio`, repositorio de lotes | El código ya existe en el proyecto (en un KML, un código repetido se informa dentro de `KML_CON_ERRORES`) |
+| `LOTE_SUPERPUESTO` | 409 | `dominio/superposicion.ts` | Al crear un lote o editar su forma, el polígono ocupa terreno de otro lote del mismo proyecto (en un KML se informa dentro de `KML_CON_ERRORES`) |
 | `CAMBIO_ESTADO_NO_PERMITIDO` | 422 | `dominio/lote.ts` | A mano solo se bloquea o desbloquea |
 | `PROYECTO_NO_PUBLICADO` | 422 | `dominio/lote.ts` | Reservar o vender en un proyecto en BORRADOR |
 | `LOTE_SIN_PRECIO` | 422 | `dominio/lote.ts` | Reservar o vender un lote sin precio |
@@ -108,6 +121,8 @@ Los códigos del dominio están definidos una sola vez en `backend/src/dominio/e
 | `PROYECTO_SIN_LOTES` | 422 | `dominio/proyecto.ts` | Publicar sin lotes |
 | `PROYECTO_PUBLICADO_SIN_LOTES` | 409 | `dominio/lote.ts` | Eliminar el último lote de un proyecto ya PUBLICADO |
 | `FECHA_VENCIMIENTO_INVALIDA` | 422 | `dominio/reserva.ts` | Vencimiento anterior a hoy |
+| `ANTICIPO_INVALIDO` · `ANTICIPO_INSUFICIENTE` · `ANTICIPO_EXCEDE_PRECIO` | 422 | `dominio/reserva.ts` | Reservar con un anticipo que no es un monto válido, que no llega al 10 % del precio del lote, o que iguala o supera ese precio |
+| `ANTICIPO_EXCEDE_COBRO_AL_FIRMAR` | 422 | `dominio/venta.ts` | Vender un lote reservado cuando su anticipo supera lo que se cobra al firmar (por ejemplo, una cuota inicial menor al anticipo) |
 | `RESERVA_NO_ACTIVA` | 409 | `dominio/reserva.ts`, `ReservaServicio` | Cancelar una reserva que ya no está ACTIVA, o que otro usuario cerró al mismo tiempo |
 | `PRECIO_PACTADO_INVALIDO` · `CUOTA_INICIAL_INVALIDA` · `NUMERO_CUOTAS_INVALIDO` · `FECHA_PRIMERA_CUOTA_INVALIDA` | 422 | `dominio/planPagos.ts` | Plan de pagos imposible |
 | `MONTO_INVALIDO` | 422 | `dominio/planPagos.ts` | Pago ≤ 0 o con más de 2 decimales |

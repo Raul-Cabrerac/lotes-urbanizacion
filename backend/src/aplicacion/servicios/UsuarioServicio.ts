@@ -1,4 +1,5 @@
 import { ErrorConflicto, ErrorNoEncontrado, ErrorReglaNegocio } from '../../dominio/errores';
+import type { Paginacion } from '../../dominio/paginacion';
 import type { Rol, Usuario } from '../../dominio/tipos';
 import { normalizarEmail, validarPassword, validarVinculoCliente } from '../../dominio/usuario';
 import type { Hasher, UnidadDeTrabajo, UsuarioActual } from '../puertos';
@@ -20,6 +21,10 @@ export class UsuarioServicio {
 
   listar() {
     return this.uow.repos.usuarios.listar();
+  }
+
+  listarPagina(paginacion: Paginacion) {
+    return this.uow.repos.usuarios.listarPagina(paginacion);
   }
 
   async crear(entrada: EntradaUsuario): Promise<Usuario> {

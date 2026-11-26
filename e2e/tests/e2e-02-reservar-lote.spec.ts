@@ -10,7 +10,7 @@ test.describe('E2E 02 · Reservar lote', () => {
     await abrirProyecto(page);
   });
 
-  test('reserva un lote DISPONIBLE para un cliente nuevo y el lote pasa a RESERVADO', async ({ page }) => {
+  test('reserva un lote DISPONIBLE para un cliente nuevo, con su anticipo, y el lote pasa a RESERVADO', async ({ page }) => {
     // Arrange
     await seleccionarLote(page, 'C-02');
     await expect(page.getByTestId('detalle-estado')).toHaveAttribute('data-estado', 'DISPONIBLE');
@@ -22,10 +22,12 @@ test.describe('E2E 02 · Reservar lote', () => {
     await page.getByTestId('cliente-telefono').fill('70000001');
     await page.getByTestId('cliente-guardar').click();
     await expect(page.getByTestId('reserva-cliente')).not.toHaveValue(''); // quedó elegido el cliente nuevo
+    await page.getByTestId('reserva-anticipo').fill('7000'); // lo que paga el cliente; el mínimo es el 10 %: Bs 6.000
     await page.getByTestId('reserva-confirmar').click();
     // Assert
     await expect(page.getByTestId('poligono-C-02')).toHaveAttribute('data-estado', 'RESERVADO');
     await expect(page.getByTestId('detalle-reserva')).toContainText('Carla Rojas Méndez');
+    await expect(page.getByTestId('detalle-anticipo')).toContainText('Bs 7.000');
     await page.reload();
     await expect(page.getByTestId('poligono-C-02')).toHaveAttribute('data-estado', 'RESERVADO');
   });

@@ -4,6 +4,7 @@ import type {
   ConteoPorEstado,
   EstadoLote,
   EstadoProyecto,
+  MetodoPago,
   ModalidadPago,
   Permiso,
   Rol,
@@ -93,6 +94,8 @@ export interface LoteDetalle extends Lote {
     fecha: string;
     fechaVencimiento: string | null;
     observacion: string;
+    anticipo: number;
+    metodoAnticipo: MetodoPago;
     cliente: ClienteResumen;
     asesor: Referencia;
   } | null;

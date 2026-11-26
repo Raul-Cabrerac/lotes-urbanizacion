@@ -6,9 +6,10 @@ import type { Reserva } from '../api/tiposOperaciones';
 import { useSesion } from '../auth/Sesion';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Paginacion } from '../componentes/Paginacion';
 import { TablaReservas } from '../componentes/TablasOperaciones';
 import { ASPECTO_ESTADO } from '../utilidades/estados';
-import { useDatos } from '../utilidades/useDatos';
+import { useListadoPaginado } from '../utilidades/useListadoPaginado';
 import { ModalCancelarReserva } from './ModalCancelarReserva';
 
 /** Lugar de cada estado en las pestañas: un estado nuevo en ESTADOS_RESERVA no compila hasta tener el suyo. */
@@ -23,7 +24,11 @@ export function Reservas() {
   const { puede } = useSesion();
   const avisos = useAvisos();
   const [estado, setEstado] = useState<EstadoReserva | ''>('ACTIVA');
-  const { datos: reservas, error, cargando, recargar } = useDatos(() => api.reservas.listar({ estado }), [estado]);
+  const { datos: pagina, error, cargando, recargar, cambiarPagina } = useListadoPaginado(
+    (paginacion) => api.reservas.listarPagina({ estado }, paginacion),
+    [estado],
+  );
+  const reservas = pagina?.elementos;
   const [cancelando, setCancelando] = useState<Reserva | null>(null);
 
   return (
@@ -68,6 +73,7 @@ export function Reservas() {
           />
         </ContenedorTabla>
       )}
+      {pagina && pagina.total > 0 && <Paginacion pagina={pagina} onCambiar={cambiarPagina} />}
 
       {cancelando && (
         <ModalCancelarReserva

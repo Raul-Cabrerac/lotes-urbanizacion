@@ -1,4 +1,5 @@
 import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
+import type { Pagina, Paginacion } from '../../dominio/paginacion';
 import type { Cliente } from '../../dominio/tipos';
 import type { DatosCliente, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 import type { VentaServicio } from './VentaServicio';
@@ -12,6 +13,10 @@ export class ClienteServicio {
 
   listar(busqueda?: string): Promise<Cliente[]> {
     return this.uow.repos.clientes.listar(busqueda);
+  }
+
+  listarPagina(busqueda: string | undefined, paginacion: Paginacion): Promise<Pagina<Cliente>> {
+    return this.uow.repos.clientes.listarPagina(busqueda, paginacion);
   }
 
   /** Cliente con todas sus operaciones (reservas y ventas con su saldo). */

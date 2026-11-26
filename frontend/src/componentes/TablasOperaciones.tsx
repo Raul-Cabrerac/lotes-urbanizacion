@@ -77,6 +77,7 @@ export function TablaReservas({
         { titulo: 'Proyecto', celda: (r) => r.lote.proyecto.nombre },
         mostrarCliente && { titulo: 'Cliente', celda: (r) => r.cliente.nombreCompleto },
         { titulo: 'Vence', celda: (r) => (r.fechaVencimiento ? fecha(r.fechaVencimiento) : 'Sin vencimiento') },
+        { titulo: 'Anticipo', celda: (r) => bs(r.anticipo) },
         { titulo: 'Asesor', celda: (r) => r.asesor.nombre },
         { titulo: 'Estado', celda: (r) => <Insignia estado={r.estado} /> },
         {

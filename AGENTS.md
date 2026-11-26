@@ -64,7 +64,7 @@ memoria. Neon es para la demostración y para quien necesite datos que persistan
 ## 4. Mapa del código
 
 ```
-backend/src/dominio/        reglas puras (lote, reserva, planPagos, venta, dinero, fechas, geometria, permisos, errores)
+backend/src/dominio/        reglas puras (lote, reserva, planPagos, venta, dinero, fechas, geometria, superposicion, permisos, errores)
 backend/src/aplicacion/     puertos (puertos.ts, repositorios.ts) y servicios que orquestan reglas + repositorios
 backend/src/infraestructura/ PostgreSQL (Neon o en memoria), migraciones, repositorios SQL, datos demo, JWT, KML, reloj
 backend/src/http/           rutas, validación zod, autenticación, traducción de errores a HTTP

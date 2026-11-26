@@ -4,6 +4,7 @@ import type { LectorKml, PlacemarkKml } from '../../../src/aplicacion/puertos';
 import { ImportacionKmlServicio } from '../../../src/aplicacion/servicios/ImportacionKmlServicio';
 import type { ProyectoServicio } from '../../../src/aplicacion/servicios/ProyectoServicio';
 import { ErrorNoEncontrado, ErrorReglaNegocio } from '../../../src/dominio/errores';
+import { rectanguloEnMetros } from '../../../src/dominio/geometria';
 import { GEOMETRIA_LOTE, unidadDeTrabajoFalsa } from '../../apoyo/dobles';
 
 const placemark = (sobrescribir: Partial<PlacemarkKml> = {}): PlacemarkKml => ({
@@ -12,6 +13,9 @@ const placemark = (sobrescribir: Partial<PlacemarkKml> = {}): PlacemarkKml => ({
   geometria: GEOMETRIA_LOTE,
   ...sobrescribir,
 });
+
+/** Un lote vecino de GEOMETRIA_LOTE: comparte un lado con él y no lo pisa. */
+const GEOMETRIA_VECINA = rectanguloEnMetros([-63.18, -17.78], 12, 0, 12, 30);
 
 const loteCreado = (id: number, codigo: string) => ({
   id,
@@ -43,7 +47,7 @@ describe('ImportacionKmlServicio', () => {
             dimensiones: '10 x 40 m',
           },
         }),
-        placemark({ nombre: 'Polígono sin título', propiedades: {} }),
+        placemark({ nombre: 'Polígono sin título', propiedades: {}, geometria: GEOMETRIA_VECINA }),
         placemark({ nombre: 'Portón acceso', geometria: null }),
       ];
       const proyectos = { buscarExistente: vi.fn().mockResolvedValue({ id: 1, estado: 'BORRADOR' }) };
@@ -52,6 +56,7 @@ describe('ImportacionKmlServicio', () => {
       const repos = {
         lotes: {
           buscarPorCodigo: vi.fn().mockResolvedValue(null),
+          listarPorProyecto: vi.fn().mockResolvedValue([]),
           crear: vi.fn().mockResolvedValueOnce(creados[0]).mockResolvedValueOnce(creados[1]),
         },
         proyectos: { actualizar: vi.fn().mockResolvedValue({ id: 1 }) },
@@ -110,13 +115,14 @@ describe('ImportacionKmlServicio', () => {
       const lectorKml: LectorKml = {
         leer: vi.fn().mockReturnValue([
           placemark({ nombre: 'M1-01', propiedades: {} }),
-          placemark({ nombre: '   ', propiedades: {} }),
+          placemark({ nombre: '   ', propiedades: {}, geometria: GEOMETRIA_VECINA }),
         ]),
       };
       const creados = [loteCreado(12, 'M1-01'), loteCreado(13, 'L-02')];
       const repos = {
         lotes: {
           buscarPorCodigo: vi.fn().mockResolvedValue(null),
+          listarPorProyecto: vi.fn().mockResolvedValue([]),
           crear: vi.fn().mockResolvedValueOnce(creados[0]).mockResolvedValueOnce(creados[1]),
         },
         proyectos: { actualizar: vi.fn() },
@@ -271,6 +277,60 @@ describe('ImportacionKmlServicio', () => {
       });
       expect(repos.lotes.crear).not.toHaveBeenCalled();
       expect(repos.proyectos.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('lanza KML_CON_ERRORES sin importar ningún lote cuando dos polígonos del archivo se superponen', async () => {
+      // Arrange: A-02 trae el mismo polígono que A-01
+      const placemarks: PlacemarkKml[] = [placemark({ nombre: 'A-01' }), placemark({ nombre: 'A-02' })];
+      const proyectos = { buscarExistente: vi.fn().mockResolvedValue({ id: 1 }) };
+      const lectorKml: LectorKml = { leer: vi.fn().mockReturnValue(placemarks) };
+      const repos = {
+        lotes: {
+          buscarPorCodigo: vi.fn().mockResolvedValue(null),
+          listarPorProyecto: vi.fn().mockResolvedValue([]),
+          crear: vi.fn(),
+        },
+      };
+      const servicio = new ImportacionKmlServicio(
+        unidadDeTrabajoFalsa(repos),
+        proyectos as unknown as ProyectoServicio,
+        lectorKml,
+      );
+      // Act
+      const importar = () => servicio.importar(1, { kml: '<kml/>' });
+      // Assert
+      await expect(importar()).rejects.toMatchObject({
+        codigo: 'KML_CON_ERRORES',
+        detalles: [expect.stringContaining('A-02')],
+      });
+      expect(repos.lotes.crear).not.toHaveBeenCalled();
+    });
+
+    it('lanza KML_CON_ERRORES sin importar ningún lote cuando un polígono del archivo pisa a un lote que ya existe en el proyecto', async () => {
+      // Arrange: el proyecto ya tiene el lote A-01 en ese mismo terreno
+      const proyectos = { buscarExistente: vi.fn().mockResolvedValue({ id: 1 }) };
+      const lectorKml: LectorKml = { leer: vi.fn().mockReturnValue([placemark({ nombre: 'B-01' })]) };
+      const repos = {
+        lotes: {
+          buscarPorCodigo: vi.fn().mockResolvedValue(null),
+          listarPorProyecto: vi.fn().mockResolvedValue([loteCreado(7, 'A-01')]),
+          crear: vi.fn(),
+        },
+      };
+      const servicio = new ImportacionKmlServicio(
+        unidadDeTrabajoFalsa(repos),
+        proyectos as unknown as ProyectoServicio,
+        lectorKml,
+      );
+      // Act
+      const importar = () => servicio.importar(1, { kml: '<kml/>' });
+      // Assert
+      await expect(importar()).rejects.toMatchObject({
+        codigo: 'KML_CON_ERRORES',
+        detalles: [expect.stringContaining('A-01')],
+      });
+      expect(repos.lotes.listarPorProyecto).toHaveBeenCalledWith(1);
+      expect(repos.lotes.crear).not.toHaveBeenCalled();
     });
   });
 });

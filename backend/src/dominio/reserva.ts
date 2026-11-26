@@ -1,6 +1,7 @@
 /**
  * Reglas de las reservas (consigna, secciones 5 y 7).
  */
+import { comparar, enBolivianos, esMontoValido, redondear } from './dinero';
 import { ErrorConflicto, ErrorReglaNegocio } from './errores';
 import type { FechaISO } from './fechas';
 import type { EstadoReserva } from './tipos';
@@ -38,6 +39,41 @@ export function validarFechaVencimiento(fecha: FechaISO | null | undefined, hoy:
     throw new ErrorReglaNegocio(
       'FECHA_VENCIMIENTO_INVALIDA',
       'La fecha de vencimiento de la reserva no puede ser anterior a hoy.',
+    );
+  }
+}
+
+/** Porcentaje del precio del lote que se exige, como mínimo, de anticipo para reservarlo. */
+export const PORCENTAJE_MINIMO_ANTICIPO = 10;
+
+/** El anticipo mínimo para reservar un lote de ese precio: el 10 %. */
+export function anticipoMinimo(precioLote: number): number {
+  return redondear((precioLote * PORCENTAJE_MINIMO_ANTICIPO) / 100);
+}
+
+/**
+ * Reservar exige un anticipo: el cliente paga para apartar el lote (docs/DECISIONES.md §18).
+ * Debe ser un monto válido, de al menos el 10 % del precio del lote y menor a ese precio.
+ */
+export function validarAnticipo(anticipo: unknown, precioLote: number): void {
+  if (!esMontoValido(anticipo)) {
+    throw new ErrorReglaNegocio(
+      'ANTICIPO_INVALIDO',
+      'El anticipo de la reserva debe ser mayor a 0 (mínimo Bs 0,01) y tener como máximo 2 decimales.',
+    );
+  }
+  const minimo = anticipoMinimo(precioLote);
+  if (comparar(anticipo, minimo) < 0) {
+    throw new ErrorReglaNegocio(
+      'ANTICIPO_INSUFICIENTE',
+      `El anticipo (${enBolivianos(anticipo)}) debe ser al menos el ${PORCENTAJE_MINIMO_ANTICIPO} % del precio del lote ` +
+        `(${enBolivianos(minimo)}).`,
+    );
+  }
+  if (comparar(anticipo, precioLote) >= 0) {
+    throw new ErrorReglaNegocio(
+      'ANTICIPO_EXCEDE_PRECIO',
+      `El anticipo (${enBolivianos(anticipo)}) debe ser menor al precio del lote (${enBolivianos(precioLote)}).`,
     );
   }
 }

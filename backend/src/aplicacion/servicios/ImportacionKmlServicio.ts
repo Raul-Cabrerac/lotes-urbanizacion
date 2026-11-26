@@ -1,5 +1,6 @@
 import { ErrorAplicacion, ErrorConflicto, ErrorReglaNegocio } from '../../dominio/errores';
 import { normalizarPoligono, type PoligonoGeoJSON } from '../../dominio/geometria';
+import { buscarLoteSuperpuesto, type LoteConForma } from '../../dominio/superposicion';
 import type { Lote } from '../../dominio/tipos';
 import type { DatosLote, LectorKml, PlacemarkKml, UnidadDeTrabajo } from '../puertos';
 import { prepararDatosLote } from './datosLote';
@@ -54,6 +55,10 @@ export class ImportacionKmlServicio {
     if (lectura.lotes.length === 0 && lectura.limite === null && lectura.errores.length === 0) {
       lectura.errores.push('El archivo no contiene polígonos.');
     }
+    if (lectura.lotes.length > 0 && lectura.errores.length === 0) {
+      const existentes = await this.uow.repos.lotes.listarPorProyecto(proyectoId);
+      lectura.errores.push(...buscarSuperposiciones(lectura.lotes, existentes));
+    }
     if (lectura.errores.length > 0) {
       throw new ErrorReglaNegocio(
         'KML_CON_ERRORES',
@@ -104,6 +109,21 @@ function leerPlacemarks(placemarks: PlacemarkKml[], opciones: OpcionesImportacio
     }
   });
   return lectura;
+}
+
+/**
+ * Consigna §11: un lote del archivo no puede ocupar terreno de un lote que ya existe en el
+ * proyecto ni de otro lote del mismo archivo. Devuelve un error por cada lote que pisa a otro.
+ */
+function buscarSuperposiciones(nuevos: DatosLote[], existentes: LoteConForma[]): string[] {
+  const errores: string[] = [];
+  const ocupados = [...existentes];
+  for (const lote of nuevos) {
+    const pisado = buscarLoteSuperpuesto(lote.geometria, ocupados);
+    if (pisado) errores.push(`${lote.codigo}: se superpone con el lote ${pisado.codigo}.`);
+    ocupados.push(lote);
+  }
+  return errores;
 }
 
 function aDatosLote(placemark: PlacemarkKml, indice: number, opciones: OpcionesImportacionKml): DatosLote {

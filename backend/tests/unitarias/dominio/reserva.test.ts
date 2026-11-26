@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import type { FechaISO } from '../../../src/dominio/fechas';
 import {
   estaVencida,
+  anticipoMinimo,
   OPERACIONES_RESERVA,
+  validarAnticipo,
   validarFechaVencimiento,
   validarReservaCancelable,
   type OperacionReserva,
@@ -184,5 +186,85 @@ describe('reserva', () => {
         );
       },
     );
+  });
+
+  describe('anticipoMinimo', () => {
+    it.each([
+      ['Bs 60.000', 60000, 6000],
+      ['Bs 75.000', 75000, 7500],
+      ['Bs 62.000,50 (con centavos)', 62000.5, 6200.05],
+    ] as const)('devuelve el 10 %% del precio cuando el lote vale %s', (_caso, precio, esperado) => {
+      // Arrange
+      const precioDelLote = precio;
+      // Act
+      const minimo = anticipoMinimo(precioDelLote);
+      // Assert
+      expect(minimo).toBe(esperado);
+    });
+  });
+
+  describe('validarAnticipo', () => {
+    const PRECIO_DEL_LOTE = 60000; // su anticipo mínimo es Bs 6.000
+
+    it('no lanza error cuando el anticipo supera el 10 % del precio y es menor al precio del lote', () => {
+      // Arrange
+      const anticipo = 10000;
+      // Act
+      const validar = () => validarAnticipo(anticipo, PRECIO_DEL_LOTE);
+      // Assert
+      expect(validar).not.toThrow();
+    });
+
+    it.each([
+      ['exactamente el 10 % del precio (Bs 6.000)', 6000],
+      ['1 centavo menos que el precio del lote', 59999.99],
+    ] as const)('no lanza error en el límite: %s', (_caso, anticipo) => {
+      // Arrange
+      const anticipoLimite = anticipo;
+      // Act
+      const validar = () => validarAnticipo(anticipoLimite, PRECIO_DEL_LOTE);
+      // Assert
+      expect(validar).not.toThrow();
+    });
+
+    it.each([
+      ['es 0 (reservar sin pagar)', 0],
+      ['es negativo', -500],
+      ['tiene 3 decimales', 7000.005],
+      ['no es un número', '7000'],
+      ['no se envía', undefined],
+    ] as const)('lanza ANTICIPO_INVALIDO cuando el anticipo %s', (_caso, anticipo) => {
+      // Arrange
+      const anticipoInvalido: unknown = anticipo;
+      // Act + Assert
+      expect(() => validarAnticipo(anticipoInvalido, PRECIO_DEL_LOTE)).toThrow(
+        expect.objectContaining({ codigo: 'ANTICIPO_INVALIDO' }),
+      );
+    });
+
+    it.each([
+      ['es 1 centavo menor al 10 % del precio', 5999.99],
+      ['es el 5 % del precio', 3000],
+      ['es solo 1 centavo', 0.01],
+    ] as const)('lanza ANTICIPO_INSUFICIENTE cuando el anticipo %s', (_caso, anticipo) => {
+      // Arrange
+      const anticipoBajo = anticipo;
+      // Act + Assert
+      expect(() => validarAnticipo(anticipoBajo, PRECIO_DEL_LOTE)).toThrow(
+        expect.objectContaining({ codigo: 'ANTICIPO_INSUFICIENTE' }),
+      );
+    });
+
+    it.each([
+      ['es igual al precio del lote', 60000],
+      ['supera el precio del lote por 1 centavo', 60000.01],
+    ] as const)('lanza ANTICIPO_EXCEDE_PRECIO cuando el anticipo %s', (_caso, anticipo) => {
+      // Arrange
+      const anticipoExcesivo = anticipo;
+      // Act + Assert
+      expect(() => validarAnticipo(anticipoExcesivo, PRECIO_DEL_LOTE)).toThrow(
+        expect.objectContaining({ codigo: 'ANTICIPO_EXCEDE_PRECIO' }),
+      );
+    });
   });
 });

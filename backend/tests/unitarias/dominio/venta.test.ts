@@ -4,6 +4,7 @@ import { ErrorConflicto } from '../../../src/dominio/errores';
 import type { EstadoVenta } from '../../../src/dominio/tipos';
 import { admite } from '../../../src/dominio/transiciones';
 import {
+  descontarAnticipo,
   LONGITUD_MINIMA_MOTIVO,
   OPERACIONES_VENTA,
   saldoPendienteDelCliente,
@@ -181,6 +182,51 @@ describe('venta', () => {
         codigo: 'VENTA_NO_VIGENTE',
         tipo: 'conflicto',
       });
+    });
+  });
+
+  describe('descontarAnticipo', () => {
+    it('devuelve todo el cobro al firmar cuando la venta no viene de una reserva con anticipo', () => {
+      // Arrange
+      const cobroAlFirmar = 15000;
+      // Act
+      const resto = descontarAnticipo(cobroAlFirmar, 0);
+      // Assert
+      expect(resto).toBe(15000);
+    });
+
+    it.each([
+      ['Bs 15.000 de cuota inicial y Bs 2.000 de anticipo', 15000, 2000, 13000],
+      ['Bs 75.000 al contado y Bs 2.000 de anticipo', 75000, 2000, 73000],
+      ['montos con centavos (0,30 menos 0,10)', 0.3, 0.1, 0.2],
+    ] as const)('devuelve lo que falta cobrar al firmar con %s', (_caso, cobroAlFirmar, anticipo, esperado) => {
+      // Arrange
+      const cobro = cobroAlFirmar;
+      // Act
+      const resto = descontarAnticipo(cobro, anticipo);
+      // Assert
+      expect(resto).toBe(esperado);
+    });
+
+    it('devuelve 0 en el límite: el anticipo es igual a lo que se cobra al firmar', () => {
+      // Arrange
+      const cuotaInicial = 2000;
+      // Act
+      const resto = descontarAnticipo(cuotaInicial, 2000);
+      // Assert
+      expect(resto).toBe(0);
+    });
+
+    it.each([
+      ['supera por 1 centavo lo que se cobra al firmar', 2000, 2000.01],
+      ['existe y la venta financiada no tiene cuota inicial', 0, 2000],
+    ] as const)('lanza ANTICIPO_EXCEDE_COBRO_AL_FIRMAR cuando el anticipo %s', (_caso, cobroAlFirmar, anticipo) => {
+      // Arrange
+      const cobro = cobroAlFirmar;
+      // Act + Assert
+      expect(() => descontarAnticipo(cobro, anticipo)).toThrow(
+        expect.objectContaining({ codigo: 'ANTICIPO_EXCEDE_COBRO_AL_FIRMAR' }),
+      );
     });
   });
 });

@@ -6,19 +6,25 @@ import { useAvisos } from '../componentes/Avisos';
 import { Campo, Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
 import { Icono } from '../componentes/Icono';
 import { Modal } from '../componentes/Modal';
+import { Paginacion } from '../componentes/Paginacion';
 import { SelectCliente } from '../componentes/SelectorCliente';
 import { Tabla } from '../componentes/Tabla';
 import { NOMBRE_ROL } from '../utilidades/estados';
 import { fecha } from '../utilidades/formato';
 import { useDatos } from '../utilidades/useDatos';
 import { useEnvio } from '../utilidades/useEnvio';
+import { useListadoPaginado } from '../utilidades/useListadoPaginado';
 import { useOperacion } from '../utilidades/useOperacion';
 
 /** Administración de usuarios del sistema (solo administrador). */
 export function Usuarios() {
   const { usuario: actual } = useSesion();
   const avisos = useAvisos();
-  const { datos: usuarios, error, cargando, recargar } = useDatos(() => api.usuarios.listar(), []);
+  const { datos: pagina, error, cargando, recargar, cambiarPagina } = useListadoPaginado(
+    (paginacion) => api.usuarios.listarPagina(paginacion),
+    [],
+  );
+  const usuarios = pagina?.elementos;
   const [creando, setCreando] = useState(false);
   const ejecutar = useOperacion(recargar);
 
@@ -70,6 +76,7 @@ export function Usuarios() {
           />
         </ContenedorTabla>
       )}
+      {pagina && pagina.total > 0 && <Paginacion pagina={pagina} onCambiar={cambiarPagina} />}
       {creando && (
         <ModalUsuario
           onCerrar={() => setCreando(false)}

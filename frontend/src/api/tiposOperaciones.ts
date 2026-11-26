@@ -20,6 +20,9 @@ export interface Reserva {
   fecha: string;
   fechaVencimiento: string | null;
   observacion: string;
+  /** Lo que el cliente pagó para apartar el lote; se descuenta al vender. */
+  anticipo: number;
+  metodoAnticipo: MetodoPago;
   estado: EstadoReserva;
   motivoFinalizacion: string | null;
   finalizadaEn: string | null;

@@ -7,8 +7,9 @@ import { useAvisos } from '../componentes/Avisos';
 import { CampoBusqueda, Cargando, ContenedorTabla, Encabezado, MensajeError, Vacio } from '../componentes/Basicos';
 import { Icono } from '../componentes/Icono';
 import { ModalCliente } from '../componentes/ModalCliente';
+import { Paginacion } from '../componentes/Paginacion';
 import { Tabla } from '../componentes/Tabla';
-import { useDatos } from '../utilidades/useDatos';
+import { useListadoPaginado } from '../utilidades/useListadoPaginado';
 import { useValorDiferido } from '../utilidades/useValorDiferido';
 
 /** Registro y búsqueda de clientes (consigna, sección 6). */
@@ -18,7 +19,11 @@ export function Clientes() {
   const navegar = useNavigate();
   const [texto, setTexto] = useState('');
   const busqueda = useValorDiferido(texto);
-  const { datos: clientes, error, cargando, recargar } = useDatos(() => api.clientes.listar(busqueda), [busqueda]);
+  const { datos: pagina, error, cargando, recargar, cambiarPagina } = useListadoPaginado(
+    (paginacion) => api.clientes.listarPagina(busqueda, paginacion),
+    [busqueda],
+  );
+  const clientes = pagina?.elementos;
   const [editando, setEditando] = useState<Cliente | 'nuevo' | null>(null);
 
   return (
@@ -42,7 +47,7 @@ export function Clientes() {
       />
       <MensajeError mensaje={error} />
       {cargando && !clientes && <Cargando />}
-      {clientes?.length === 0 && <Vacio>No se encontraron clientes.</Vacio>}
+      {pagina?.total === 0 && <Vacio>No se encontraron clientes.</Vacio>}
 
       {clientes && clientes.length > 0 && (
         <ContenedorTabla etiqueta="Clientes">
@@ -90,6 +95,7 @@ export function Clientes() {
           />
         </ContenedorTabla>
       )}
+      {pagina && pagina.total > 0 && <Paginacion pagina={pagina} onCambiar={cambiarPagina} />}
 
       {editando && (
         <ModalCliente

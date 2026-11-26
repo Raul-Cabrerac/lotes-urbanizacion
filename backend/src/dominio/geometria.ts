@@ -14,7 +14,7 @@ export interface PoligonoGeoJSON {
 }
 
 /** Radio medio de la Tierra en metros (el mismo que usa Turf.js para áreas y distancias). */
-const RADIO_TIERRA_M = 6371008.8;
+export const RADIO_TIERRA_M = 6371008.8;
 /** Un polígono necesita al menos 3 vértices distintos (lo usa también la herramienta de dibujo). */
 export const MIN_VERTICES = 3;
 const MAX_VERTICES = 500;
@@ -112,16 +112,17 @@ export function rectanguloEnMetros(
   return { type: 'Polygon', coordinates: [[punto(x0, y0), punto(x1, y0), punto(x1, y1), punto(x0, y1), punto(x0, y0)]] };
 }
 
-// ----------------------------------------------------------------------------
-// Funciones internas
-// ----------------------------------------------------------------------------
-
-function verticesUnicos(poligono: PoligonoGeoJSON): Posicion[] {
+/** Los vértices del polígono sin el punto de cierre (el último, que repite al primero). */
+export function verticesUnicos(poligono: PoligonoGeoJSON): Posicion[] {
   const anillo = poligono.coordinates[0];
   const [primero, ultimo] = [anillo[0], anillo[anillo.length - 1]];
   const cerrado = primero[0] === ultimo[0] && primero[1] === ultimo[1];
   return cerrado ? anillo.slice(0, -1) : anillo;
 }
+
+// ----------------------------------------------------------------------------
+// Funciones internas
+// ----------------------------------------------------------------------------
 
 function areaDeVertices(v: Posicion[]): number {
   let total = 0;

@@ -24,7 +24,7 @@ export type { Permiso } from '../../backend/src/dominio/permisos';
 export { admite } from '../../backend/src/dominio/transiciones';
 export { impedimentoComercial, operacionesDelLote, OPERACIONES_LOTE, tienePrecio } from '../../backend/src/dominio/lote';
 export { MIN_VERTICES } from '../../backend/src/dominio/geometria';
-export { OPERACIONES_RESERVA } from '../../backend/src/dominio/reserva';
+export { anticipoMinimo, OPERACIONES_RESERVA, PORCENTAJE_MINIMO_ANTICIPO } from '../../backend/src/dominio/reserva';
 export { saldoPendienteDelCliente } from '../../backend/src/dominio/venta';
 export { sumar } from '../../backend/src/dominio/dinero';
 export { OPERACIONES_PROYECTO, type ConteoPorEstado } from '../../backend/src/dominio/proyecto';
@@ -35,3 +35,9 @@ export {
   operacionesDeLaVenta,
 } from '../../backend/src/dominio/planPagos';
 export { LONGITUD_MINIMA_PASSWORD, seVinculaACliente } from '../../backend/src/dominio/usuario';
+export {
+  calcularDesplazamiento,
+  POR_PAGINA_POR_DEFECTO,
+  type Pagina,
+  type Paginacion,
+} from '../../backend/src/dominio/paginacion';

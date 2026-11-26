@@ -1,17 +1,30 @@
 import type { RepositorioProyectos } from '../../../aplicacion/puertos';
+import { armarPagina } from '../../../dominio/paginacion';
 import { OPERACIONES_PROYECTO } from '../../../dominio/proyecto';
-import { construirUpdate, transicionarSi, type Consultas } from './consultas';
+import { construirUpdate, consultarPagina, transicionarSi, type Consultas } from './consultas';
 import { aProyecto } from './conversiones';
 import type { FilaProyecto } from './filas';
+
+const SQL_PROYECTOS_EN_ESTADOS = 'SELECT * FROM proyectos WHERE estado = ANY($1)';
+/** Del más nuevo al más viejo. */
+const ORDEN_PROYECTOS = 'creado_en DESC, id DESC';
 
 export function crearRepositorioProyectos(bd: Consultas): RepositorioProyectos {
   return {
     async listar(estados) {
-      const filas = await bd.filas<FilaProyecto>(
-        'SELECT * FROM proyectos WHERE estado = ANY($1) ORDER BY creado_en DESC, id DESC',
-        [[...estados]],
-      );
+      const filas = await bd.filas<FilaProyecto>(`${SQL_PROYECTOS_EN_ESTADOS} ORDER BY ${ORDEN_PROYECTOS}`, [[...estados]]);
       return filas.map(aProyecto);
+    },
+
+    async listarPagina(estados, paginacion) {
+      const { filas, total } = await consultarPagina<FilaProyecto>(
+        bd,
+        SQL_PROYECTOS_EN_ESTADOS,
+        [[...estados]],
+        ORDEN_PROYECTOS,
+        paginacion,
+      );
+      return armarPagina(filas.map(aProyecto), total, paginacion);
     },
 
     async buscarPorId(id) {

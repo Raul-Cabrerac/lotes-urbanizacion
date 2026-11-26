@@ -74,7 +74,7 @@ probar la reserva duplicada.
 | Visualización de lotes y detalle desde el mapa | Polígonos de colores; clic en un lote abre su detalle (cargado bajo demanda) |
 | Superficie, dimensiones y precio | Se calculan del polígono y se pueden ajustar |
 | Estados y filtro por estado | DISPONIBLE verde, RESERVADO ámbar, VENDIDO rojo, BLOQUEADO gris; contadores y filtros |
-| Clientes, reserva y prevención de reserva duplicada | *Reservar* desde el lote, con "+ Nuevo cliente"; la segunda reserva simultánea se rechaza |
+| Clientes, reserva y prevención de reserva duplicada | *Reservar* desde el lote, con "+ Nuevo cliente" y un anticipo; la segunda reserva simultánea se rechaza |
 | Cancelación, vencimiento y liberación | *Cancelar reserva*; las vencidas se liberan solas |
 | Venta, precio pactado y cambio a VENDIDO | *Vender* al contado o con crédito financiado; el precio pactado queda congelado |
 | Plan de pagos, cuotas, pagos, total pagado, saldo e historial | *Ventas y pagos → plan de pagos*; anular pago con motivo (admin) |
@@ -122,7 +122,8 @@ lotes-urbanizacion/
 ├── backend/
 │   ├── src/
 │   │   ├── dominio/          reglas de negocio puras: lote, reserva, planPagos, venta, dinero,
-│   │   │                     fechas, geometria, permisos, errores, transiciones (máquinas de estado)
+│   │   │                     fechas, geometria, superposicion, permisos, errores, transiciones
+│   │   │                     (máquinas de estado)
 │   │   ├── aplicacion/
 │   │   │   ├── puertos.ts    interfaces (Reloj, Hasher, LectorKml, UnidadDeTrabajo...)
 │   │   │   ├── repositorios.ts  interfaces de los repositorios y vistas de lectura
@@ -189,7 +190,11 @@ DISPONIBLE ──reservar──► RESERVADO ──vender──► VENDIDO
     └── bloquear ──► BLOQUEADO ── desbloquear ──► DISPONIBLE
 ```
 
+- Dos lotes de un mismo proyecto no ocupan el mismo terreno: pueden compartir un lado, pero no
+  superponerse (al dibujar, al editar la forma o al importar un KML).
 - Solo se reserva un lote DISPONIBLE, con precio y de un proyecto PUBLICADO.
+- Reservar exige un anticipo de al menos el 10 % del precio del lote. Si el lote se vende a ese
+  cliente, el anticipo cuenta como parte de lo que se cobra al firmar.
 - Se vende un lote DISPONIBLE, o uno RESERVADO solo al cliente de la reserva.
 - El precio pactado se guarda en la venta: si cambia el precio del lote, la venta no cambia.
 - Financiado: cuota inicial + N cuotas mensuales; los centavos sobrantes van en la última cuota.

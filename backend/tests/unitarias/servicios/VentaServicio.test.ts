@@ -46,6 +46,48 @@ const vistaVenta = (sobrescribir: Record<string, unknown> = {}) => ({
   ...sobrescribir,
 });
 
+/** Reserva activa de Camila (cliente 7) sobre el lote 5: pagó ese anticipo por QR para apartarlo. */
+const reservaConAnticipo = (anticipo: number) => ({
+  id: 20,
+  loteId: 5,
+  clienteId: 7,
+  asesorId: 9,
+  estado: 'ACTIVA' as const,
+  fecha: new Date('2026-03-10T10:00:00'),
+  fechaVencimiento: MANIANA,
+  anticipo,
+  metodoAnticipo: 'QR' as const,
+});
+
+/** Puertos simulados para vender el lote 5 (RESERVADO, Bs 75.000) al cliente de su reserva. */
+const reposParaVenderLoteReservado = (reserva: ReturnType<typeof reservaConAnticipo>, venta: ReturnType<typeof vistaVenta>) => ({
+  lotes: {
+    buscarPorId: vi.fn().mockResolvedValue({ id: 5, proyectoId: 1, codigo: 'A-01', estado: 'RESERVADO', precio: 75000 }),
+    cambiarEstadoSi: vi.fn().mockResolvedValue(true),
+  },
+  clientes: { buscarPorId: vi.fn().mockResolvedValue({ id: 7 }) },
+  proyectos: { buscarPorId: vi.fn().mockResolvedValue({ id: 1, estado: 'PUBLICADO' }) },
+  reservas: {
+    buscarActivaPorLote: vi.fn().mockResolvedValue(reserva),
+    finalizar: vi.fn().mockResolvedValue(true),
+  },
+  ventas: { crear: vi.fn().mockResolvedValue(venta), buscarPorId: vi.fn().mockResolvedValue(venta) },
+  pagos: { crear: vi.fn().mockResolvedValue({ id: 1 }) },
+});
+
+/** Venta financiada del lote 5: la cuota inicial es la cuota 0 (id 10) y luego 2 cuotas mensuales. */
+const ventaFinanciada = (cuotaInicial: number) =>
+  vistaVenta({
+    reservaId: 20,
+    modalidad: 'FINANCIADO',
+    cuotas: [
+      { id: 10, numero: 0, concepto: 'Cuota inicial', monto: cuotaInicial, fechaVencimiento: fechaEnDias(0) },
+      { id: 11, numero: 1, concepto: 'Cuota 1', monto: 30000, fechaVencimiento: '2026-04-15' },
+      { id: 12, numero: 2, concepto: 'Cuota 2', monto: 30000, fechaVencimiento: '2026-05-15' },
+    ],
+    pagos: [],
+  });
+
 describe('VentaServicio', () => {
   describe('listar', () => {
     it('lista las ventas con los filtros indicados y calcula su resumen cuando el usuario es asesor', async () => {
@@ -383,6 +425,75 @@ describe('VentaServicio', () => {
       expect(memoria.reserva(20)?.estado).toBe('ACTIVA');
       expect(repos.ventas.crear).not.toHaveBeenCalled();
     });
+
+    it('descuenta el anticipo de la reserva del pago al contado: registra el anticipo y cobra al firmar solo el resto', async () => {
+      // Arrange: el lote vale Bs 75.000 y la reserva tiene Bs 2.000 de anticipo
+      const reserva = reservaConAnticipo(2000);
+      const repos = reposParaVenderLoteReservado(reserva, vistaVenta({ reservaId: 20 }));
+      const servicio = new VentaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+      // Act
+      await servicio.registrar({ loteId: 5, clienteId: 7, modalidad: 'CONTADO', metodoPago: 'TRANSFERENCIA' }, usuarioAsesor);
+      // Assert
+      expect(repos.pagos.crear).toHaveBeenCalledTimes(2);
+      expect(repos.pagos.crear).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ cuotaId: 1, monto: 2000, metodo: 'QR', fecha: reserva.fecha, registradoPorId: 9 }),
+      );
+      expect(repos.pagos.crear).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ cuotaId: 1, monto: 73000, metodo: 'TRANSFERENCIA', registradoPorId: usuarioAsesor.id }),
+      );
+    });
+
+    it('descuenta el anticipo de la cuota inicial en una venta financiada', async () => {
+      // Arrange: cuota inicial de Bs 16.000 y anticipo de Bs 2.000
+      const repos = reposParaVenderLoteReservado(reservaConAnticipo(2000), ventaFinanciada(16000));
+      const servicio = new VentaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+      // Act
+      await servicio.registrar(
+        { loteId: 5, clienteId: 7, modalidad: 'FINANCIADO', cuotaInicial: 16000, numeroCuotas: 2 },
+        usuarioAsesor,
+      );
+      // Assert
+      expect(repos.reservas.finalizar).toHaveBeenCalled();
+      expect(repos.pagos.crear).toHaveBeenNthCalledWith(1, expect.objectContaining({ cuotaId: 10, monto: 2000 }));
+      expect(repos.pagos.crear).toHaveBeenNthCalledWith(2, expect.objectContaining({ cuotaId: 10, monto: 14000 }));
+    });
+
+    it('registra solo el anticipo en el límite: la cuota inicial es igual al anticipo y no queda nada por cobrar al firmar', async () => {
+      // Arrange
+      const repos = reposParaVenderLoteReservado(reservaConAnticipo(2000), ventaFinanciada(2000));
+      const servicio = new VentaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+      // Act
+      await servicio.registrar(
+        { loteId: 5, clienteId: 7, modalidad: 'FINANCIADO', cuotaInicial: 2000, numeroCuotas: 2 },
+        usuarioAsesor,
+      );
+      // Assert
+      expect(repos.pagos.crear).toHaveBeenCalledTimes(1);
+      expect(repos.pagos.crear).toHaveBeenCalledWith(expect.objectContaining({ cuotaId: 10, monto: 2000, metodo: 'QR' }));
+    });
+
+    it.each([
+      ['la cuota inicial es 1 centavo menor al anticipo', 1999.99],
+      ['la venta financiada no tiene cuota inicial', 0],
+    ] as const)(
+      'lanza ANTICIPO_EXCEDE_COBRO_AL_FIRMAR sin convertir la reserva ni guardar la venta cuando %s',
+      async (_caso, cuotaInicial) => {
+        // Arrange
+        const repos = reposParaVenderLoteReservado(reservaConAnticipo(2000), ventaFinanciada(cuotaInicial));
+        const servicio = new VentaServicio(unidadDeTrabajoFalsa(repos), relojEnHoy());
+        // Act
+        const registrar = () =>
+          servicio.registrar({ loteId: 5, clienteId: 7, modalidad: 'FINANCIADO', cuotaInicial, numeroCuotas: 2 }, usuarioAsesor);
+        // Assert
+        await expect(registrar()).rejects.toMatchObject({ codigo: 'ANTICIPO_EXCEDE_COBRO_AL_FIRMAR' });
+        expect(repos.reservas.finalizar).not.toHaveBeenCalled();
+        expect(repos.lotes.cambiarEstadoSi).not.toHaveBeenCalled();
+        expect(repos.ventas.crear).not.toHaveBeenCalled();
+        expect(repos.pagos.crear).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('anular', () => {

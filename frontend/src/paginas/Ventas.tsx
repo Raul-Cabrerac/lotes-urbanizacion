@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { api } from '../api/api';
 import { ESTADOS_VENTA, type EstadoVenta } from '../dominio';
 import { Campo, Cargando, ContenedorTabla, Encabezado, MensajeError } from '../componentes/Basicos';
+import { Paginacion } from '../componentes/Paginacion';
 import { SelectCliente } from '../componentes/SelectorCliente';
 import { TablaVentas } from '../componentes/TablasOperaciones';
 import { ASPECTO_ESTADO } from '../utilidades/estados';
 import { useDatos } from '../utilidades/useDatos';
+import { useListadoPaginado } from '../utilidades/useListadoPaginado';
 
 /** Consulta de ventas por cliente, proyecto y estado (consigna, sección 10). */
 export function Ventas() {
@@ -14,10 +16,11 @@ export function Ventas() {
   const [estado, setEstado] = useState<EstadoVenta | ''>('VIGENTE');
   const { datos: proyectos } = useDatos(() => api.proyectos.listar(), []);
   const { datos: clientes } = useDatos(() => api.clientes.listar(), []);
-  const { datos: ventas, error, cargando } = useDatos(
-    () => api.ventas.listar({ proyectoId, clienteId, estado }),
+  const { datos: pagina, error, cargando, cambiarPagina } = useListadoPaginado(
+    (paginacion) => api.ventas.listarPagina({ proyectoId, clienteId, estado }, paginacion),
     [proyectoId, clienteId, estado],
   );
+  const ventas = pagina?.elementos;
 
   return (
     <div className="pagina">
@@ -60,6 +63,7 @@ export function Ventas() {
           <TablaVentas ventas={ventas} />
         </ContenedorTabla>
       )}
+      {pagina && pagina.total > 0 && <Paginacion pagina={pagina} onCambiar={cambiarPagina} />}
     </div>
   );
 }

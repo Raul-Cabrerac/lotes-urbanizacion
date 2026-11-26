@@ -5,6 +5,7 @@
  * se evita la inyección SQL.
  */
 import { ErrorAplicacion, ErrorConflicto, ErrorReglaNegocio, type CodigoDe } from '../../../dominio/errores';
+import { calcularDesplazamiento, type Paginacion } from '../../../dominio/paginacion';
 import type { Transicion } from '../../../dominio/transiciones';
 import type { EjecutorSql } from '../baseDeDatos';
 
@@ -109,6 +110,28 @@ export function construirWhere(condiciones: [string, unknown][]): {
     partes.push(condicion.replace('?', `$${parametros.length}`));
   }
   return { where: partes.length ? `WHERE ${partes.join(' AND ')}` : '', parametros };
+}
+
+/**
+ * Una página de un listado: cuenta las filas que cumplen el filtro (COUNT) y trae solo las de la
+ * página pedida (LIMIT y OFFSET). `sql` es el SELECT con su WHERE y sin ORDER BY. El `orden` debe
+ * terminar en el id: con un orden único, ninguna fila se repite ni se salta entre dos páginas.
+ */
+export async function consultarPagina<T>(
+  bd: Consultas,
+  sql: string,
+  parametros: unknown[],
+  orden: string,
+  paginacion: Paginacion,
+): Promise<{ filas: T[]; total: number }> {
+  const conteo = await bd.fila<{ total: number | string }>(`SELECT COUNT(*) AS total FROM (${sql}) AS consulta`, parametros);
+  const n = parametros.length;
+  const filas = await bd.filas<T>(`${sql} ORDER BY ${orden} LIMIT $${n + 1} OFFSET $${n + 2}`, [
+    ...parametros,
+    paginacion.porPagina,
+    calcularDesplazamiento(paginacion),
+  ]);
+  return { filas, total: Number(conteo?.total ?? 0) };
 }
 
 /** Arma un UPDATE de una fila por id, solo con los campos definidos (undefined = no cambiar). */

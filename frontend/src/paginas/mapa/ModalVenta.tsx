@@ -99,6 +99,11 @@ export function ModalVenta({
               {reserva ? (
                 <div className="caja caja-ambar" data-testid="venta-cliente-reserva">
                   {reserva.cliente.nombreCompleto} ({reserva.cliente.documento}) — tiene la reserva del lote
+                  {reserva.anticipo > 0 && (
+                    <div className="pequeno" data-testid="venta-anticipo">
+                      Anticipo ya cobrado: {bs(reserva.anticipo)}. Se descuenta de lo que se cobra al firmar.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <SelectorCliente valor={clienteId} onCambiar={setClienteElegido} testid="venta-cliente" />

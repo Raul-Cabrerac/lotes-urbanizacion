@@ -1,6 +1,8 @@
+import { comparar } from '../../dominio/dinero';
 import { ErrorConflicto, ErrorNoEncontrado, ErrorSinPermiso } from '../../dominio/errores';
 import type { FechaISO } from '../../dominio/fechas';
 import { OPERACIONES_LOTE, validarLoteVendible } from '../../dominio/lote';
+import type { Paginacion } from '../../dominio/paginacion';
 import { alcanzaCliente, clienteDelAlcance } from '../../dominio/permisos';
 import {
   condicionesEfectivas,
@@ -12,7 +14,7 @@ import {
 import { OPERACIONES_RESERVA } from '../../dominio/reserva';
 import type { MetodoPago, ModalidadPago } from '../../dominio/tipos';
 import { restringir } from '../../dominio/transiciones';
-import { validarVentaAnulable, ventaYaAnulada } from '../../dominio/venta';
+import { descontarAnticipo, validarVentaAnulable, ventaYaAnulada } from '../../dominio/venta';
 import type { FiltrosVentas, Reloj, UnidadDeTrabajo, UsuarioActual, VentaVista } from '../puertos';
 import { vencerReservaDelLote } from './expirarReserva';
 
@@ -38,9 +40,14 @@ export class VentaServicio {
 
   /** Un cliente solo ve sus propias ventas, aunque pida las de otro. */
   async listar(filtros: FiltrosVentas, usuario: UsuarioActual) {
-    const clienteId = clienteDelAlcance(usuario);
-    const ventas = await this.uow.repos.ventas.listar(clienteId === undefined ? filtros : { ...filtros, clienteId });
+    const ventas = await this.uow.repos.ventas.listar(filtrosDelAlcance(filtros, usuario));
     return ventas.map((venta) => this.conResumen(venta));
+  }
+
+  /** Igual que `listar` (también para el cliente), de a una página. */
+  async listarPagina(filtros: FiltrosVentas, paginacion: Paginacion, usuario: UsuarioActual) {
+    const pagina = await this.uow.repos.ventas.listarPagina(filtrosDelAlcance(filtros, usuario), paginacion);
+    return { ...pagina, elementos: pagina.elementos.map((venta) => this.conResumen(venta)) };
   }
 
   async obtener(id: number, usuario: UsuarioActual) {
@@ -60,7 +67,8 @@ export class VentaServicio {
   /**
    * Registra la venta en UNA transacción:
    *   lote -> VENDIDO, reserva -> CONVERTIDA, venta + cuotas, y el cobro de la
-   *   cuota inicial (o del pago al contado).
+   *   cuota inicial (o del pago al contado). Si el lote estaba reservado, el anticipo
+   *   de la reserva cuenta como parte de ese cobro.
    * Si cualquier paso falla no se guarda nada (no quedan estados parciales).
    * El precio pactado queda guardado en la venta: si después cambia el precio
    * del lote, la venta no se modifica.
@@ -89,6 +97,10 @@ export class VentaServicio {
         fechaVenta: hoy,
         fechaPrimeraCuota: entrada.fechaPrimeraCuota,
       });
+      // El anticipo de la reserva ya está cobrado: se descuenta de lo que se cobra al firmar.
+      const anticipo = reservaActiva?.anticipo ?? 0;
+      const cobroAlFirmar = cuotas.find((cuota) => cuota.numero === NUMERO_CUOTA_AL_FIRMAR)?.monto ?? 0;
+      const restoAlFirmar = descontarAnticipo(cobroAlFirmar, anticipo);
 
       // Orden de bloqueo: reserva -> lote (ver UnidadDeTrabajo en puertos.ts).
       const reservaConvertida = reservaActiva
@@ -120,10 +132,20 @@ export class VentaServicio {
 
       // La cuota inicial (o el pago al contado) se cobra al firmar la venta.
       const cuotaAlFirmar = venta.cuotas.find((cuota) => cuota.numero === NUMERO_CUOTA_AL_FIRMAR);
-      if (cuotaAlFirmar) {
+      if (cuotaAlFirmar && reservaActiva && comparar(anticipo, 0) > 0) {
         await repos.pagos.crear({
           cuotaId: cuotaAlFirmar.id,
-          monto: cuotaAlFirmar.monto,
+          monto: anticipo,
+          metodo: reservaActiva.metodoAnticipo,
+          referencia: 'Anticipo de la reserva',
+          fecha: reservaActiva.fecha,
+          registradoPorId: reservaActiva.asesorId,
+        });
+      }
+      if (cuotaAlFirmar && comparar(restoAlFirmar, 0) > 0) {
+        await repos.pagos.crear({
+          cuotaId: cuotaAlFirmar.id,
+          monto: restoAlFirmar,
           metodo: entrada.metodoPago ?? METODO_PAGO_POR_DEFECTO,
           referencia: 'Cobrado al registrar la venta',
           fecha: ahora,
@@ -158,4 +180,10 @@ export class VentaServicio {
     const { cuotas, ...resumen } = resumirPlan(venta.precioPactado, venta.cuotas, venta.pagos, this.reloj.hoy());
     return { ...venta, cuotas, resumen };
   }
+}
+
+/** Los filtros que pidió el usuario; si es un cliente, limitados a sus propias ventas. */
+function filtrosDelAlcance(filtros: FiltrosVentas, usuario: UsuarioActual): FiltrosVentas {
+  const clienteId = clienteDelAlcance(usuario);
+  return clienteId === undefined ? filtros : { ...filtros, clienteId };
 }

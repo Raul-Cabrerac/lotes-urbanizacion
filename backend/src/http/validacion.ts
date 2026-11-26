@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { esFechaISO } from '../dominio/fechas';
 import { ErrorValidacion } from '../dominio/errores';
 import { LARGO_MAXIMO } from '../dominio/lote';
+import { POR_PAGINA_MAXIMA, POR_PAGINA_POR_DEFECTO, type Paginacion } from '../dominio/paginacion';
 import {
   ESTADOS_LOTE,
   ESTADOS_RESERVA,
@@ -57,6 +58,9 @@ const fecha = z.string().refine(esFechaISO, 'Fecha inválida (formato AAAA-MM-DD
 /** En la URL los filtros llegan como texto; "" se trata como "sin filtro". */
 const filtro = <T extends z.ZodType>(esquema: T) =>
   z.preprocess((valor) => (valor === '' ? undefined : valor), esquema.optional());
+
+/** Ningún listado llega a tantas páginas: el tope evita pedirle a la base un OFFSET absurdo. */
+const PAGINA_MAXIMA = 100_000;
 
 const camposProyecto = {
   nombre: obligatorio('El nombre', 120),
@@ -130,6 +134,8 @@ export const esquemas = {
     clienteId: id('un cliente'),
     fechaVencimiento: fecha.nullable().optional(),
     observacion: opcional(500),
+    anticipo: numero('El anticipo'),
+    metodoAnticipo: z.enum(METODOS_PAGO).optional(),
   }),
 
   filtrosReservas: z.object({
@@ -167,6 +173,24 @@ export const esquemas = {
     proyectoId: filtro(z.coerce.number().int().positive()),
   }),
 
+  /** ?pagina=&porPagina= de los listados (se leen con leerPaginacion). */
+  paginacion: z.object({
+    pagina: filtro(
+      z.coerce
+        .number()
+        .int('La página debe ser un número entero.')
+        .min(1, 'La primera página es la 1.')
+        .max(PAGINA_MAXIMA, `La página no puede pasar de ${PAGINA_MAXIMA}.`),
+    ),
+    porPagina: filtro(
+      z.coerce
+        .number()
+        .int('La cantidad por página debe ser un número entero.')
+        .min(1, 'Pida al menos un registro por página.')
+        .max(POR_PAGINA_MAXIMA, `Se muestran como máximo ${POR_PAGINA_MAXIMA} registros por página.`),
+    ),
+  }),
+
   pago: z.object({
     cuotaId: id('una cuota'),
     monto: numero('El monto'),
@@ -184,3 +208,13 @@ export const esquemas = {
 
   estadoUsuario: z.object({ activo: z.boolean({ error: 'Indique si el usuario está activo.' }) }),
 };
+
+/**
+ * La página pedida en la URL (?pagina=2&porPagina=20). Sin ninguno de los dos devuelve null y el
+ * listado sale completo, como antes: así siguen funcionando el mapa y los selectores de cliente.
+ */
+export function leerPaginacion(consulta: unknown): Paginacion | null {
+  const { pagina, porPagina } = parsear(esquemas.paginacion, consulta);
+  if (pagina === undefined && porPagina === undefined) return null;
+  return { pagina: pagina ?? 1, porPagina: porPagina ?? POR_PAGINA_POR_DEFECTO };
+}

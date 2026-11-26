@@ -2,6 +2,7 @@ import { ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import { calcularAreaM2, normalizarPoligono, sugerirDimensiones } from '../../dominio/geometria';
 import { validarCambioEstadoManual, validarLoteEliminable, validarPrecioLoteReservado } from '../../dominio/lote';
 import { resumirPlan } from '../../dominio/planPagos';
+import { validarSinSuperposicion } from '../../dominio/superposicion';
 import type { EstadoLote, Lote } from '../../dominio/tipos';
 import type { FiltrosLotes, Reloj, Repositorios, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 import { prepararCambiosLote, prepararDatosLote, type EntradaLote } from './datosLote';
@@ -39,6 +40,8 @@ export class LoteServicio {
             fecha: reserva.fecha,
             fechaVencimiento: reserva.fechaVencimiento,
             observacion: reserva.observacion,
+            anticipo: reserva.anticipo,
+            metodoAnticipo: reserva.metodoAnticipo,
             cliente: reserva.cliente,
             asesor: reserva.asesor,
           }
@@ -59,10 +62,14 @@ export class LoteServicio {
     };
   }
 
-  /** Crea un lote dibujado en el mapa. Un lote siempre pertenece a un proyecto (consigna §3). */
+  /**
+   * Crea un lote dibujado en el mapa. Un lote siempre pertenece a un proyecto (consigna §3) y no
+   * puede ocupar terreno de otro lote del mismo proyecto (consigna §11).
+   */
   async crear(proyectoId: number, entrada: EntradaLote): Promise<Lote> {
     await this.proyectos.buscarExistente(proyectoId);
     const datos = prepararDatosLote(entrada);
+    validarSinSuperposicion(datos, await this.uow.repos.lotes.listarPorProyecto(proyectoId));
     await this.validarCodigoUnico(this.uow.repos, proyectoId, datos.codigo);
     return this.uow.repos.lotes.crear(proyectoId, datos);
   }
@@ -76,6 +83,10 @@ export class LoteServicio {
 
       const datos = prepararCambiosLote(actual, cambios);
       validarPrecioLoteReservado(actual.estado, datos.precio);
+      if (cambios.geometria !== undefined) {
+        const losDemas = (await repos.lotes.listarPorProyecto(actual.proyectoId)).filter((lote) => lote.id !== id);
+        validarSinSuperposicion(datos, losDemas);
+      }
       if (datos.codigo !== actual.codigo) await this.validarCodigoUnico(repos, actual.proyectoId, datos.codigo);
       return repos.lotes.actualizar(id, datos);
     });

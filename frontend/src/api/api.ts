@@ -1,6 +1,6 @@
 /** Funciones para cada endpoint de la API REST. */
 import { consulta, pedir } from './http';
-import type { EstadoLote, EstadoReserva, EstadoVenta, MetodoPago, ModalidadPago, Rol } from '../dominio';
+import type { EstadoLote, EstadoReserva, EstadoVenta, MetodoPago, ModalidadPago, Pagina, Paginacion, Rol } from '../dominio';
 import type { Cliente, Lote, LoteDetalle, Poligono, Proyecto, ProyectoDetalle, ProyectoListado, Usuario } from './tipos';
 import type {
   ClienteDetalle,
@@ -55,6 +55,16 @@ interface DatosVenta {
   metodoPago?: MetodoPago;
 }
 
+interface FiltrosReservas {
+  estado: EstadoReserva | '';
+}
+
+interface FiltrosVentas {
+  estado?: EstadoVenta | '';
+  proyectoId?: number | '';
+  clienteId?: number | '';
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -64,6 +74,7 @@ export const api = {
 
   proyectos: {
     listar: () => pedir<ProyectoListado[]>('GET', '/proyectos'),
+    listarPagina: (paginacion: Paginacion) => pedir<Pagina<ProyectoListado>>('GET', `/proyectos${consulta({ ...paginacion })}`),
     obtener: (id: number) => pedir<ProyectoDetalle>('GET', `/proyectos/${id}`),
     crear: (datos: DatosProyecto) => pedir<Proyecto>('POST', '/proyectos', datos),
     actualizar: (id: number, datos: DatosProyecto) => pedir<Proyecto>('PUT', `/proyectos/${id}`, datos),
@@ -87,21 +98,32 @@ export const api = {
 
   clientes: {
     listar: (q?: string) => pedir<Cliente[]>('GET', `/clientes${consulta({ q })}`),
+    listarPagina: (q: string, paginacion: Paginacion) =>
+      pedir<Pagina<Cliente>>('GET', `/clientes${consulta({ q, ...paginacion })}`),
     obtener: (id: number) => pedir<ClienteDetalle>('GET', `/clientes/${id}`),
     crear: (datos: DatosCliente) => pedir<Cliente>('POST', '/clientes', datos),
     actualizar: (id: number, datos: DatosCliente) => pedir<Cliente>('PUT', `/clientes/${id}`, datos),
   },
 
   reservas: {
-    listar: (filtros: { estado: EstadoReserva | '' }) => pedir<Reserva[]>('GET', `/reservas${consulta(filtros)}`),
-    crear: (datos: { loteId: number; clienteId: number; fechaVencimiento?: string | null; observacion?: string }) =>
-      pedir<Reserva>('POST', '/reservas', datos),
+    listar: (filtros: FiltrosReservas) => pedir<Reserva[]>('GET', `/reservas${consulta({ ...filtros })}`),
+    listarPagina: (filtros: FiltrosReservas, paginacion: Paginacion) =>
+      pedir<Pagina<Reserva>>('GET', `/reservas${consulta({ ...filtros, ...paginacion })}`),
+    crear: (datos: {
+      loteId: number;
+      clienteId: number;
+      fechaVencimiento?: string | null;
+      observacion?: string;
+      anticipo: number;
+      metodoAnticipo?: MetodoPago;
+    }) => pedir<Reserva>('POST', '/reservas', datos),
     cancelar: (id: number, motivo: string) => pedir<Reserva>('POST', `/reservas/${id}/cancelar`, { motivo }),
   },
 
   ventas: {
-    listar: (filtros: { estado?: EstadoVenta | ''; proyectoId?: number | ''; clienteId?: number | '' } = {}) =>
-      pedir<Venta[]>('GET', `/ventas${consulta(filtros)}`),
+    listar: (filtros: FiltrosVentas = {}) => pedir<Venta[]>('GET', `/ventas${consulta({ ...filtros })}`),
+    listarPagina: (filtros: FiltrosVentas, paginacion: Paginacion) =>
+      pedir<Pagina<Venta>>('GET', `/ventas${consulta({ ...filtros, ...paginacion })}`),
     obtener: (id: number) => pedir<Venta>('GET', `/ventas/${id}`),
     simularPlan: (datos: Omit<DatosVenta, 'loteId' | 'clienteId' | 'metodoPago'> & { precioPactado: number }) =>
       pedir<CuotaSimulada[]>('POST', '/ventas/simular-plan', datos),
@@ -117,6 +139,7 @@ export const api = {
 
   usuarios: {
     listar: () => pedir<UsuarioListado[]>('GET', '/usuarios'),
+    listarPagina: (paginacion: Paginacion) => pedir<Pagina<UsuarioListado>>('GET', `/usuarios${consulta({ ...paginacion })}`),
     crear: (datos: { nombre: string; email: string; password: string; rol: Rol; clienteId?: number | null }) =>
       pedir<UsuarioListado>('POST', '/usuarios', datos),
     cambiarActivo: (id: number, activo: boolean) => pedir<UsuarioListado>('PATCH', `/usuarios/${id}`, { activo }),

@@ -1,7 +1,8 @@
-import type { RepositorioVentas, VentaVista } from '../../../aplicacion/puertos';
+import type { FiltrosVentas, RepositorioVentas, VentaVista } from '../../../aplicacion/puertos';
+import { armarPagina } from '../../../dominio/paginacion';
 import type { Cuota } from '../../../dominio/tipos';
 import { OPERACIONES_VENTA } from '../../../dominio/venta';
-import { construirWhere, transicionarSi, type Consultas } from './consultas';
+import { construirWhere, consultarPagina, transicionarSi, type Consultas } from './consultas';
 import { aClienteResumen, aCuota, aLoteResumen, aPagoVista, aVenta } from './conversiones';
 import {
   COLUMNAS_CLIENTE_Y_ASESOR,
@@ -30,6 +31,20 @@ const SQL_PAGOS_DE_VENTAS = `
   WHERE cu.venta_id = ANY($1::int[])
   ORDER BY pg.fecha, pg.id`;
 
+/** De la más nueva a la más vieja. */
+const ORDEN_VENTAS = 'v.fecha DESC, v.id DESC';
+
+/** Las ventas que cumplen los filtros (sin ORDER BY). */
+function consultaVentas(filtros: FiltrosVentas): { sql: string; parametros: unknown[] } {
+  const { where, parametros } = construirWhere([
+    ['v.cliente_id = ?', filtros.clienteId],
+    ['v.lote_id = ?', filtros.loteId],
+    ['v.estado = ?', filtros.estado],
+    ['l.proyecto_id = ?', filtros.proyectoId],
+  ]);
+  return { sql: `${SQL_VENTA_VISTA} ${where}`, parametros };
+}
+
 export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
   /** Agrega a cada venta sus cuotas y su historial de pagos (2 consultas para todas las ventas). */
   async function completarVentas(ventas: FilaVentaVista[]): Promise<VentaVista[]> {
@@ -55,17 +70,15 @@ export function crearRepositorioVentas(bd: Consultas): RepositorioVentas {
 
   return {
     async listar(filtros = {}) {
-      const { where, parametros } = construirWhere([
-        ['v.cliente_id = ?', filtros.clienteId],
-        ['v.lote_id = ?', filtros.loteId],
-        ['v.estado = ?', filtros.estado],
-        ['l.proyecto_id = ?', filtros.proyectoId],
-      ]);
-      const filas = await bd.filas<FilaVentaVista>(
-        `${SQL_VENTA_VISTA} ${where} ORDER BY v.fecha DESC, v.id DESC`,
-        parametros,
-      );
+      const { sql, parametros } = consultaVentas(filtros);
+      const filas = await bd.filas<FilaVentaVista>(`${sql} ORDER BY ${ORDEN_VENTAS}`, parametros);
       return completarVentas(filas);
+    },
+
+    async listarPagina(filtros, paginacion) {
+      const { sql, parametros } = consultaVentas(filtros);
+      const { filas, total } = await consultarPagina<FilaVentaVista>(bd, sql, parametros, ORDEN_VENTAS, paginacion);
+      return armarPagina(await completarVentas(filas), total, paginacion);
     },
 
     async buscarPorId(id) {

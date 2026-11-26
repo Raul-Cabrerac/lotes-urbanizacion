@@ -1,5 +1,6 @@
 import { ErrorNoEncontrado } from '../../dominio/errores';
 import { normalizarPoligono } from '../../dominio/geometria';
+import type { Paginacion } from '../../dominio/paginacion';
 import { estadosVisibles } from '../../dominio/permisos';
 import { conteoDelProyecto, proyectoYaPublicado, resumirLotes, validarProyectoPublicable } from '../../dominio/proyecto';
 import type { Proyecto } from '../../dominio/tipos';
@@ -12,11 +13,13 @@ export class ProyectoServicio {
   /** El administrador ve todos los proyectos; los asesores solo los PUBLICADOS. */
   async listar(usuario: UsuarioActual) {
     const proyectos = await this.uow.repos.proyectos.listar(estadosVisibles(usuario.rol));
-    const conteos = await this.uow.repos.lotes.contarPorEstado();
-    return proyectos.map((proyecto) => {
-      const { total: totalLotes, porEstado: lotesPorEstado } = conteoDelProyecto(conteos, proyecto.id);
-      return { ...proyecto, totalLotes, lotesPorEstado };
-    });
+    return this.conConteoDeLotes(proyectos);
+  }
+
+  /** Igual que `listar`, de a una página. */
+  async listarPagina(usuario: UsuarioActual, paginacion: Paginacion) {
+    const pagina = await this.uow.repos.proyectos.listarPagina(estadosVisibles(usuario.rol), paginacion);
+    return { ...pagina, elementos: await this.conConteoDeLotes(pagina.elementos) };
   }
 
   async obtener(id: number, usuario: UsuarioActual) {
@@ -68,5 +71,14 @@ export class ProyectoServicio {
       throw new ErrorNoEncontrado('Proyecto no encontrado.');
     }
     return proyecto;
+  }
+
+  /** Agrega a cada proyecto cuántos lotes tiene en total y en cada estado (para su tarjeta). */
+  private async conConteoDeLotes(proyectos: Proyecto[]) {
+    const conteos = await this.uow.repos.lotes.contarPorEstado();
+    return proyectos.map((proyecto) => {
+      const { total: totalLotes, porEstado: lotesPorEstado } = conteoDelProyecto(conteos, proyecto.id);
+      return { ...proyecto, totalLotes, lotesPorEstado };
+    });
   }
 }

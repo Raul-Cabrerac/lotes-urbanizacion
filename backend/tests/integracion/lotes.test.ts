@@ -120,7 +120,7 @@ describe('PUT y DELETE /api/lotes/:id', () => {
     const respuesta = await request(app.express)
       .post('/api/reservas')
       .set('Authorization', `Bearer ${asesorToken}`)
-      .send({ loteId: lote.id, clienteId: cliente.id });
+      .send({ loteId: lote.id, clienteId: cliente.id, anticipo: 8000 });
     // Assert
     expect(respuesta.status).toBe(422);
     expect(respuesta.body.error.codigo).toBe('LOTE_SIN_PRECIO');

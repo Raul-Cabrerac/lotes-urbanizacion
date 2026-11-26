@@ -106,6 +106,8 @@ export function aReserva(f: FilaReserva): Reserva {
     fecha: f.fecha,
     fechaVencimiento: f.fecha_vencimiento,
     observacion: f.observacion,
+    anticipo: f.anticipo,
+    metodoAnticipo: f.metodo_anticipo as MetodoPago,
     estado: f.estado as EstadoReserva,
     motivoFinalizacion: f.motivo_finalizacion,
     finalizadaEn: f.finalizada_en,

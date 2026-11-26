@@ -41,7 +41,8 @@ Las reglas son funciones puras en `backend/src/dominio/`: se prueban sin base de
 | Cancelar una reserva y liberar el lote | `dominio/reserva.ts` · `ReservaServicio.ts` | `validarReservaCancelable`; `ReservaServicio.cancelar(...)` con dobles |
 
 Otras reglas que vale la pena cubrir: `calcularEstadoCuota` y `validarPagoAnulable`
-(`planPagos.ts`), `normalizarPoligono` y `calcularAreaM2` (`geometria.ts`), `sumarMeses` del 31 de
+(`planPagos.ts`), `normalizarPoligono` y `calcularAreaM2` (`geometria.ts`), `validarSinSuperposicion`
+(`superposicion.ts`: dos lotes no ocupan el mismo terreno), `sumarMeses` del 31 de
 enero a febrero (`fechas.ts`), `tienePermiso` (`permisos.ts`) y `validarDatosComerciales`
 (`lote.ts`).
 
@@ -128,9 +129,9 @@ Las fechas son relativas al día en que se cargan los datos.
 |---|---|---|---|
 | A-05 | VENDIDO | 75 000 | Financiado a María René Banzer: inicial 15 000 + 12 × 5 000; pagado 20 000, saldo 55 000 (el ejemplo del PDF) |
 | B-02 | VENDIDO | 68 000 | Financiado a Juan Pablo Justiniano: 24 cuotas, la cuota 3 está VENCIDA |
-| A-08 | VENDIDO | 82 000 | Contado a Ana Lucía Rojas (venía de una reserva) |
-| A-03 | RESERVADO | 72 000 | Reserva de María René Banzer, vence en 7 días |
-| B-05 | RESERVADO | 70 000 | Reserva de Pedro Suárez Antelo, vence en 3 días |
+| A-08 | VENDIDO | 82 000 | Contado a Ana Lucía Rojas (venía de una reserva con 8 200 de anticipo, descontado al firmar) |
+| A-03 | RESERVADO | 72 000 | Reserva de María René Banzer, vence en 7 días; anticipo 7 200 |
+| B-05 | RESERVADO | 70 000 | Reserva de Pedro Suárez Antelo, vence en 3 días; anticipo 7 000 |
 | C-06 | BLOQUEADO | 64 000 | No se puede reservar ni vender |
 | C-02 | DISPONIBLE | 60 000 | Tuvo una reserva cancelada |
 | C-03 | DISPONIBLE | 62 000 | Tuvo una reserva que venció |
@@ -161,22 +162,23 @@ M1-08 y su perímetro) y `kml_con_errores.kml` (caso negativo: no se importa nad
 | Panel del proyecto | `volver-proyectos`, `proyecto-titulo`, `proyecto-estado`, `editar-proyecto`, `publicar-proyecto`, `contador-<ESTADO>`, `filtro-estado`, `filtro-etapa`, `filtro-manzano`, `filtro-busqueda`, `lista-lotes`, `item-lote-<código>` con `data-estado`, `resumen-manzanos` |
 | Mapa | `mapa`, `mapa-error`, `leyenda`, `poligono-<código>` con `data-estado`, `actualizar-mapa`, `ayuda-asesor` |
 | Dibujo y edición | `dibujar-lote`, `dibujar-limite`, `aviso-dibujo`, `cancelar-dibujo`, `herramienta-dibujo`, `dibujo-vertices`, `vertice-dibujo`, `deshacer-vertice`, `terminar-dibujo`, `aviso-edicion`, `guardar-forma`, `cancelar-forma` |
-| Panel del lote | `panel-lote` con `data-lote`, `detalle-cerrar`, `detalle-codigo`, `detalle-estado`, `detalle-superficie`, `detalle-dimensiones`, `detalle-precio`, `detalle-reserva`, `detalle-venta`, `detalle-ver-venta` |
+| Panel del lote | `panel-lote` con `data-lote`, `detalle-cerrar`, `detalle-codigo`, `detalle-estado`, `detalle-superficie`, `detalle-dimensiones`, `detalle-precio`, `detalle-reserva`, `detalle-anticipo`, `detalle-venta`, `detalle-ver-venta` |
 | Acciones del lote | `accion-reservar`, `accion-vender`, `accion-cancelar-reserva`, `accion-editar-lote`, `accion-editar-forma`, `accion-bloquear`, `accion-desbloquear`, `accion-eliminar` |
 | Datos del lote | `modal-lote`, `lote-calculado`, `lote-codigo`, `lote-precio`, `lote-manzano`, `lote-etapa`, `lote-superficie`, `lote-dimensiones`, `lote-error`, `lote-guardar`, `lote-cancelar` |
 | Importar KML | `importar-kml`, `modal-kml`, `kml-archivo`, `kml-nombre`, `kml-usar-ejemplo`, `kml-precio`, `kml-manzano`, `kml-etapa`, `kml-error`, `kml-importar`, `kml-cancelar` |
-| Reserva | `modal-reserva`, `reserva-cliente` (y `reserva-cliente-buscar`, `reserva-cliente-nuevo`), `reserva-vencimiento`, `reserva-observacion`, `reserva-error`, `reserva-confirmar`, `reserva-cancelar` |
+| Reserva | `modal-reserva`, `reserva-cliente` (y `reserva-cliente-buscar`, `reserva-cliente-nuevo`), `reserva-anticipo`, `reserva-metodo`, `reserva-vencimiento`, `reserva-observacion`, `reserva-error`, `reserva-confirmar`, `reserva-cancelar` |
 | Cliente (formulario) | `modal-cliente`, `cliente-nombre`, `cliente-documento`, `cliente-telefono`, `cliente-email`, `cliente-direccion`, `cliente-guardar`, `cliente-cancelar` |
-| Venta | `modal-venta`, `venta-cliente-reserva`, `venta-cliente` (y `-buscar`, `-nuevo`), `venta-precio`, `venta-contado`, `venta-financiado`, `venta-cuota-inicial`, `venta-numero-cuotas`, `venta-primera-cuota`, `venta-metodo`, `venta-vista-plan`, `venta-error-plan`, `venta-error`, `venta-confirmar`, `venta-cancelar` |
+| Venta | `modal-venta`, `venta-cliente-reserva`, `venta-anticipo`, `venta-cliente` (y `-buscar`, `-nuevo`), `venta-precio`, `venta-contado`, `venta-financiado`, `venta-cuota-inicial`, `venta-numero-cuotas`, `venta-primera-cuota`, `venta-metodo`, `venta-vista-plan`, `venta-error-plan`, `venta-error`, `venta-confirmar`, `venta-cancelar` |
 | Confirmaciones | `modal-cancelar-reserva`, `modal-eliminar-lote`, `modal-publicar`, `modal-confirmar` (cancelar desde `/reservas` y confirmaciones sin nombre propio), `confirmar-motivo`, `confirmar-aceptar`, `confirmar-cancelar`, `modal-cerrar`, `mensaje-error` (error de un formulario sin nombre propio) |
 | Plan de pagos | `volver-ventas`, `venta-estado`, `anular-venta`, `venta-anulada`, `resumen-saldo`, `venta-precio-pactado`, `venta-total-pagado`, `venta-saldo`, `venta-vencidas`, `venta-proxima`, `venta-mapa`, `tabla-cuotas`, `cuota-<n>` con `data-estado`, `cuota-<n>-estado`, `pagar-cuota-<n>`, `tabla-pagos`, `pago-<id>`, `anular-pago-<id>` |
 | Registrar pago | `modal-pago`, `pago-monto`, `pago-metodo`, `pago-referencia`, `pago-error`, `pago-confirmar`, `pago-cancelar` |
 | Clientes | `nuevo-cliente`, `buscar-cliente`, `tabla-clientes`, `fila-cliente-<documento>`, `editar-cliente-<documento>`, `volver-clientes`, `cliente-saldo-total` |
 | Reservas | `pestana-reservas-<ESTADO o todas>`, `tabla-reservas`, `fila-reserva-<código>`, `ver-en-mapa-<código>`, `cancelar-reserva-<código>` |
 | Ventas | `ventas-filtro-proyecto`, `ventas-filtro-cliente`, `ventas-filtro-estado`, `tabla-ventas`, `fila-venta-<código>`, `ver-venta-<código>` |
-| Portal del cliente | `mi-compra-<código>`, `mi-compra-pagado`, `mi-compra-saldo`, `mi-plan-<código>`, `mi-reserva-<código>`, `mi-mapa` |
+| Portal del cliente | `mi-compra-<código>`, `mi-compra-pagado`, `mi-compra-saldo`, `mi-plan-<código>`, `mi-reserva-<código>`, `mi-reserva-anticipo`, `mi-mapa` |
 | Usuarios | `nuevo-usuario`, `tabla-usuarios`, `fila-usuario-<correo>`, `usuario-activo-<correo>`, `modal-usuario`, `usuario-nombre-input`, `usuario-email`, `usuario-password`, `usuario-rol-select`, `usuario-cliente`, `usuario-error`, `usuario-guardar`, `usuario-cancelar` |
 | Reportes | `reporte-actualizar`, `reporte-vendido`, `reporte-cobrado`, `reporte-por-cobrar`, `reporte-vencido`, `tabla-reporte`, `reporte-proyecto-<id>` |
+| Paginación (debajo de proyectos, clientes, reservas, ventas y usuarios) | `paginacion`, `paginacion-total`, `paginacion-por-pagina`, `paginacion-anterior`, `paginacion-pagina`, `paginacion-siguiente` |
 
 ## 7. Trazabilidad con la consigna
 
@@ -224,3 +226,5 @@ Laura (`servicios/`), según el archivo de la prueba (reparto en `AGENTS.md` §6
 | §7 | Dos reservas simultáneas del mismo lote: una se acepta y la otra recibe 409 | Integración | Raul | pendiente |
 | §5 | Una reserva vencida libera el lote | Integración | Raul | pendiente |
 | §11 | Consistencia: si falla el registro de la venta, no queda nada a medias | Integración | Luciana | pendiente |
+| §11 | Geometrías válidas: dos lotes del mismo proyecto no se superponen | Unitario | Raul | `dominio/superposicion.test.ts`: lotes vecinos, superpuestos, uno dentro de otro, en forma de L y el límite de 1 m²; `servicios/LoteServicio.test.ts` e `ImportacionKmlServicio.test.ts`: `LOTE_SUPERPUESTO` al crear, al editar la forma y al importar un KML |
+| §7 | Reservar exige un anticipo de al menos el 10 % del precio, que se descuenta al vender (`docs/DECISIONES.md` §18) | Unitario y E2E | Raul | `dominio/reserva.test.ts` (`validarAnticipo`) y `dominio/venta.test.ts` (`descontarAnticipo`): positivo, negativo y límite; `servicios/ReservaServicio.test.ts` y `VentaServicio.test.ts`: rechazos sin efectos y los dos pagos al firmar; `e2e-02-reservar-lote.spec.ts`: la reserva muestra su anticipo |

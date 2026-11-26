@@ -167,31 +167,34 @@ export async function cargarDatosDemo(bd: BaseDeDatos, ahora: Date, opciones: Op
 
   // 3) Reserva que luego se convirtió en venta al contado (A-08, Ana).
   reloj.fijar(haceDias(30));
-  await s.reservas.crear({ loteId: lotes['A-08'].id, clienteId: ana.id, observacion: 'Pagará al contado la próxima semana.' }, laura);
+  await s.reservas.crear(
+    { loteId: lotes['A-08'].id, clienteId: ana.id, observacion: 'Pagará al contado la próxima semana.', anticipo: 8200, metodoAnticipo: 'QR' },
+    laura,
+  );
   reloj.fijar(haceDias(24));
   await s.ventas.registrar({ loteId: lotes['A-08'].id, clienteId: ana.id, modalidad: 'CONTADO', metodoPago: 'TRANSFERENCIA' }, laura);
 
   // 4) Reserva cancelada (C-02 vuelve a estar DISPONIBLE).
   reloj.fijar(haceDias(12));
-  const reservaC02 = await s.reservas.crear({ loteId: lotes['C-02'].id, clienteId: juanPablo.id }, carlos);
+  const reservaC02 = await s.reservas.crear({ loteId: lotes['C-02'].id, clienteId: juanPablo.id, anticipo: 6000 }, carlos);
   reloj.fijar(haceDias(10));
   await s.reservas.cancelar(reservaC02.id, 'El cliente prefirió un lote en el manzano B.', carlos);
 
   // 5) Reserva que VENCIÓ hace 3 días (se procesa al final: C-03 vuelve a DISPONIBLE).
   reloj.fijar(haceDias(10));
   await s.reservas.crear(
-    { loteId: lotes['C-03'].id, clienteId: pedro.id, fechaVencimiento: fechaEnDias(-3) },
+    { loteId: lotes['C-03'].id, clienteId: pedro.id, fechaVencimiento: fechaEnDias(-3), anticipo: 6200 },
     laura,
   );
 
   // --- Situación actual ---------------------------------------------------------
   reloj.fijar(ahora);
   await s.reservas.crear(
-    { loteId: lotes['A-03'].id, clienteId: maria.id, fechaVencimiento: fechaEnDias(7), observacion: 'Interesada en financiar a 24 meses.' },
+    { loteId: lotes['A-03'].id, clienteId: maria.id, fechaVencimiento: fechaEnDias(7), observacion: 'Interesada en financiar a 24 meses.', anticipo: 7200, metodoAnticipo: 'TRANSFERENCIA' },
     laura,
   );
   await s.reservas.crear(
-    { loteId: lotes['B-05'].id, clienteId: pedro.id, fechaVencimiento: fechaEnDias(3) },
+    { loteId: lotes['B-05'].id, clienteId: pedro.id, fechaVencimiento: fechaEnDias(3), anticipo: 7000 },
     carlos,
   );
   await s.lotes.cambiarEstado(lotes['C-06'].id, 'BLOQUEADO'); // p. ej. en revisión de límites

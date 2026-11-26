@@ -1,7 +1,16 @@
 import { ErrorAplicacion, ErrorConflicto, ErrorNoEncontrado } from '../../dominio/errores';
 import type { FechaISO } from '../../dominio/fechas';
 import { OPERACIONES_LOTE, validarLoteReservable } from '../../dominio/lote';
-import { estaVencida, OPERACIONES_RESERVA, validarFechaVencimiento, validarReservaCancelable } from '../../dominio/reserva';
+import type { Pagina, Paginacion } from '../../dominio/paginacion';
+import { METODO_PAGO_POR_DEFECTO } from '../../dominio/planPagos';
+import {
+  estaVencida,
+  OPERACIONES_RESERVA,
+  validarAnticipo,
+  validarFechaVencimiento,
+  validarReservaCancelable,
+} from '../../dominio/reserva';
+import type { MetodoPago } from '../../dominio/tipos';
 import type { FiltrosReservas, Reloj, ReservaVista, UnidadDeTrabajo, UsuarioActual } from '../puertos';
 import { cerrarReservaYLiberarLote, vencerReserva, vencerReservaDelLote } from './expirarReserva';
 
@@ -10,6 +19,9 @@ export interface EntradaReserva {
   clienteId: number;
   fechaVencimiento?: FechaISO | null;
   observacion?: string;
+  /** Lo que el cliente paga para apartar el lote: obligatorio, al menos el 10 % de su precio. */
+  anticipo: number;
+  metodoAnticipo?: MetodoPago;
 }
 
 /** Reservas de lotes (consigna, secciones 5 y 7). */
@@ -23,6 +35,10 @@ export class ReservaServicio {
     return this.uow.repos.reservas.listar(filtros);
   }
 
+  listarPagina(filtros: FiltrosReservas, paginacion: Paginacion): Promise<Pagina<ReservaVista>> {
+    return this.uow.repos.reservas.listarPagina(filtros, paginacion);
+  }
+
   async obtener(id: number): Promise<ReservaVista> {
     const reserva = await this.uow.repos.reservas.buscarPorId(id);
     if (!reserva) throw new ErrorNoEncontrado('Reserva no encontrada.');
@@ -30,7 +46,7 @@ export class ReservaServicio {
   }
 
   /**
-   * Reserva un lote para un cliente.
+   * Reserva un lote para un cliente, que paga un anticipo para apartarlo.
    * Regla crítica: dos usuarios no pueden reservar el mismo lote a la vez.
    * Todo ocurre en una transacción y el cambio de estado del lote es un UPDATE
    * condicional (solo si sigue DISPONIBLE): si otro usuario lo reservó un
@@ -51,6 +67,7 @@ export class ReservaServicio {
       if (!proyecto) throw new ErrorNoEncontrado('Proyecto no encontrado.');
 
       validarLoteReservable(lote, proyecto.estado);
+      validarAnticipo(entrada.anticipo, lote.precio);
 
       const reservado = await repos.lotes.cambiarEstadoSi(lote.id, OPERACIONES_LOTE.reservar);
       if (!reservado) {
@@ -67,6 +84,8 @@ export class ReservaServicio {
         fecha: this.reloj.ahora(),
         fechaVencimiento: entrada.fechaVencimiento ?? null,
         observacion: entrada.observacion?.trim() ?? '',
+        anticipo: entrada.anticipo,
+        metodoAnticipo: entrada.metodoAnticipo ?? METODO_PAGO_POR_DEFECTO,
       });
       return reserva.id;
     });

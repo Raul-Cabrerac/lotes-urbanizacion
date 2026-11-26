@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { LoteServicio } from '../../../src/aplicacion/servicios/LoteServicio';
 import type { ProyectoServicio } from '../../../src/aplicacion/servicios/ProyectoServicio';
+import { rectanguloEnMetros } from '../../../src/dominio/geometria';
 import { OPERACIONES_LOTE } from '../../../src/dominio/lote';
 import {
   fechaEnDias,
@@ -27,6 +28,11 @@ const loteBase = (sobrescribir: Record<string, unknown> = {}) => ({
 });
 
 const proyectoBase = { id: 1, nombre: 'Las Palmas', estado: 'PUBLICADO' as const };
+
+/** Un lote vecino de GEOMETRIA_LOTE (12 x 30 m): comparte un lado con él y no lo pisa. */
+const GEOMETRIA_VECINA = rectanguloEnMetros([-63.18, -17.78], 12, 0, 12, 30);
+/** Un polígono corrido 6 m: pisa la mitad de GEOMETRIA_LOTE y la mitad de GEOMETRIA_VECINA. */
+const GEOMETRIA_ENCIMADA = rectanguloEnMetros([-63.18, -17.78], 6, 0, 12, 30);
 
 describe('LoteServicio', () => {
   describe('listar', () => {
@@ -145,6 +151,7 @@ describe('LoteServicio', () => {
       const proyectos = { buscarExistente: vi.fn().mockResolvedValue(proyectoBase) };
       const repos = {
         lotes: {
+          listarPorProyecto: vi.fn().mockResolvedValue([]),
           buscarPorCodigo: vi.fn().mockResolvedValue(null),
           crear: vi.fn().mockResolvedValue(loteCreado),
         },
@@ -178,6 +185,7 @@ describe('LoteServicio', () => {
       const proyectos = { buscarExistente: vi.fn().mockResolvedValue(proyectoBase) };
       const repos = {
         lotes: {
+          listarPorProyecto: vi.fn().mockResolvedValue([]),
           buscarPorCodigo: vi.fn().mockResolvedValue(loteBase()),
           crear: vi.fn(),
         },
@@ -188,6 +196,46 @@ describe('LoteServicio', () => {
       // Assert
       await expect(crear()).rejects.toMatchObject({ codigo: 'CODIGO_LOTE_DUPLICADO' });
       expect(repos.lotes.crear).not.toHaveBeenCalled();
+    });
+
+    it('lanza LOTE_SUPERPUESTO sin crear cuando el polígono pisa a otro lote del proyecto', async () => {
+      // Arrange
+      const existente = loteBase({ id: 6, codigo: 'A-02' });
+      const proyectos = { buscarExistente: vi.fn().mockResolvedValue(proyectoBase) };
+      const repos = {
+        lotes: {
+          listarPorProyecto: vi.fn().mockResolvedValue([existente]),
+          buscarPorCodigo: vi.fn().mockResolvedValue(null),
+          crear: vi.fn(),
+        },
+      };
+      const servicio = new LoteServicio(unidadDeTrabajoFalsa(repos), proyectos as unknown as ProyectoServicio, relojEnHoy());
+      // Act
+      const crear = () => servicio.crear(1, { codigo: 'A-09', precio: 50000, geometria: GEOMETRIA_ENCIMADA });
+      // Assert
+      await expect(crear()).rejects.toMatchObject({ codigo: 'LOTE_SUPERPUESTO' });
+      expect(repos.lotes.listarPorProyecto).toHaveBeenCalledWith(1);
+      expect(repos.lotes.crear).not.toHaveBeenCalled();
+    });
+
+    it('crea el lote cuando solo comparte un lado con un lote vecino del proyecto', async () => {
+      // Arrange
+      const vecino = loteBase({ id: 6, codigo: 'A-02' });
+      const loteCreado = loteBase({ id: 9, codigo: 'A-09', geometria: GEOMETRIA_VECINA });
+      const proyectos = { buscarExistente: vi.fn().mockResolvedValue(proyectoBase) };
+      const repos = {
+        lotes: {
+          listarPorProyecto: vi.fn().mockResolvedValue([vecino]),
+          buscarPorCodigo: vi.fn().mockResolvedValue(null),
+          crear: vi.fn().mockResolvedValue(loteCreado),
+        },
+      };
+      const servicio = new LoteServicio(unidadDeTrabajoFalsa(repos), proyectos as unknown as ProyectoServicio, relojEnHoy());
+      // Act
+      const resultado = await servicio.crear(1, { codigo: 'A-09', precio: 50000, geometria: GEOMETRIA_VECINA });
+      // Assert
+      expect(repos.lotes.crear).toHaveBeenCalledWith(1, expect.objectContaining({ codigo: 'A-09' }));
+      expect(resultado).toEqual(loteCreado);
     });
   });
 
@@ -249,6 +297,7 @@ describe('LoteServicio', () => {
       const repos = {
         lotes: {
           buscarPorId: vi.fn().mockResolvedValue(actual),
+          listarPorProyecto: vi.fn().mockResolvedValue([actual]),
           buscarPorCodigo: vi.fn(),
           actualizar: vi.fn().mockResolvedValue(actualizado),
         },
@@ -293,6 +342,44 @@ describe('LoteServicio', () => {
       // Assert
       await expect(actualizar()).rejects.toMatchObject({ codigo: 'CODIGO_LOTE_DUPLICADO' });
       expect(repos.lotes.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('lanza LOTE_SUPERPUESTO sin actualizar cuando la forma nueva pisa a otro lote del proyecto', async () => {
+      // Arrange
+      const actual = loteBase({ id: 5, codigo: 'A-01' });
+      const vecino = loteBase({ id: 6, codigo: 'A-02', geometria: GEOMETRIA_VECINA });
+      const repos = {
+        lotes: {
+          buscarPorId: vi.fn().mockResolvedValue(actual),
+          listarPorProyecto: vi.fn().mockResolvedValue([actual, vecino]),
+          actualizar: vi.fn(),
+        },
+      };
+      const servicio = new LoteServicio(unidadDeTrabajoFalsa(repos), {} as ProyectoServicio, relojEnHoy());
+      // Act
+      const actualizar = () => servicio.actualizar(5, { geometria: GEOMETRIA_ENCIMADA });
+      // Assert
+      await expect(actualizar()).rejects.toMatchObject({ codigo: 'LOTE_SUPERPUESTO' });
+      expect(repos.lotes.listarPorProyecto).toHaveBeenCalledWith(1);
+      expect(repos.lotes.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('no consulta los demás lotes del proyecto cuando la edición no cambia la forma del lote', async () => {
+      // Arrange
+      const actual = loteBase({ id: 5, codigo: 'A-01' });
+      const repos = {
+        lotes: {
+          buscarPorId: vi.fn().mockResolvedValue(actual),
+          listarPorProyecto: vi.fn(),
+          actualizar: vi.fn().mockResolvedValue({ ...actual, precio: 55000 }),
+        },
+      };
+      const servicio = new LoteServicio(unidadDeTrabajoFalsa(repos), {} as ProyectoServicio, relojEnHoy());
+      // Act
+      await servicio.actualizar(5, { precio: 55000 });
+      // Assert
+      expect(repos.lotes.listarPorProyecto).not.toHaveBeenCalled();
+      expect(repos.lotes.actualizar).toHaveBeenCalledWith(5, expect.objectContaining({ precio: 55000 }));
     });
   });
 
